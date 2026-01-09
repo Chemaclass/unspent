@@ -18,20 +18,20 @@ final class LedgerIntegrationTest extends TestCase
         // Create a ledger with genesis outputs
         $ledger = Ledger::empty()
             ->addGenesis(
-                Output::create('genesis-1', 1000),
-                Output::create('genesis-2', 500),
+                Output::create(1000, 'genesis-1'),
+                Output::create(500, 'genesis-2'),
             );
 
         self::assertSame(1500, $ledger->totalUnspentAmount());
 
         // Apply a spend with implicit fee (1000 -> 600 + 390 = 990, fee = 10)
         $ledger = $ledger->apply(Spend::create(
-            id: 'tx-001',
             inputIds: ['genesis-1'],
             outputs: [
-                Output::create('alice', 600),
-                Output::create('bob', 390),
+                Output::create(600, 'alice'),
+                Output::create(390, 'bob'),
             ],
+            id: 'tx-001',
         ));
 
         // Verify conservation minus fee
@@ -67,21 +67,21 @@ final class LedgerIntegrationTest extends TestCase
     public function test_chain_of_spends_with_fees(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(Output::create('genesis', 1000))
+            ->addGenesis(Output::create(1000, 'genesis'))
             ->apply(Spend::create(
-                id: 'tx-1',
                 inputIds: ['genesis'],
-                outputs: [Output::create('a', 990)],
+                outputs: [Output::create(990, 'a')],
+                id: 'tx-1',
             ))
             ->apply(Spend::create(
-                id: 'tx-2',
                 inputIds: ['a'],
-                outputs: [Output::create('b', 980)],
+                outputs: [Output::create(980, 'b')],
+                id: 'tx-2',
             ))
             ->apply(Spend::create(
-                id: 'tx-3',
                 inputIds: ['b'],
-                outputs: [Output::create('c', 970)],
+                outputs: [Output::create(970, 'c')],
+                id: 'tx-3',
             ));
 
         // Total fees: 10 + 10 + 10 = 30
@@ -103,14 +103,14 @@ final class LedgerIntegrationTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(
-                Output::create('a', 100),
-                Output::create('b', 200),
-                Output::create('c', 300),
+                Output::create(100, 'a'),
+                Output::create(200, 'b'),
+                Output::create(300, 'c'),
             )
             ->apply(Spend::create(
-                id: 'combine',
                 inputIds: ['a', 'b', 'c'],
-                outputs: [Output::create('combined', 600)],
+                outputs: [Output::create(600, 'combined')],
+                id: 'combine',
             ));
 
         self::assertSame(600, $ledger->totalUnspentAmount());

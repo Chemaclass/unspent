@@ -84,9 +84,9 @@ echo "  In the beginning, there was nothing. Then Satoshi mined the\n";
 echo "  first block, creating 50 BTC out of thin air.\n\n";
 
 $ledger = Ledger::empty()
-    ->applyCoinbase(Coinbase::create('block-0-coinbase', [
-        Output::create('satoshi-reward-0', 5_000_000_000), // 50 BTC in satoshis
-    ]));
+    ->applyCoinbase(Coinbase::create([
+        Output::create(5_000_000_000, 'satoshi-reward-0'), // 50 BTC in satoshis
+    ], 'block-0-coinbase'));
 
 echo "  ⛏️  Satoshi mined block 0!\n";
 echo "     Reward: 50 BTC (5.000.000.000 satoshis)\n\n";
@@ -101,9 +101,9 @@ printHeader('BLOCK 1: The Network Grows');
 
 echo "  Satoshi mines another block. The network now has 100 BTC.\n\n";
 
-$ledger = $ledger->applyCoinbase(Coinbase::create('block-1-coinbase', [
-    Output::create('satoshi-reward-1', 5_000_000_000),
-]));
+$ledger = $ledger->applyCoinbase(Coinbase::create([
+    Output::create(5_000_000_000, 'satoshi-reward-1'),
+], 'block-1-coinbase'));
 
 echo "  ⛏️  Satoshi mined block 1!\n";
 echo "     Reward: 50 BTC\n\n";
@@ -128,21 +128,21 @@ echo "       • 0.01 BTC goes to the miner as fee\n\n";
 
 // Transaction: Satoshi -> Hal (10 BTC)
 $ledger = $ledger->apply(Spend::create(
-    id: 'tx-satoshi-to-hal',
     inputIds: ['satoshi-reward-0'],
     outputs: [
-        Output::create('hal-10btc', 1_000_000_000),      // 10 BTC to Hal
-        Output::create('satoshi-change-1', 3_999_000_000), // 39.99 BTC change
+        Output::create(1_000_000_000, 'hal-10btc'),      // 10 BTC to Hal
+        Output::create(3_999_000_000, 'satoshi-change-1'), // 39.99 BTC change
     ],
+    id: 'tx-satoshi-to-hal',
 ));
 
 // Miner (Satoshi again) mines block 2, collecting the fee
-$ledger = $ledger->applyCoinbase(Coinbase::create('block-2-coinbase', [
-    Output::create('satoshi-reward-2', 5_000_000_000),
-]));
+$ledger = $ledger->applyCoinbase(Coinbase::create([
+    Output::create(5_000_000_000, 'satoshi-reward-2'),
+], 'block-2-coinbase'));
 
 echo "  ✅ Transaction confirmed in block 2!\n";
-echo "     Fee paid: " . btc($ledger->feeForSpend(new SpendId('tx-satoshi-to-hal'))) . "\n\n";
+echo "     Fee paid: " . btc($ledger->feeForSpend(new SpendId('tx-satoshi-to-hal')) ?? 0) . "\n\n";
 
 printLedgerState($ledger);
 printUTXOs($ledger);
@@ -157,18 +157,18 @@ echo "  Hal wants to buy pizza from Laszlo for 5 BTC (a bargain!).\n";
 echo "  He has exactly 10 BTC, so he'll pay and get change.\n\n";
 
 $ledger = $ledger->apply(Spend::create(
-    id: 'tx-hal-pizza',
     inputIds: ['hal-10btc'],
     outputs: [
-        Output::create('laszlo-pizza-payment', 500_000_000), // 5 BTC
-        Output::create('hal-change', 499_500_000),           // 4.995 BTC change
+        Output::create(500_000_000, 'laszlo-pizza-payment'), // 5 BTC
+        Output::create(499_500_000, 'hal-change'),           // 4.995 BTC change
     ],
+    id: 'tx-hal-pizza',
 ));
 
 // Block 3 mined
-$ledger = $ledger->applyCoinbase(Coinbase::create('block-3-coinbase', [
-    Output::create('miner-reward-3', 5_000_000_000),
-]));
+$ledger = $ledger->applyCoinbase(Coinbase::create([
+    Output::create(5_000_000_000, 'miner-reward-3'),
+], 'block-3-coinbase'));
 
 echo "  🍕 Hal bought pizza for 5 BTC!\n";
 echo "     Fee: 0.005 BTC\n\n";
@@ -191,17 +191,17 @@ echo "     • satoshi-reward-2:  50 BTC\n";
 echo "     Total: 139.99 BTC in 3 UTXOs\n\n";
 
 $ledger = $ledger->apply(Spend::create(
-    id: 'tx-satoshi-consolidate',
     inputIds: ['satoshi-reward-1', 'satoshi-change-1', 'satoshi-reward-2'],
     outputs: [
-        Output::create('satoshi-consolidated', 13_998_000_000), // ~139.98 BTC
+        Output::create(13_998_000_000, 'satoshi-consolidated'), // ~139.98 BTC
     ],
+    id: 'tx-satoshi-consolidate',
 ));
 
 // Block 4 mined by a new miner
-$ledger = $ledger->applyCoinbase(Coinbase::create('block-4-coinbase', [
-    Output::create('miner-reward-4', 5_000_000_000),
-]));
+$ledger = $ledger->applyCoinbase(Coinbase::create([
+    Output::create(5_000_000_000, 'miner-reward-4'),
+], 'block-4-coinbase'));
 
 echo "  ✅ Consolidation complete!\n";
 echo "     3 UTXOs → 1 UTXO\n";
@@ -222,19 +222,19 @@ echo "  Laszlo wants to pay three people at once from his pizza money.\n";
 echo "  Bitcoin allows multiple outputs in a single transaction!\n\n";
 
 $ledger = $ledger->apply(Spend::create(
-    id: 'tx-laszlo-pays-three',
     inputIds: ['laszlo-pizza-payment'],
     outputs: [
-        Output::create('alice-payment', 150_000_000),  // 1.5 BTC
-        Output::create('bob-payment', 150_000_000),    // 1.5 BTC
-        Output::create('charlie-payment', 150_000_000), // 1.5 BTC
-        Output::create('laszlo-change', 49_000_000),   // 0.49 BTC change
+        Output::create(150_000_000, 'alice-payment'),  // 1.5 BTC
+        Output::create(150_000_000, 'bob-payment'),    // 1.5 BTC
+        Output::create(150_000_000, 'charlie-payment'), // 1.5 BTC
+        Output::create(49_000_000, 'laszlo-change'),   // 0.49 BTC change
     ],
+    id: 'tx-laszlo-pays-three',
 ));
 
-$ledger = $ledger->applyCoinbase(Coinbase::create('block-5-coinbase', [
-    Output::create('miner-reward-5', 5_000_000_000),
-]));
+$ledger = $ledger->applyCoinbase(Coinbase::create([
+    Output::create(5_000_000_000, 'miner-reward-5'),
+], 'block-5-coinbase'));
 
 echo "  ✅ Laszlo paid 3 people in one transaction!\n";
 echo "     Alice:   1.5 BTC\n";

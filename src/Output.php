@@ -17,8 +17,10 @@ final readonly class Output
         }
     }
 
-    public static function create(string $id, int $amount): self
+    public static function create(int $amount, ?string $id = null): self
     {
-        return new self(new OutputId($id), $amount);
+        $actualId = $id ?? IdGenerator::forOutput($amount);
+
+        return new self(new OutputId($actualId), $amount);
     }
 }

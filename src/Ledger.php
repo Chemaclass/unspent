@@ -37,7 +37,7 @@ final readonly class Ledger
             throw GenesisNotAllowedException::ledgerNotEmpty();
         }
 
-        $this->assertNoDuplicateOutputIds($outputs);
+        $this->assertNoDuplicateOutputIds(array_values($outputs));
 
         return new self(
             UnspentSet::fromOutputs(...$outputs),

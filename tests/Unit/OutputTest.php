@@ -38,9 +38,26 @@ final class OutputTest extends TestCase
 
     public function test_create_factory_method(): void
     {
-        $output = Output::create('test-id', 100);
+        $output = Output::create(100, 'test-id');
 
         self::assertSame('test-id', $output->id->value);
         self::assertSame(100, $output->amount);
+    }
+
+    public function test_create_with_auto_generated_id(): void
+    {
+        $output = Output::create(100);
+
+        self::assertSame(16, strlen($output->id->value));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{16}$/', $output->id->value);
+    }
+
+    public function test_auto_id_generates_unique_ids(): void
+    {
+        $output1 = Output::create(100);
+        $output2 = Output::create(100);
+
+        // Each call generates a unique ID (includes random bytes)
+        self::assertNotSame($output1->id->value, $output2->id->value);
     }
 }

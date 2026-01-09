@@ -109,12 +109,12 @@ final class SpendTest extends TestCase
     public function test_create_factory_method(): void
     {
         $spend = Spend::create(
-            id: 'tx1',
             inputIds: ['a', 'b'],
             outputs: [
-                Output::create('c', 100),
-                Output::create('d', 50),
+                Output::create(100, 'c'),
+                Output::create(50, 'd'),
             ],
+            id: 'tx1',
         );
 
         self::assertSame('tx1', $spend->id->value);
@@ -123,5 +123,55 @@ final class SpendTest extends TestCase
         self::assertSame('b', $spend->inputs[1]->value);
         self::assertCount(2, $spend->outputs);
         self::assertSame(150, $spend->totalOutputAmount());
+    }
+
+    public function test_create_with_auto_generated_id(): void
+    {
+        $spend = Spend::create(
+            inputIds: ['a', 'b'],
+            outputs: [
+                Output::create(100, 'c'),
+                Output::create(50, 'd'),
+            ],
+        );
+
+        self::assertSame(16, strlen($spend->id->value));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{16}$/', $spend->id->value);
+    }
+
+    public function test_same_content_generates_same_id(): void
+    {
+        $spend1 = Spend::create(
+            inputIds: ['a', 'b'],
+            outputs: [
+                Output::create(100, 'c'),
+                Output::create(50, 'd'),
+            ],
+        );
+
+        $spend2 = Spend::create(
+            inputIds: ['a', 'b'],
+            outputs: [
+                Output::create(100, 'c'),
+                Output::create(50, 'd'),
+            ],
+        );
+
+        self::assertSame($spend1->id->value, $spend2->id->value);
+    }
+
+    public function test_different_content_generates_different_id(): void
+    {
+        $spend1 = Spend::create(
+            inputIds: ['a'],
+            outputs: [Output::create(100, 'c')],
+        );
+
+        $spend2 = Spend::create(
+            inputIds: ['b'],
+            outputs: [Output::create(100, 'c')],
+        );
+
+        self::assertNotSame($spend1->id->value, $spend2->id->value);
     }
 }

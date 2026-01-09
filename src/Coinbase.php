@@ -22,9 +22,11 @@ final readonly class Coinbase
     }
 
     /** @param list<Output> $outputs */
-    public static function create(string $id, array $outputs): self
+    public static function create(array $outputs, ?string $id = null): self
     {
-        return new self(new SpendId($id), $outputs);
+        $actualId = $id ?? IdGenerator::forCoinbase($outputs);
+
+        return new self(new SpendId($actualId), $outputs);
     }
 
     public function totalOutputAmount(): int

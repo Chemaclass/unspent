@@ -69,13 +69,38 @@ final class CoinbaseTest extends TestCase
 
     public function test_create_factory_method(): void
     {
-        $coinbase = Coinbase::create('block-1', [
-            Output::create('reward-1', 50),
-            Output::create('reward-2', 25),
-        ]);
+        $coinbase = Coinbase::create([
+            Output::create(50, 'reward-1'),
+            Output::create(25, 'reward-2'),
+        ], 'block-1');
 
         self::assertSame('block-1', $coinbase->id->value);
         self::assertCount(2, $coinbase->outputs);
         self::assertSame(75, $coinbase->totalOutputAmount());
+    }
+
+    public function test_create_with_auto_generated_id(): void
+    {
+        $coinbase = Coinbase::create([
+            Output::create(50, 'reward-1'),
+        ]);
+
+        self::assertSame(16, strlen($coinbase->id->value));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{16}$/', $coinbase->id->value);
+    }
+
+    public function test_same_outputs_generate_same_id(): void
+    {
+        $coinbase1 = Coinbase::create([
+            Output::create(50, 'reward-1'),
+            Output::create(25, 'reward-2'),
+        ]);
+
+        $coinbase2 = Coinbase::create([
+            Output::create(50, 'reward-1'),
+            Output::create(25, 'reward-2'),
+        ]);
+
+        self::assertSame($coinbase1->id->value, $coinbase2->id->value);
     }
 }

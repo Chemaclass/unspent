@@ -58,10 +58,12 @@ final readonly class Spend
      * @param list<string> $inputIds
      * @param list<Output> $outputs
      */
-    public static function create(string $id, array $inputIds, array $outputs): self
+    public static function create(array $inputIds, array $outputs, ?string $id = null): self
     {
+        $actualId = $id ?? IdGenerator::forSpend($inputIds, $outputs);
+
         return new self(
-            id: new SpendId($id),
+            id: new SpendId($actualId),
             inputs: array_map(
                 static fn(string $inputId): OutputId => new OutputId($inputId),
                 $inputIds,

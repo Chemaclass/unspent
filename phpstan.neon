@@ -1,0 +1,12 @@
+parameters:
+    level: 8
+    paths:
+        - src
+        - example
+        - tests
+    ignoreErrors:
+        # Test files intentionally verify type relationships that are always true
+        - message: '#will always evaluate to true#'
+          paths:
+              - tests/Unit/ExceptionHierarchyTest.php
+              - tests/Feature/LedgerIntegrationTest.php

@@ -3,13 +3,25 @@
     "description": "A PHP library for UTXO-like bookkeeping using unspent entries.",
     "type": "library",
     "homepage": "https://github.com/Chemaclass/unspent",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Jose M. Valera Reales",
+            "email": "hi@chemaclass.es",
+            "homepage": "https://chemaclass.com"
+        }
+    ],
     "require": {
         "php": ">=8.4"
     },
     "require-dev": {
+        "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^12.5"
     },
-    "license": "MIT",
+    "minimum-stability": "stable",
+    "config": {
+        "sort-packages": true
+    },
     "autoload": {
         "psr-4": {
             "Chemaclass\\Unspent\\": "src/"
@@ -19,16 +31,5 @@
         "psr-4": {
             "Chemaclass\\UnspentTests\\": "tests/"
         }
-    },
-    "authors": [
-        {
-            "name": "Jose M. Valera Reales",
-            "email": "hi@chemaclass.es",
-            "homepage": "https://chemaclass.com"
-        }
-    ],
-    "minimum-stability": "stable",
-    "config": {
-        "sort-packages": true
     }
 }

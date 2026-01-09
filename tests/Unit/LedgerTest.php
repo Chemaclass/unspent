@@ -405,9 +405,9 @@ final class LedgerTest extends TestCase
     public function test_apply_coinbase_tracks_minted_amount(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create('block-1', [
-                Output::create('reward-1', 50),
-            ]));
+            ->applyCoinbase(Coinbase::create([
+                Output::create(50, 'reward-1'),
+            ], 'block-1'));
 
         self::assertSame(50, $ledger->totalMinted());
         self::assertSame(50, $ledger->coinbaseAmount(new SpendId('block-1')));
@@ -419,8 +419,8 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Spend 'block-1' has already been applied");
 
         Ledger::empty()
-            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 50)]))
-            ->applyCoinbase(Coinbase::create('block-1', [Output::create('b', 50)]));
+            ->applyCoinbase(Coinbase::create([Output::create(50, 'a')], 'block-1'))
+            ->applyCoinbase(Coinbase::create([Output::create(50, 'b')], 'block-1'));
     }
 
     public function test_apply_coinbase_fails_on_output_id_conflict(): void
@@ -429,14 +429,14 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Duplicate output id: 'reward'");
 
         Ledger::empty()
-            ->applyCoinbase(Coinbase::create('block-1', [Output::create('reward', 50)]))
-            ->applyCoinbase(Coinbase::create('block-2', [Output::create('reward', 50)]));
+            ->applyCoinbase(Coinbase::create([Output::create(50, 'reward')], 'block-1'))
+            ->applyCoinbase(Coinbase::create([Output::create(50, 'reward')], 'block-2'));
     }
 
     public function test_is_coinbase_returns_true_for_coinbase_transactions(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 50)]));
+            ->applyCoinbase(Coinbase::create([Output::create(50, 'a')], 'block-1'));
 
         self::assertTrue($ledger->isCoinbase(new SpendId('block-1')));
         self::assertFalse($ledger->isCoinbase(new SpendId('nonexistent')));
@@ -445,9 +445,9 @@ final class LedgerTest extends TestCase
     public function test_total_minted_accumulates_across_coinbases(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 50)]))
-            ->applyCoinbase(Coinbase::create('block-2', [Output::create('b', 25)]))
-            ->applyCoinbase(Coinbase::create('block-3', [Output::create('c', 10)]));
+            ->applyCoinbase(Coinbase::create([Output::create(50, 'a')], 'block-1'))
+            ->applyCoinbase(Coinbase::create([Output::create(25, 'b')], 'block-2'))
+            ->applyCoinbase(Coinbase::create([Output::create(10, 'c')], 'block-3'));
 
         self::assertSame(85, $ledger->totalMinted());
         self::assertSame(85, $ledger->totalUnspentAmount());
@@ -459,15 +459,15 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Spend 'tx-1' has already been applied");
 
         Ledger::empty()
-            ->applyCoinbase(Coinbase::create('tx-1', [Output::create('a', 100)]))
-            ->apply(Spend::create('tx-1', ['a'], [Output::create('b', 100)]));
+            ->applyCoinbase(Coinbase::create([Output::create(100, 'a')], 'tx-1'))
+            ->apply(Spend::create(['a'], [Output::create(100, 'b')], 'tx-1'));
     }
 
     public function test_spend_after_coinbase_works(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create('block-1', [Output::create('reward', 100)]))
-            ->apply(Spend::create('tx-1', ['reward'], [Output::create('spent', 90)]));
+            ->applyCoinbase(Coinbase::create([Output::create(100, 'reward')], 'block-1'))
+            ->apply(Spend::create(['reward'], [Output::create(90, 'spent')], 'tx-1'));
 
         self::assertSame(100, $ledger->totalMinted());
         self::assertSame(10, $ledger->totalFeesCollected());
@@ -477,8 +477,8 @@ final class LedgerTest extends TestCase
     public function test_coinbase_amount_returns_null_for_regular_spend(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 100)]))
-            ->apply(Spend::create('tx-1', ['a'], [Output::create('b', 100)]));
+            ->applyCoinbase(Coinbase::create([Output::create(100, 'a')], 'block-1'))
+            ->apply(Spend::create(['a'], [Output::create(100, 'b')], 'tx-1'));
 
         self::assertSame(100, $ledger->coinbaseAmount(new SpendId('block-1')));
         self::assertNull($ledger->coinbaseAmount(new SpendId('tx-1')));
