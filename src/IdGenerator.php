@@ -6,7 +6,9 @@ namespace Chemaclass\Unspent;
 
 final class IdGenerator
 {
-    private const int ID_LENGTH = 16;
+    private const string HASHING_ALGO = 'sha256';
+
+    private const int ID_LENGTH = 32;
 
     /**
      * Generate a deterministic ID from spend content (inputs + outputs).
@@ -57,6 +59,6 @@ final class IdGenerator
 
     private static function hash(string $data): string
     {
-        return substr(hash('sha256', $data), 0, self::ID_LENGTH);
+        return substr(hash(self::HASHING_ALGO, $data), 0, self::ID_LENGTH);
     }
 }

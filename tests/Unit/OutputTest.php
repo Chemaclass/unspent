@@ -48,8 +48,8 @@ final class OutputTest extends TestCase
     {
         $output = Output::create(100);
 
-        self::assertSame(16, strlen($output->id->value));
-        self::assertMatchesRegularExpression('/^[a-f0-9]{16}$/', $output->id->value);
+        self::assertSame(32, strlen($output->id->value));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $output->id->value);
     }
 
     public function test_auto_id_generates_unique_ids(): void

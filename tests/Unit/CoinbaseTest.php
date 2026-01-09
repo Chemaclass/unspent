@@ -85,8 +85,8 @@ final class CoinbaseTest extends TestCase
             Output::create(50, 'reward-1'),
         ]);
 
-        self::assertSame(16, strlen($coinbase->id->value));
-        self::assertMatchesRegularExpression('/^[a-f0-9]{16}$/', $coinbase->id->value);
+        self::assertSame(32, strlen($coinbase->id->value));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $coinbase->id->value);
     }
 
     public function test_same_outputs_generate_same_id(): void

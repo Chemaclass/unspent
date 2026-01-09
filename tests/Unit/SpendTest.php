@@ -135,8 +135,8 @@ final class SpendTest extends TestCase
             ],
         );
 
-        self::assertSame(16, strlen($spend->id->value));
-        self::assertMatchesRegularExpression('/^[a-f0-9]{16}$/', $spend->id->value);
+        self::assertSame(32, strlen($spend->id->value));
+        self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $spend->id->value);
     }
 
     public function test_same_content_generates_same_id(): void
