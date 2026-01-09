@@ -191,6 +191,9 @@ composer install
 
 # Run tests
 vendor/bin/phpunit
+
+# Run the demo
+php example/demo.php
 ```
 
 ## License
