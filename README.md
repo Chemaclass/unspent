@@ -125,17 +125,54 @@ $ledger = $ledger->apply(Spend::create(
 
 Regular spends need inputs. Coinbase transactions create value out of thin air.
 
+## Ownership (Locks)
+
+Protect outputs so only rightful owners can spend them:
+
+```php
+use Chemaclass\Unspent\Lock\OwnerLock;
+
+// Create output owned by Alice
+$ledger = Ledger::empty()->addGenesis(
+    Output::create(1000, 'alice-funds', new OwnerLock('alice')),
+);
+
+// Alice can spend her output
+$ledger = $ledger->apply(Spend::create(
+    inputIds: ['alice-funds'],
+    outputs: [Output::create(900, 'bob-payment', new OwnerLock('bob'))],
+    authorizedBy: 'alice',
+));
+
+// Bob tries to spend Alice's output - FAILS
+$ledger->apply(Spend::create(
+    inputIds: ['alice-funds'],
+    outputs: [...],
+    authorizedBy: 'bob',
+)); // Throws AuthorizationException
+```
+
+Built-in locks:
+
+| Lock | Behavior |
+|------|----------|
+| `NoLock` | Anyone can spend (default, backwards compatible) |
+| `OwnerLock` | Only matching `authorizedBy` can spend |
+
+Custom locks? Implement `OutputLock` interface.
+
 ## Validation
 
 The library won't let you do dumb things:
 
-| Mistake | Exception |
-|---------|-----------|
-| Spend something twice | `OutputAlreadySpentException` |
-| Spend more than you have | `InsufficientInputsException` |
-| Duplicate output IDs | `DuplicateOutputIdException` |
-| Reuse a spend ID | `DuplicateSpendException` |
-| Add genesis to non-empty ledger | `GenesisNotAllowedException` |
+| Mistake                         | Exception                      |
+|---------------------------------|--------------------------------|
+| Spend something twice           | `OutputAlreadySpentException`  |
+| Spend more than you have        | `InsufficientInputsException`  |
+| Duplicate output IDs            | `DuplicateOutputIdException`   |
+| Reuse a spend ID                | `DuplicateSpendException`      |
+| Add genesis to non-empty ledger | `GenesisNotAllowedException`   |
+| Spend without authorization     | `AuthorizationException`       |
 
 Catch everything with `UnspentException`:
 
@@ -174,8 +211,8 @@ $ledger = Ledger::fromArray($array);
 
 ```php
 // Create stuff (ID is optional - auto-generated if omitted)
-Output::create(int $amount, ?string $id = null): Output
-Spend::create(array $inputIds, array $outputs, ?string $id = null): Spend
+Output::create(int $amount, ?string $id = null, ?OutputLock $lock = null): Output
+Spend::create(array $inputIds, array $outputs, ?string $id = null, ?string $authorizedBy = null): Spend
 Coinbase::create(array $outputs, ?string $id = null): Coinbase
 Ledger::empty(): Ledger
 

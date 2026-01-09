@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
+use Chemaclass\Unspent\Lock\LockFactory;
 use Countable;
 use IteratorAggregate;
 use Traversable;
@@ -146,12 +147,16 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     /**
      * Serializes the unspent set to an array format.
      *
-     * @return list<array{id: string, amount: int}>
+     * @return list<array{id: string, amount: int, lock: array{type: string, ...}}>
      */
     public function toArray(): array
     {
         return array_map(
-            static fn(Output $o): array => ['id' => $o->id->value, 'amount' => $o->amount],
+            static fn(Output $o): array => [
+                'id' => $o->id->value,
+                'amount' => $o->amount,
+                'lock' => $o->lock->toArray(),
+            ],
             array_values($this->outputs),
         );
     }
@@ -159,7 +164,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     /**
      * Creates an UnspentSet from a serialized array.
      *
-     * @param list<array{id: string, amount: int}> $data
+     * @param list<array{id: string, amount: int, lock?: array<string, mixed>}> $data
      */
     public static function fromArray(array $data): self
     {
@@ -167,6 +172,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
             static fn(array $item): Output => new Output(
                 new OutputId($item['id']),
                 $item['amount'],
+                isset($item['lock']) ? LockFactory::fromArray($item['lock']) : new Lock\NoLock(),
             ),
             $data,
         );

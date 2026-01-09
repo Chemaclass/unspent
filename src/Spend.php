@@ -12,11 +12,14 @@ final readonly class Spend
     /**
      * @param list<OutputId> $inputs
      * @param list<Output> $outputs
+     * @param list<string> $proofs Authorization proofs (signatures, etc.) indexed by input position
      */
     public function __construct(
         public SpendId $id,
         public array $inputs,
         public array $outputs,
+        public ?string $authorizedBy = null,
+        public array $proofs = [],
     ) {
         if ($inputs === []) {
             throw new InvalidArgumentException('Spend must have at least one input');
@@ -57,9 +60,15 @@ final readonly class Spend
     /**
      * @param list<string> $inputIds
      * @param list<Output> $outputs
+     * @param list<string> $proofs Authorization proofs indexed by input position
      */
-    public static function create(array $inputIds, array $outputs, ?string $id = null): self
-    {
+    public static function create(
+        array $inputIds,
+        array $outputs,
+        ?string $id = null,
+        ?string $authorizedBy = null,
+        array $proofs = [],
+    ): self {
         $actualId = $id ?? IdGenerator::forSpend($inputIds, $outputs);
 
         return new self(
@@ -69,6 +78,8 @@ final readonly class Spend
                 $inputIds,
             ),
             outputs: $outputs,
+            authorizedBy: $authorizedBy,
+            proofs: $proofs,
         );
     }
 

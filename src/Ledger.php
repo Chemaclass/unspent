@@ -269,17 +269,23 @@ final readonly class Ledger
     }
 
     /**
-     * Validates all inputs exist in unspent set and returns total input amount.
+     * Validates all inputs exist in unspent set, checks authorization, and returns total input amount.
      */
     private function validateInputsAndGetTotal(Spend $spend): int
     {
         $inputAmount = 0;
+        $inputIndex = 0;
+
         foreach ($spend->inputs as $inputId) {
             $output = $this->unspentSet->get($inputId);
             if ($output === null) {
                 throw OutputAlreadySpentException::forId($inputId->value);
             }
+
+            $output->lock->validate($spend, $inputIndex);
+
             $inputAmount += $output->amount;
+            $inputIndex++;
         }
 
         return $inputAmount;
