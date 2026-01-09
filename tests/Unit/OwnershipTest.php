@@ -18,7 +18,7 @@ final class OwnershipTest extends TestCase
 
     public function test_owner_can_spend_their_output(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         );
 
@@ -33,7 +33,7 @@ final class OwnershipTest extends TestCase
 
     public function test_non_owner_cannot_spend_others_output(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         );
 
@@ -49,7 +49,7 @@ final class OwnershipTest extends TestCase
 
     public function test_spend_without_signature_fails_for_owned_output(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         );
 
@@ -63,7 +63,7 @@ final class OwnershipTest extends TestCase
 
     public function test_open_outputs_can_be_spent_by_anyone(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::open(1000, 'open-funds'),
         );
 
@@ -77,7 +77,7 @@ final class OwnershipTest extends TestCase
 
     public function test_spend_can_combine_inputs_from_same_owner(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 500, 'alice-1'),
             Output::ownedBy('alice', 300, 'alice-2'),
         );
@@ -93,7 +93,7 @@ final class OwnershipTest extends TestCase
 
     public function test_cannot_combine_inputs_from_different_owners(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 500, 'alice-funds'),
             Output::ownedBy('bob', 300, 'bob-funds'),
         );
@@ -109,7 +109,7 @@ final class OwnershipTest extends TestCase
 
     public function test_ownership_transfers_with_new_lock(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         );
 
@@ -130,7 +130,7 @@ final class OwnershipTest extends TestCase
 
     public function test_ownership_preserved_through_serialization(): void
     {
-        $original = Ledger::empty()->addGenesis(
+        $original = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         );
 
@@ -148,7 +148,7 @@ final class OwnershipTest extends TestCase
 
     public function test_ownership_lock_blocks_after_serialization(): void
     {
-        $original = Ledger::empty()->addGenesis(
+        $original = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         );
 
@@ -171,7 +171,7 @@ final class OwnershipTest extends TestCase
         $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
         $privateKey = sodium_crypto_sign_secretkey($keypair);
 
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::signedBy($publicKey, 1000, 'secure-funds'),
         );
 
@@ -199,7 +199,7 @@ final class OwnershipTest extends TestCase
         $wrongKeypair = sodium_crypto_sign_keypair();
         $wrongPrivateKey = sodium_crypto_sign_secretkey($wrongKeypair);
 
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::signedBy($publicKey, 1000, 'secure-funds'),
         );
 
@@ -224,7 +224,7 @@ final class OwnershipTest extends TestCase
         $keypair = sodium_crypto_sign_keypair();
         $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
 
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::signedBy($publicKey, 1000, 'secure-funds'),
         );
 
@@ -244,7 +244,7 @@ final class OwnershipTest extends TestCase
         $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
         $privateKey = sodium_crypto_sign_secretkey($keypair);
 
-        $original = Ledger::empty()->addGenesis(
+        $original = Ledger::withGenesis(
             Output::signedBy($publicKey, 1000, 'secure-funds'),
         );
 
@@ -275,7 +275,7 @@ final class OwnershipTest extends TestCase
         $publicKey2 = base64_encode(sodium_crypto_sign_publickey($keypair2));
         $privateKey2 = sodium_crypto_sign_secretkey($keypair2);
 
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::signedBy($publicKey1, 500, 'funds-1'),
             Output::signedBy($publicKey2, 300, 'funds-2'),
         );

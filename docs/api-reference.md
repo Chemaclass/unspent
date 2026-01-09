@@ -45,55 +45,55 @@ $output->amount;  // int (positive)
 $output->lock;    // OutputLock
 ```
 
-## Spend
+## Tx
 
 A transaction that consumes outputs and creates new ones.
 
 ### Factory Method
 
 ```php
-Spend::create(
+Tx::create(
     array $inputIds,       // list<string> - IDs of outputs to consume
     array $outputs,        // list<Output> - New outputs to create
     ?string $signedBy = null,  // Authorization identity
     ?string $id = null,    // Transaction ID (auto-generated if null)
     array $proofs = [],    // list<string> - Signatures for PublicKey locks
-): Spend
+): Tx
 ```
 
 ### Properties
 
 ```php
-$spend->id;        // SpendId
-$spend->inputs;    // list<OutputId>
-$spend->outputs;   // list<Output>
-$spend->signedBy;  // ?string
-$spend->proofs;    // list<string>
+$tx->id;        // TxId
+$tx->inputs;    // list<OutputId>
+$tx->outputs;   // list<Output>
+$tx->signedBy;  // ?string
+$tx->proofs;    // list<string>
 ```
 
 ### Methods
 
 ```php
-$spend->totalOutputAmount(): int  // Sum of output amounts
+$tx->totalOutputAmount(): int  // Sum of output amounts
 ```
 
-## Coinbase
+## CoinbaseTx
 
 A minting transaction that creates new value.
 
 ### Factory Method
 
 ```php
-Coinbase::create(
+CoinbaseTx::create(
     array $outputs,      // list<Output>
     ?string $id = null   // Transaction ID (auto-generated if null)
-): Coinbase
+): CoinbaseTx
 ```
 
 ### Properties
 
 ```php
-$coinbase->id;       // SpendId
+$coinbase->id;       // TxId
 $coinbase->outputs;  // list<Output>
 ```
 
@@ -111,6 +111,7 @@ Immutable state container.
 
 ```php
 Ledger::empty(): Ledger
+Ledger::withGenesis(Output ...$outputs): Ledger  // Recommended
 ```
 
 ### Genesis
@@ -123,11 +124,11 @@ $ledger->addGenesis(Output ...$outputs): Ledger
 ### Transactions
 
 ```php
-// Apply a spend (consumes inputs, creates outputs)
-$ledger->apply(Spend $spend): Ledger
+// Apply a transaction (consumes inputs, creates outputs)
+$ledger->apply(Tx $tx): Ledger
 
 // Apply a coinbase (creates new value)
-$ledger->applyCoinbase(Coinbase $coinbase): Ledger
+$ledger->applyCoinbase(CoinbaseTx $coinbase): Ledger
 ```
 
 ### Query - Unspent
@@ -137,25 +138,25 @@ $ledger->unspent(): UnspentSet           // Access unspent outputs
 $ledger->totalUnspentAmount(): int       // Sum of all unspent
 ```
 
-### Query - Spends
+### Query - Transactions
 
 ```php
-$ledger->hasSpendBeenApplied(SpendId $id): bool
+$ledger->isTxApplied(TxId $id): bool
 ```
 
 ### Query - Fees
 
 ```php
-$ledger->feeForSpend(SpendId $id): ?int  // Fee for specific spend
+$ledger->feeForTx(TxId $id): ?int        // Fee for specific tx
 $ledger->totalFeesCollected(): int       // Sum of all fees
-$ledger->allSpendFees(): array           // ['id' => fee, ...]
+$ledger->allTxFees(): array              // ['id' => fee, ...]
 ```
 
 ### Query - Coinbase
 
 ```php
-$ledger->isCoinbase(SpendId $id): bool
-$ledger->coinbaseAmount(SpendId $id): ?int
+$ledger->isCoinbase(TxId $id): bool
+$ledger->coinbaseAmount(TxId $id): ?int
 $ledger->totalMinted(): int              // Sum of all coinbases
 ```
 
@@ -248,14 +249,14 @@ $id->value;     // string
 $id->equals(OutputId $other): bool
 ```
 
-### SpendId
+### TxId
 
 ```php
-new SpendId(string $value)  // Non-empty string
+new TxId(string $value)  // Non-empty string
 
 $id->value;     // string
 (string) $id;   // Stringable
-$id->equals(SpendId $other): bool
+$id->equals(TxId $other): bool
 ```
 
 ## Lock Classes
@@ -268,7 +269,7 @@ Simple string-based ownership.
 new Owner(string $name)
 
 $lock->name;  // string
-$lock->validate(Spend $spend, int $inputIndex): void
+$lock->validate(Tx $tx, int $inputIndex): void
 $lock->toArray(): array  // ['type' => 'owner', 'name' => '...']
 ```
 
@@ -280,7 +281,7 @@ Ed25519 signature verification.
 new PublicKey(string $key)  // Base64-encoded public key
 
 $lock->key;  // string (base64)
-$lock->validate(Spend $spend, int $inputIndex): void
+$lock->validate(Tx $tx, int $inputIndex): void
 $lock->toArray(): array  // ['type' => 'pubkey', 'key' => '...']
 ```
 
@@ -291,7 +292,7 @@ No verification (anyone can spend).
 ```php
 new NoLock()
 
-$lock->validate(Spend $spend, int $inputIndex): void  // Always passes
+$lock->validate(Tx $tx, int $inputIndex): void  // Always passes
 $lock->toArray(): array  // ['type' => 'none']
 ```
 
@@ -300,7 +301,7 @@ $lock->toArray(): array  // ['type' => 'none']
 ```php
 interface OutputLock
 {
-    public function validate(Spend $spend, int $inputIndex): void;
+    public function validate(Tx $tx, int $inputIndex): void;
     public function toArray(): array;
 }
 ```
@@ -313,7 +314,7 @@ All extend `UnspentException` which extends `RuntimeException`.
 OutputAlreadySpentException::class   // Input not in unspent set
 InsufficientInputsException::class   // Outputs exceed inputs
 DuplicateOutputIdException::class    // Output ID already exists
-DuplicateSpendException::class       // Spend ID already used
+DuplicateTxException::class          // Tx ID already used
 GenesisNotAllowedException::class    // Genesis on non-empty ledger
 AuthorizationException::class        // Lock validation failed
 ```
@@ -322,7 +323,7 @@ AuthorizationException::class        // Lock validation failed
 
 ```php
 try {
-    $ledger = $ledger->apply($spend);
+    $ledger = $ledger->apply($tx);
 } catch (UnspentException $e) {
     // Handle any domain error
 }

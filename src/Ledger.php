@@ -40,6 +40,11 @@ final readonly class Ledger
         return new self(UnspentSet::empty(), [], [], 0, [], 0, [], [], []);
     }
 
+    public static function withGenesis(Output ...$outputs): self
+    {
+        return self::empty()->addGenesis(...$outputs);
+    }
+
     public function addGenesis(Output ...$outputs): self
     {
         if (!$this->unspentSet->isEmpty()) {

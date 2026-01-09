@@ -40,7 +40,7 @@ final class ExceptionHierarchyTest extends TestCase
 
         // Test DuplicateOutputIdException
         try {
-            Ledger::empty()->addGenesis(
+            Ledger::withGenesis(
                 Output::open(100, 'a'),
                 Output::open(50, 'a'),
             );

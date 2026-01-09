@@ -52,12 +52,12 @@ Track value through multiple transactions:
 
 ```php
 // Genesis: Alice gets 1000
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-genesis'),
 );
 
 // TX1: Alice sends 600 to Bob
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['alice-genesis'],
     outputs: [
         Output::ownedBy('bob', 600, 'bob-funds'),
@@ -68,7 +68,7 @@ $ledger = $ledger->apply(Spend::create(
 ));
 
 // TX2: Bob sends 500 to Charlie
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['bob-funds'],
     outputs: [
         Output::ownedBy('charlie', 500, 'charlie-funds'),

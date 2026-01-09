@@ -32,7 +32,7 @@ echo "==========================================================\n\n";
 echo "1. GENESIS - Initial Gold Distribution\n";
 echo "--------------------------------------\n";
 
-$game = Ledger::empty()->addGenesis(
+$game = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-starting-gold'),
     Output::ownedBy('bob', 500, 'bob-starting-gold'),
     Output::ownedBy('shop', 5000, 'shop-inventory'),

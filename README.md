@@ -17,7 +17,7 @@ Traditional balance tracking is a black box.
 Track value like Bitcoin tracks coins. Every unit has an origin, can only be spent once, and leaves a trail.
 
 ```php
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'genesis'),
 );
 
@@ -56,7 +56,7 @@ Requires PHP 8.4+
 use Chemaclass\Unspent\{Ledger, Output, Tx};
 
 // 1. Create initial value
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
 );
 

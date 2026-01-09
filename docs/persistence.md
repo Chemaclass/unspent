@@ -33,8 +33,8 @@ $json = $ledger->toJson(JSON_PRETTY_PRINT);
       }
     }
   ],
-  "appliedSpends": ["tx-001", "tx-002"],
-  "spendFees": {
+  "appliedTxs": ["tx-001", "tx-002"],
+  "txFees": {
     "tx-001": 10,
     "tx-002": 5
   },
@@ -64,8 +64,8 @@ $ledger = Ledger::fromArray($this->cache->get('ledger'));
     'unspent' => [
         ['id' => 'alice-funds', 'amount' => 1000, 'lock' => ['type' => 'owner', 'name' => 'alice']],
     ],
-    'appliedSpends' => ['tx-001', 'tx-002'],
-    'spendFees' => ['tx-001' => 10, 'tx-002' => 5],
+    'appliedTxs' => ['tx-001', 'tx-002'],
+    'txFees' => ['tx-001' => 10, 'tx-002' => 5],
     'coinbaseAmounts' => ['block-1' => 50],
 ]
 ```
@@ -99,12 +99,12 @@ foreach ($ledger->unspent() as $id => $output) {
     ]);
 }
 
-// Spends table
-foreach ($ledger->allSpendFees() as $spendId => $fee) {
+// Transactions table
+foreach ($ledger->allTxFees() as $txId => $fee) {
     $stmt->execute([
-        'id' => $spendId,
+        'id' => $txId,
         'fee' => $fee,
-        'is_coinbase' => $ledger->isCoinbase(new SpendId($spendId)),
+        'is_coinbase' => $ledger->isCoinbase(new TxId($txId)),
     ]);
 }
 ```
@@ -125,14 +125,14 @@ foreach ($ledger->allSpendFees() as $spendId => $fee) {
 Locks are fully preserved through serialization:
 
 ```php
-$original = Ledger::empty()->addGenesis(
+$original = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'funds'),
 );
 
 $restored = Ledger::fromJson($original->toJson());
 
 // Ownership still enforced!
-$restored->apply(Spend::create(
+$restored->apply(Tx::create(
     inputIds: ['funds'],
     outputs: [Output::open(1000)],
     signedBy: 'bob',  // Throws AuthorizationException

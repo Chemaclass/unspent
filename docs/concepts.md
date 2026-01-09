@@ -52,12 +52,12 @@ Output::ownedBy('alice', 1000)                   // Auto-generated (32-char hex)
 
 Auto-generated IDs are deterministic based on content, so identical outputs created separately will have different IDs (randomness is included).
 
-## Spends
+## Transactions
 
-A **Spend** (transaction) consumes existing outputs and creates new ones.
+A **Tx** (transaction) consumes existing outputs and creates new ones.
 
 ```php
-Spend::create(
+Tx::create(
     inputIds: ['alice-funds'],           // Outputs to consume
     outputs: [                            // New outputs to create
         Output::ownedBy('bob', 600),
@@ -80,7 +80,7 @@ Spend::create(
 Combine multiple outputs in a single spend:
 
 ```php
-Spend::create(
+Tx::create(
     inputIds: ['alice-funds-1', 'alice-funds-2'],  // Combine
     outputs: [Output::ownedBy('alice', 1500)],     // Into one
     signedBy: 'alice',
@@ -92,7 +92,7 @@ Spend::create(
 Split value to multiple recipients:
 
 ```php
-Spend::create(
+Tx::create(
     inputIds: ['alice-funds'],
     outputs: [
         Output::ownedBy('bob', 300),
@@ -120,7 +120,7 @@ $v3 = $v2->apply($spend);
 Genesis outputs are the initial value in the system. They can only be added to an empty ledger:
 
 ```php
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000),
     Output::ownedBy('bob', 500),
 );
@@ -131,7 +131,7 @@ $ledger = Ledger::empty()->addGenesis(
 ```php
 $ledger->totalUnspentAmount();           // Total value in circulation
 $ledger->unspent()->count();             // Number of UTXOs
-$ledger->hasSpendBeenApplied($spendId);  // Check if spend exists
+$ledger->isTxApplied($txId);             // Check if tx exists
 
 // Access specific outputs
 $unspent = $ledger->unspent();
@@ -153,7 +153,7 @@ The library enforces invariants and throws specific exceptions:
 | `OutputAlreadySpentException` | Input doesn't exist or was already spent |
 | `InsufficientInputsException` | Outputs exceed inputs |
 | `DuplicateOutputIdException` | Output ID already exists |
-| `DuplicateSpendException` | Spend ID already used |
+| `DuplicateTxException` | Tx ID already used |
 | `GenesisNotAllowedException` | Adding genesis to non-empty ledger |
 | `AuthorizationException` | Signer doesn't match lock |
 

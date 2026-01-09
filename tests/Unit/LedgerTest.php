@@ -32,7 +32,7 @@ final class LedgerTest extends TestCase
         $output1 = Output::open(100, 'genesis-1');
         $output2 = Output::open(50, 'genesis-2');
 
-        $ledger = Ledger::empty()->addGenesis($output1, $output2);
+        $ledger = Ledger::withGenesis($output1, $output2);
 
         self::assertSame(150, $ledger->totalUnspentAmount());
         self::assertSame(2, $ledger->unspent()->count());
@@ -43,8 +43,7 @@ final class LedgerTest extends TestCase
         $this->expectException(GenesisNotAllowedException::class);
         $this->expectExceptionMessage('Genesis outputs can only be added to an empty ledger');
 
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->addGenesis(Output::open(50, 'b'));
     }
 
@@ -53,7 +52,7 @@ final class LedgerTest extends TestCase
         $this->expectException(DuplicateOutputIdException::class);
         $this->expectExceptionMessage("Duplicate output id: 'a'");
 
-        Ledger::empty()->addGenesis(
+        Ledger::withGenesis(
             Output::open(100, 'a'),
             Output::open(50, 'a'),
         );
@@ -61,11 +60,10 @@ final class LedgerTest extends TestCase
 
     public function test_apply_tx_happy_path(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(
-                Output::open(100, 'a'),
-                Output::open(50, 'b'),
-            )
+        $ledger = Ledger::withGenesis(
+            Output::open(100, 'a'),
+            Output::open(50, 'b'),
+        )
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -87,8 +85,7 @@ final class LedgerTest extends TestCase
         $this->expectException(OutputAlreadySpentException::class);
         $this->expectExceptionMessage("Output 'nonexistent' is not in the unspent set");
 
-        Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('nonexistent')],
@@ -101,8 +98,7 @@ final class LedgerTest extends TestCase
         $this->expectException(InsufficientInputsException::class);
         $this->expectExceptionMessage('Insufficient inputs: input amount (100) is less than output amount (150)');
 
-        Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -127,8 +123,7 @@ final class LedgerTest extends TestCase
             outputs: [Output::open(100, 'c')],
         );
 
-        Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        Ledger::withGenesis(Output::open(100, 'a'))
             ->apply($tx1)
             ->apply($tx2);
     }
@@ -138,8 +133,7 @@ final class LedgerTest extends TestCase
         $this->expectException(OutputAlreadySpentException::class);
         $this->expectExceptionMessage("Output 'a' is not in the unspent set");
 
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -158,8 +152,7 @@ final class LedgerTest extends TestCase
         $this->expectException(DuplicateOutputIdException::class);
         $this->expectExceptionMessage("Duplicate output id: 'c'");
 
-        Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -175,11 +168,10 @@ final class LedgerTest extends TestCase
         $this->expectException(DuplicateOutputIdException::class);
         $this->expectExceptionMessage("Duplicate output id: 'b'");
 
-        Ledger::empty()
-            ->addGenesis(
-                Output::open(100, 'a'),
-                Output::open(50, 'b'),
-            )
+        Ledger::withGenesis(
+            Output::open(100, 'a'),
+            Output::open(50, 'b'),
+        )
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -189,8 +181,7 @@ final class LedgerTest extends TestCase
 
     public function test_multiple_txs_in_sequence(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(1000, 'genesis'))
+        $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('genesis')],
@@ -217,11 +208,10 @@ final class LedgerTest extends TestCase
 
     public function test_tx_with_multiple_inputs(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(
-                Output::open(100, 'a'),
-                Output::open(50, 'b'),
-            )
+        $ledger = Ledger::withGenesis(
+            Output::open(100, 'a'),
+            Output::open(50, 'b'),
+        )
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a'), new OutputId('b')],
@@ -235,8 +225,7 @@ final class LedgerTest extends TestCase
 
     public function test_can_query_if_tx_has_been_applied(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'));
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'));
 
         self::assertFalse($ledger->isTxApplied(new TxId('tx1')));
 
@@ -256,8 +245,7 @@ final class LedgerTest extends TestCase
 
     public function test_fee_calculated_when_inputs_exceed_outputs(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -271,8 +259,7 @@ final class LedgerTest extends TestCase
 
     public function test_zero_fee_when_inputs_equal_outputs(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -286,8 +273,7 @@ final class LedgerTest extends TestCase
 
     public function test_total_fees_accumulate_across_txs(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(1000, 'genesis'))
+        $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('genesis')],
@@ -310,8 +296,7 @@ final class LedgerTest extends TestCase
 
     public function test_fee_for_unknown_tx_returns_null(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'));
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'));
 
         self::assertNull($ledger->feeForTx(new TxId('nonexistent')));
     }
@@ -325,11 +310,10 @@ final class LedgerTest extends TestCase
 
     public function test_genesis_does_not_affect_fees(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(
-                Output::open(1000, 'a'),
-                Output::open(500, 'b'),
-            );
+        $ledger = Ledger::withGenesis(
+            Output::open(1000, 'a'),
+            Output::open(500, 'b'),
+        );
 
         self::assertSame(0, $ledger->totalFeesCollected());
         self::assertSame([], $ledger->allTxFees());
@@ -337,8 +321,7 @@ final class LedgerTest extends TestCase
 
     public function test_all_tx_fees_returns_complete_map(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(1000, 'genesis'))
+        $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('genesis')],
@@ -358,8 +341,7 @@ final class LedgerTest extends TestCase
 
     public function test_fees_preserved_through_immutability(): void
     {
-        $ledger1 = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'))
+        $ledger1 = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('a')],
@@ -497,8 +479,7 @@ final class LedgerTest extends TestCase
 
     public function test_ledger_can_be_serialized_to_array(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(1000, 'genesis'))
+        $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('genesis')],
@@ -570,8 +551,7 @@ final class LedgerTest extends TestCase
 
     public function test_ledger_json_serialization(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(1000, 'genesis'))
+        $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('genesis')],
@@ -618,8 +598,7 @@ final class LedgerTest extends TestCase
 
     public function test_restored_ledger_can_apply_new_txs(): void
     {
-        $original = Ledger::empty()
-            ->addGenesis(Output::open(1000, 'genesis'));
+        $original = Ledger::withGenesis(Output::open(1000, 'genesis'));
 
         $restored = Ledger::fromArray($original->toArray());
 
@@ -638,8 +617,7 @@ final class LedgerTest extends TestCase
     {
         $this->expectException(DuplicateTxException::class);
 
-        $original = Ledger::empty()
-            ->addGenesis(Output::open(1000, 'genesis'))
+        $original = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
                 inputs: [new OutputId('genesis')],
@@ -658,8 +636,7 @@ final class LedgerTest extends TestCase
 
     public function test_json_with_pretty_print(): void
     {
-        $ledger = Ledger::empty()
-            ->addGenesis(Output::open(100, 'a'));
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'));
 
         $json = $ledger->toJson(JSON_PRETTY_PRINT);
 

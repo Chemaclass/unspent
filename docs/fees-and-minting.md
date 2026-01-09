@@ -6,13 +6,13 @@ Fees work like Bitcoin: the difference between inputs and outputs is the fee.
 
 ```php
 // Input: 1000, Output: 990 = Fee: 10
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['alice-funds'],  // Worth 1000
     outputs: [Output::ownedBy('bob', 990)],
     signedBy: 'alice',
 ));
 
-$ledger->feeForSpend(new SpendId('tx-id'));  // 10
+$ledger->feeForTx(new TxId('tx-id'));  // 10
 ```
 
 ### No Explicit Fee Field
@@ -21,7 +21,7 @@ You don't specify fees explicitly. Just output less than you input:
 
 ```php
 // 1000 in -> 600 + 350 out = 50 fee
-Spend::create(
+Tx::create(
     inputIds: ['funds'],        // 1000
     outputs: [
         Output::ownedBy('bob', 600),
@@ -37,7 +37,7 @@ Fees can be zero if inputs equal outputs:
 
 ```php
 // 1000 in -> 1000 out = 0 fee
-Spend::create(
+Tx::create(
     inputIds: ['funds'],        // 1000
     outputs: [
         Output::ownedBy('bob', 600),
@@ -51,13 +51,13 @@ Spend::create(
 
 ```php
 // Fee for specific spend
-$ledger->feeForSpend(new SpendId('tx-001'));  // int or null if not found
+$ledger->feeForTx(new TxId('tx-001'));  // int or null if not found
 
 // Total fees collected
 $ledger->totalFeesCollected();  // Sum of all fees
 
 // All fees as map
-$ledger->allSpendFees();  // ['tx-001' => 10, 'tx-002' => 5, ...]
+$ledger->allTxFees();  // ['tx-001' => 10, 'tx-002' => 5, ...]
 ```
 
 ### What Happens to Fees?
@@ -74,7 +74,7 @@ Coinbase transactions create new value out of nothing. Like Bitcoin miner reward
 
 ```php
 // Mint 50 units (no inputs required)
-$ledger = Ledger::empty()->applyCoinbase(Coinbase::create([
+$ledger = Ledger::empty()->applyCoinbase(CoinbaseTx::create([
     Output::ownedBy('miner', 50, 'block-reward'),
 ], 'block-1'));
 
@@ -95,7 +95,7 @@ $ledger->totalMinted();  // 50
 Coinbase can create multiple outputs:
 
 ```php
-$ledger->applyCoinbase(Coinbase::create([
+$ledger->applyCoinbase(CoinbaseTx::create([
     Output::ownedBy('miner', 45, 'block-reward'),
     Output::ownedBy('treasury', 5, 'dev-fund'),
 ], 'block-1'));
@@ -104,8 +104,8 @@ $ledger->applyCoinbase(Coinbase::create([
 ### Querying Coinbase Info
 
 ```php
-$ledger->isCoinbase(new SpendId('block-1'));       // true
-$ledger->coinbaseAmount(new SpendId('block-1'));   // 50 (total minted)
+$ledger->isCoinbase(new TxId('block-1'));       // true
+$ledger->coinbaseAmount(new TxId('block-1'));   // 50 (total minted)
 $ledger->totalMinted();                             // Sum of all coinbases
 ```
 
@@ -115,10 +115,10 @@ Coinbase outputs work like any other output:
 
 ```php
 $ledger = Ledger::empty()
-    ->applyCoinbase(Coinbase::create([
+    ->applyCoinbase(CoinbaseTx::create([
         Output::ownedBy('miner', 50, 'reward'),
     ], 'block-1'))
-    ->apply(Spend::create(
+    ->apply(Tx::create(
         inputIds: ['reward'],
         outputs: [Output::ownedBy('alice', 45)],
         signedBy: 'miner',
@@ -145,7 +145,7 @@ $ledger->totalUnspentAmount(); // 950 (circulating)
 ```php
 // New value enters via coinbase
 foreach ($blocks as $block) {
-    $ledger = $ledger->applyCoinbase(Coinbase::create([
+    $ledger = $ledger->applyCoinbase(CoinbaseTx::create([
         Output::ownedBy($block->miner, 50),
     ], $block->id));
 }
@@ -156,7 +156,7 @@ $ledger->totalMinted();  // Grows with each block
 
 ```php
 // All value created at genesis, no coinbase
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('treasury', 21_000_000, 'total-supply'),
 );
 // Never call applyCoinbase() - supply is fixed

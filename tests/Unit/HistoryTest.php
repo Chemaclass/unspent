@@ -19,7 +19,7 @@ final class HistoryTest extends TestCase
 
     public function test_genesis_outputs_created_by_genesis(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::open(1000, 'genesis-output'),
         );
 
@@ -55,7 +55,7 @@ final class HistoryTest extends TestCase
 
     public function test_created_by_returns_null_for_unknown_output(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::open(1000, 'genesis'),
         );
 
@@ -81,7 +81,7 @@ final class HistoryTest extends TestCase
 
     public function test_unspent_output_returns_null(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::open(1000, 'alice-funds'),
         );
 
@@ -118,7 +118,7 @@ final class HistoryTest extends TestCase
 
     public function test_get_unspent_output(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::open(1000, 'alice-funds'),
         );
 
@@ -160,7 +160,7 @@ final class HistoryTest extends TestCase
 
     public function test_output_exists_for_unspent(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::open(1000, 'alice-funds'),
         );
 
@@ -194,7 +194,7 @@ final class HistoryTest extends TestCase
 
     public function test_output_history_for_genesis_unspent(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::open(1000, 'alice-funds'),
         );
 
@@ -230,7 +230,7 @@ final class HistoryTest extends TestCase
 
     public function test_output_history_includes_lock_info(): void
     {
-        $ledger = Ledger::empty()->addGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         );
 
@@ -336,7 +336,7 @@ final class HistoryTest extends TestCase
 
     public function test_history_tracks_across_immutable_ledgers(): void
     {
-        $v1 = Ledger::empty()->addGenesis(Output::open(1000, 'genesis'));
+        $v1 = Ledger::withGenesis(Output::open(1000, 'genesis'));
         $v2 = $v1->apply(Tx::create(
             inputIds: ['genesis'],
             outputs: [Output::open(1000, 'alice')],

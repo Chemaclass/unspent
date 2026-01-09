@@ -32,7 +32,7 @@ echo "==========================================================\n\n";
 echo "1. GENESIS - FY2024 Budget Allocation\n";
 echo "--------------------------------------\n";
 
-$company = Ledger::empty()->addGenesis(
+$company = Ledger::withGenesis(
     Output::ownedBy('engineering', 100_000, 'eng-fy24-budget'),
     Output::ownedBy('marketing', 50_000, 'mkt-fy24-budget'),
     Output::ownedBy('operations', 30_000, 'ops-fy24-budget'),

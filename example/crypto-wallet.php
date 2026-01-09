@@ -51,7 +51,7 @@ echo "Private keys stay secret on client devices.\n\n";
 echo "2. CREATING CRYPTO-LOCKED OUTPUTS\n";
 echo "----------------------------------\n";
 
-$wallet = Ledger::empty()->addGenesis(
+$wallet = Ledger::withGenesis(
     Output::signedBy($alicePublicKey, 1000, 'alice-wallet'),
     Output::signedBy($bobPublicKey, 500, 'bob-wallet'),
 );

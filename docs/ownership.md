@@ -16,13 +16,13 @@ For applications where the server controls authentication. The server verifies i
 
 ```php
 // Create owned outputs
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
     Output::ownedBy('bob', 500, 'bob-funds'),
 );
 
 // Alice spends her output
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['alice-funds'],
     outputs: [
         Output::ownedBy('bob', 600),
@@ -32,7 +32,7 @@ $ledger = $ledger->apply(Spend::create(
 ));
 
 // Wrong signer throws AuthorizationException
-$ledger->apply(Spend::create(
+$ledger->apply(Tx::create(
     inputIds: ['bob-funds'],
     outputs: [Output::open(500)],
     signedBy: 'alice',  // Bob owns this!
@@ -56,7 +56,7 @@ $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
 $privateKey = sodium_crypto_sign_secretkey($keypair);
 
 // Lock output to public key
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::signedBy($publicKey, 1000, 'secure-funds'),
 );
 
@@ -66,7 +66,7 @@ $signature = base64_encode(
     sodium_crypto_sign_detached($spendId, $privateKey)
 );
 
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['secure-funds'],
     outputs: [Output::signedBy($publicKey, 900)],
     proofs: [$signature],  // Signature at index 0 for input 0
@@ -79,7 +79,7 @@ $ledger = $ledger->apply(Spend::create(
 Each input needs its own signature at the matching index:
 
 ```php
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::signedBy($alicePubKey, 500, 'alice-funds'),
     Output::signedBy($bobPubKey, 300, 'bob-funds'),
 );
@@ -88,7 +88,7 @@ $spendId = 'multi-sig-tx';
 $aliceSig = base64_encode(sodium_crypto_sign_detached($spendId, $alicePrivKey));
 $bobSig = base64_encode(sodium_crypto_sign_detached($spendId, $bobPrivKey));
 
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['alice-funds', 'bob-funds'],
     outputs: [Output::open(800)],
     proofs: [$aliceSig, $bobSig],  // Index matches input order
@@ -111,7 +111,7 @@ For outputs that anyone can spend. Use with caution.
 Output::open(1000, 'public-pool')
 
 // Spending requires no authorization
-$ledger->apply(Spend::create(
+$ledger->apply(Tx::create(
     inputIds: ['public-pool'],
     outputs: [Output::ownedBy('finder', 1000)],
     // No signedBy needed
@@ -130,7 +130,7 @@ Implement `OutputLock` for advanced scenarios:
 
 ```php
 use Chemaclass\Unspent\OutputLock;
-use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\Tx;
 
 final readonly class TimeLock implements OutputLock
 {
@@ -139,13 +139,13 @@ final readonly class TimeLock implements OutputLock
         public string $owner,
     ) {}
 
-    public function validate(Spend $spend, int $inputIndex): void
+    public function validate(Tx $tx, int $inputIndex): void
     {
         if (time() < $this->unlockTimestamp) {
             throw new \RuntimeException('Output is time-locked');
         }
-        if ($spend->signedBy !== $this->owner) {
-            throw AuthorizationException::notOwner($this->owner, $spend->signedBy);
+        if ($tx->signedBy !== $this->owner) {
+            throw AuthorizationException::notOwner($this->owner, $tx->signedBy);
         }
     }
 
@@ -190,7 +190,7 @@ class CustomLockFactory extends LockFactory
 Locks are preserved when serializing/deserializing the ledger:
 
 ```php
-$ledger = Ledger::empty()->addGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
 );
 
@@ -202,7 +202,7 @@ file_put_contents('ledger.json', $json);
 $restored = Ledger::fromJson(file_get_contents('ledger.json'));
 
 // Ownership still enforced
-$restored->apply(Spend::create(
+$restored->apply(Tx::create(
     inputIds: ['alice-funds'],
     outputs: [Output::open(1000)],
     signedBy: 'bob',  // Still throws!

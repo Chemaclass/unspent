@@ -39,7 +39,7 @@ echo "==========================================================\n\n";
 echo "1. ORDER PLACED - Customer submits order\n";
 echo "-----------------------------------------\n";
 
-$orderSystem = Ledger::empty()->addGenesis(
+$orderSystem = Ledger::withGenesis(
     Output::open(1, 'order-1001:placed'),
 );
 
@@ -200,7 +200,7 @@ echo "8. MULTIPLE ORDERS - Parallel Workflows\n";
 echo "----------------------------------------\n";
 
 // Add more orders at different states
-$multiOrder = Ledger::empty()->addGenesis(
+$multiOrder = Ledger::withGenesis(
     Output::open(1, 'order-2001:placed'),
     Output::open(1, 'order-2002:placed'),
     Output::open(1, 'order-2003:placed'),
