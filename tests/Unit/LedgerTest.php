@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\UnspentTests\Unit;
 
+use Chemaclass\Unspent\Coinbase;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -379,5 +380,114 @@ final class LedgerTest extends TestCase
         self::assertSame(10, $ledger2->totalFeesCollected());
         self::assertSame(5, $ledger2->feeForSpend(new SpendId('tx1')));
         self::assertSame(5, $ledger2->feeForSpend(new SpendId('tx2')));
+    }
+
+    // ========================================================================
+    // Coinbase Tests (Minting)
+    // ========================================================================
+
+    public function test_apply_coinbase_creates_new_outputs(): void
+    {
+        $ledger = Ledger::empty()
+            ->applyCoinbase(new Coinbase(
+                id: new SpendId('block-1'),
+                outputs: [
+                    new Output(new OutputId('reward-1'), 50),
+                    new Output(new OutputId('reward-2'), 25),
+                ],
+            ));
+
+        self::assertSame(75, $ledger->totalUnspentAmount());
+        self::assertTrue($ledger->unspent()->contains(new OutputId('reward-1')));
+        self::assertTrue($ledger->unspent()->contains(new OutputId('reward-2')));
+    }
+
+    public function test_apply_coinbase_tracks_minted_amount(): void
+    {
+        $ledger = Ledger::empty()
+            ->applyCoinbase(Coinbase::create('block-1', [
+                Output::create('reward-1', 50),
+            ]));
+
+        self::assertSame(50, $ledger->totalMinted());
+        self::assertSame(50, $ledger->coinbaseAmount(new SpendId('block-1')));
+    }
+
+    public function test_apply_coinbase_fails_on_duplicate_id(): void
+    {
+        $this->expectException(DuplicateSpendException::class);
+        $this->expectExceptionMessage("Spend 'block-1' has already been applied");
+
+        Ledger::empty()
+            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 50)]))
+            ->applyCoinbase(Coinbase::create('block-1', [Output::create('b', 50)]));
+    }
+
+    public function test_apply_coinbase_fails_on_output_id_conflict(): void
+    {
+        $this->expectException(DuplicateOutputIdException::class);
+        $this->expectExceptionMessage("Duplicate output id: 'reward'");
+
+        Ledger::empty()
+            ->applyCoinbase(Coinbase::create('block-1', [Output::create('reward', 50)]))
+            ->applyCoinbase(Coinbase::create('block-2', [Output::create('reward', 50)]));
+    }
+
+    public function test_is_coinbase_returns_true_for_coinbase_transactions(): void
+    {
+        $ledger = Ledger::empty()
+            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 50)]));
+
+        self::assertTrue($ledger->isCoinbase(new SpendId('block-1')));
+        self::assertFalse($ledger->isCoinbase(new SpendId('nonexistent')));
+    }
+
+    public function test_total_minted_accumulates_across_coinbases(): void
+    {
+        $ledger = Ledger::empty()
+            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 50)]))
+            ->applyCoinbase(Coinbase::create('block-2', [Output::create('b', 25)]))
+            ->applyCoinbase(Coinbase::create('block-3', [Output::create('c', 10)]));
+
+        self::assertSame(85, $ledger->totalMinted());
+        self::assertSame(85, $ledger->totalUnspentAmount());
+    }
+
+    public function test_coinbase_and_spend_ids_share_namespace(): void
+    {
+        $this->expectException(DuplicateSpendException::class);
+        $this->expectExceptionMessage("Spend 'tx-1' has already been applied");
+
+        Ledger::empty()
+            ->applyCoinbase(Coinbase::create('tx-1', [Output::create('a', 100)]))
+            ->apply(Spend::create('tx-1', ['a'], [Output::create('b', 100)]));
+    }
+
+    public function test_spend_after_coinbase_works(): void
+    {
+        $ledger = Ledger::empty()
+            ->applyCoinbase(Coinbase::create('block-1', [Output::create('reward', 100)]))
+            ->apply(Spend::create('tx-1', ['reward'], [Output::create('spent', 90)]));
+
+        self::assertSame(100, $ledger->totalMinted());
+        self::assertSame(10, $ledger->totalFeesCollected());
+        self::assertSame(90, $ledger->totalUnspentAmount());
+    }
+
+    public function test_coinbase_amount_returns_null_for_regular_spend(): void
+    {
+        $ledger = Ledger::empty()
+            ->applyCoinbase(Coinbase::create('block-1', [Output::create('a', 100)]))
+            ->apply(Spend::create('tx-1', ['a'], [Output::create('b', 100)]));
+
+        self::assertSame(100, $ledger->coinbaseAmount(new SpendId('block-1')));
+        self::assertNull($ledger->coinbaseAmount(new SpendId('tx-1')));
+    }
+
+    public function test_empty_ledger_has_zero_minted(): void
+    {
+        $ledger = Ledger::empty();
+
+        self::assertSame(0, $ledger->totalMinted());
     }
 }

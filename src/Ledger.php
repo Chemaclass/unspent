@@ -15,17 +15,20 @@ final readonly class Ledger
     /**
      * @param array<string, true> $appliedSpendIds
      * @param array<string, int> $spendFees Map of SpendId value to fee amount
+     * @param array<string, int> $coinbaseAmounts Map of coinbase SpendId to minted amount
      */
     private function __construct(
         private UnspentSet $unspentSet,
         private array $appliedSpendIds,
         private array $spendFees = [],
         private int $totalFees = 0,
+        private array $coinbaseAmounts = [],
+        private int $totalMinted = 0,
     ) {}
 
     public static function empty(): self
     {
-        return new self(UnspentSet::empty(), [], [], 0);
+        return new self(UnspentSet::empty(), [], [], 0, [], 0);
     }
 
     public function addGenesis(Output ...$outputs): self
@@ -41,6 +44,8 @@ final readonly class Ledger
             $this->appliedSpendIds,
             $this->spendFees,
             $this->totalFees,
+            $this->coinbaseAmounts,
+            $this->totalMinted,
         );
     }
 
@@ -70,6 +75,31 @@ final readonly class Ledger
             $appliedSpends,
             $spendFees,
             $this->totalFees + $fee,
+            $this->coinbaseAmounts,
+            $this->totalMinted,
+        );
+    }
+
+    public function applyCoinbase(Coinbase $coinbase): self
+    {
+        $this->assertSpendIdNotAlreadyUsed($coinbase->id);
+        $this->assertNoOutputIdConflictsForCoinbase($coinbase);
+
+        $unspent = $this->unspentSet->addAll(...$coinbase->outputs);
+
+        $appliedSpends = $this->appliedSpendIds;
+        $appliedSpends[$coinbase->id->value] = true;
+
+        $coinbaseAmounts = $this->coinbaseAmounts;
+        $coinbaseAmounts[$coinbase->id->value] = $coinbase->totalOutputAmount();
+
+        return new self(
+            $unspent,
+            $appliedSpends,
+            $this->spendFees,
+            $this->totalFees,
+            $coinbaseAmounts,
+            $this->totalMinted + $coinbase->totalOutputAmount(),
         );
     }
 
@@ -117,6 +147,32 @@ final readonly class Ledger
     }
 
     /**
+     * Returns total amount minted via coinbase transactions.
+     */
+    public function totalMinted(): int
+    {
+        return $this->totalMinted;
+    }
+
+    /**
+     * Returns true if the given ID was a coinbase transaction.
+     */
+    public function isCoinbase(SpendId $id): bool
+    {
+        return isset($this->coinbaseAmounts[$id->value]);
+    }
+
+    /**
+     * Returns the minted amount for a coinbase transaction.
+     *
+     * @return int|null Minted amount, or null if not a coinbase
+     */
+    public function coinbaseAmount(SpendId $id): ?int
+    {
+        return $this->coinbaseAmounts[$id->value] ?? null;
+    }
+
+    /**
      * @param list<Output> $outputs
      */
     private function assertNoDuplicateOutputIds(array $outputs): void
@@ -133,8 +189,13 @@ final readonly class Ledger
 
     private function assertSpendNotAlreadyApplied(Spend $spend): void
     {
-        if (isset($this->appliedSpendIds[$spend->id->value])) {
-            throw DuplicateSpendException::forId($spend->id->value);
+        $this->assertSpendIdNotAlreadyUsed($spend->id);
+    }
+
+    private function assertSpendIdNotAlreadyUsed(SpendId $id): void
+    {
+        if (isset($this->appliedSpendIds[$id->value])) {
+            throw DuplicateSpendException::forId($id->value);
         }
     }
 
@@ -182,6 +243,15 @@ final readonly class Ledger
             // Check for conflict with existing unspent outputs
             if ($this->unspentSet->contains($output->id)) {
                 throw DuplicateOutputIdException::forId($id);
+            }
+        }
+    }
+
+    private function assertNoOutputIdConflictsForCoinbase(Coinbase $coinbase): void
+    {
+        foreach ($coinbase->outputs as $output) {
+            if ($this->unspentSet->contains($output->id)) {
+                throw DuplicateOutputIdException::forId($output->id->value);
             }
         }
     }

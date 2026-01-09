@@ -101,6 +101,31 @@ $ledger->allSpendFees();                     // ['tx-001' => 10, ...]
 
 Zero fees work too - just make inputs = outputs.
 
+## Coinbase (Minting)
+
+Need to create new value? Like miners getting block rewards? Use coinbase transactions:
+
+```php
+// Mint new coins (no inputs required)
+$ledger = Ledger::empty()
+    ->applyCoinbase(Coinbase::create('block-1', [
+        Output::create('miner-reward', 50),
+    ]));
+
+$ledger->totalMinted();  // 50
+$ledger->isCoinbase(new SpendId('block-1'));  // true
+
+// Spend minted coins like any other output
+$ledger = $ledger->apply(Spend::create(
+    id: 'tx-001',
+    inputIds: ['miner-reward'],
+    outputs: [Output::create('alice', 45)],
+));
+// 5 goes to fees
+```
+
+Regular spends need inputs. Coinbase transactions create value out of thin air.
+
 ## Validation
 
 The library won't let you do dumb things:
@@ -129,11 +154,13 @@ try {
 // Create stuff
 Output::create(string $id, int $amount): Output
 Spend::create(string $id, array $inputIds, array $outputs): Spend
+Coinbase::create(string $id, array $outputs): Coinbase
 Ledger::empty(): Ledger
 
 // Do stuff
 $ledger->addGenesis(Output ...$outputs): Ledger
 $ledger->apply(Spend $spend): Ledger
+$ledger->applyCoinbase(Coinbase $coinbase): Ledger
 
 // Query stuff
 $ledger->totalUnspentAmount(): int
@@ -142,6 +169,9 @@ $ledger->feeForSpend(SpendId $id): ?int
 $ledger->allSpendFees(): array
 $ledger->hasSpendBeenApplied(SpendId $id): bool
 $ledger->unspent(): UnspentSet
+$ledger->totalMinted(): int
+$ledger->isCoinbase(SpendId $id): bool
+$ledger->coinbaseAmount(SpendId $id): ?int
 
 // UnspentSet
 $set->contains(OutputId $id): bool

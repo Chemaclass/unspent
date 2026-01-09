@@ -13,6 +13,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
+use Chemaclass\Unspent\Coinbase;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
@@ -365,10 +366,57 @@ $unknownFee = $feeLedger->feeForSpend(new SpendId('nonexistent'));
 success('Fee for unknown spend: ' . ($unknownFee === null ? 'null' : $unknownFee));
 
 // ============================================================================
-// 9. PERFORMANCE CHARACTERISTICS
+// 9. COINBASE TRANSACTIONS (MINTING)
 // ============================================================================
 
-section('9. Performance Characteristics');
+section('9. Coinbase Transactions (Minting)');
+
+info('Creating new value with coinbase transactions (like miner rewards)...');
+$mintLedger = Ledger::empty()
+    ->applyCoinbase(Coinbase::create('block-1', [
+        Output::create('miner-reward-1', 50),
+    ]));
+
+success("Block 1 mined! Total minted: {$mintLedger->totalMinted()} units");
+success("Unspent: {$mintLedger->totalUnspentAmount()} units");
+
+info('Mining another block...');
+$mintLedger = $mintLedger->applyCoinbase(Coinbase::create('block-2', [
+    Output::create('miner-reward-2', 50),
+    Output::create('tx-fees-2', 5),
+]));
+
+success("Block 2 mined! Total minted: {$mintLedger->totalMinted()} units");
+success("Unspent: {$mintLedger->totalUnspentAmount()} units");
+
+info('Spending minted coins...');
+$mintLedger = $mintLedger->apply(Spend::create(
+    id: 'tx-001',
+    inputIds: ['miner-reward-1'],
+    outputs: [
+        Output::create('alice', 40),
+        Output::create('change', 5),
+    ],
+));
+
+success("Spent miner reward. Fee collected: {$mintLedger->feeForSpend(new SpendId('tx-001'))} units");
+success("Total fees: {$mintLedger->totalFeesCollected()} units");
+success("Unspent: {$mintLedger->totalUnspentAmount()} units");
+
+info('Querying coinbase transactions...');
+$isCoinbase1 = $mintLedger->isCoinbase(new SpendId('block-1')) ? 'YES' : 'NO';
+$isCoinbase2 = $mintLedger->isCoinbase(new SpendId('tx-001')) ? 'YES' : 'NO';
+echo "  Is 'block-1' a coinbase: {$isCoinbase1}\n";
+echo "  Is 'tx-001' a coinbase: {$isCoinbase2}\n";
+
+$coinbaseAmount = $mintLedger->coinbaseAmount(new SpendId('block-2'));
+success("Block-2 minted: {$coinbaseAmount} units");
+
+// ============================================================================
+// 10. PERFORMANCE CHARACTERISTICS
+// ============================================================================
+
+section('10. Performance Characteristics');
 
 info('O(1) total amount (cached)...');
 $largeSet = UnspentSet::empty();
@@ -417,6 +465,7 @@ echo "    ✓ Unified exception handling\n";
 echo "    ✓ Immutability guarantees\n";
 echo "    ✓ O(1) performance for totals\n";
 echo "    ✓ Bitcoin-style implicit fees\n";
+echo "    ✓ Coinbase transactions (minting)\n";
 
 echo "\n" . str_repeat('=', 60) . "\n";
 echo " Demo completed successfully!\n";
