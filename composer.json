@@ -2,7 +2,7 @@
     "name": "chemaclass/unspent",
     "description": "A PHP library for UTXO-like bookkeeping using unspent entries.",
     "type": "library",
-    "homepage": "https://phel-lang.org/",
+    "homepage": "https://github.com/Chemaclass/unspent",
     "require": {
         "php": ">=8.4"
     },
@@ -15,6 +15,11 @@
             "Chemaclass\\Unspent\\": "src/"
         }
     },
+    "autoload-dev": {
+        "psr-4": {
+            "Chemaclass\\UnspentTests\\": "tests/"
+        }
+    },
     "authors": [
         {
             "name": "Jose M. Valera Reales",
@@ -24,13 +29,6 @@
     ],
     "minimum-stability": "stable",
     "config": {
-        "allow-plugins": {
-            "composer/package-versions-deprecated": true,
-            "ergebnis/composer-normalize": true
-        },
-        "platform": {
-            "php": "8.4"
-        },
         "sort-packages": true
     }
 }
