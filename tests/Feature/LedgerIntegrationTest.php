@@ -18,8 +18,8 @@ final class LedgerIntegrationTest extends TestCase
         // Create a ledger with genesis outputs
         $ledger = Ledger::empty()
             ->addGenesis(
-                Output::create(1000, 'genesis-1'),
-                Output::create(500, 'genesis-2'),
+                Output::open(1000, 'genesis-1'),
+                Output::open(500, 'genesis-2'),
             );
 
         self::assertSame(1500, $ledger->totalUnspentAmount());
@@ -28,8 +28,8 @@ final class LedgerIntegrationTest extends TestCase
         $ledger = $ledger->apply(Spend::create(
             inputIds: ['genesis-1'],
             outputs: [
-                Output::create(600, 'alice'),
-                Output::create(390, 'bob'),
+                Output::open(600, 'alice'),
+                Output::open(390, 'bob'),
             ],
             id: 'tx-001',
         ));
@@ -67,20 +67,20 @@ final class LedgerIntegrationTest extends TestCase
     public function test_chain_of_spends_with_fees(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(Output::create(1000, 'genesis'))
+            ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(Spend::create(
                 inputIds: ['genesis'],
-                outputs: [Output::create(990, 'a')],
+                outputs: [Output::open(990, 'a')],
                 id: 'tx-1',
             ))
             ->apply(Spend::create(
                 inputIds: ['a'],
-                outputs: [Output::create(980, 'b')],
+                outputs: [Output::open(980, 'b')],
                 id: 'tx-2',
             ))
             ->apply(Spend::create(
                 inputIds: ['b'],
-                outputs: [Output::create(970, 'c')],
+                outputs: [Output::open(970, 'c')],
                 id: 'tx-3',
             ));
 
@@ -103,13 +103,13 @@ final class LedgerIntegrationTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(
-                Output::create(100, 'a'),
-                Output::create(200, 'b'),
-                Output::create(300, 'c'),
+                Output::open(100, 'a'),
+                Output::open(200, 'b'),
+                Output::open(300, 'c'),
             )
             ->apply(Spend::create(
                 inputIds: ['a', 'b', 'c'],
-                outputs: [Output::create(600, 'combined')],
+                outputs: [Output::open(600, 'combined')],
                 id: 'combine',
             ));
 

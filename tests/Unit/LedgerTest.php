@@ -6,6 +6,7 @@ namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Coinbase;
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\Lock\NoLock;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Spend;
@@ -29,8 +30,8 @@ final class LedgerTest extends TestCase
 
     public function test_can_add_genesis_outputs(): void
     {
-        $output1 = new Output(new OutputId('genesis-1'), 100);
-        $output2 = new Output(new OutputId('genesis-2'), 50);
+        $output1 = Output::open(100, 'genesis-1');
+        $output2 = Output::open(50, 'genesis-2');
 
         $ledger = Ledger::empty()->addGenesis($output1, $output2);
 
@@ -44,8 +45,8 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage('Genesis outputs can only be added to an empty ledger');
 
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
-            ->addGenesis(new Output(new OutputId('b'), 50));
+            ->addGenesis(Output::open(100, 'a'))
+            ->addGenesis(Output::open(50, 'b'));
     }
 
     public function test_genesis_fails_on_duplicate_output_ids(): void
@@ -54,8 +55,8 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Duplicate output id: 'a'");
 
         Ledger::empty()->addGenesis(
-            new Output(new OutputId('a'), 100),
-            new Output(new OutputId('a'), 50),
+            Output::open(100, 'a'),
+            Output::open(50, 'a'),
         );
     }
 
@@ -63,15 +64,15 @@ final class LedgerTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(
-                new Output(new OutputId('a'), 100),
-                new Output(new OutputId('b'), 50),
+                Output::open(100, 'a'),
+                Output::open(50, 'b'),
             )
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
                 outputs: [
-                    new Output(new OutputId('c'), 60),
-                    new Output(new OutputId('d'), 40),
+                    Output::open(60, 'c'),
+                    Output::open(40, 'd'),
                 ],
             ));
 
@@ -88,11 +89,11 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Output 'nonexistent' is not in the unspent set");
 
         Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('nonexistent')],
-                outputs: [new Output(new OutputId('b'), 100)],
+                outputs: [Output::open(100, 'b')],
             ));
     }
 
@@ -102,11 +103,11 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage('Insufficient inputs: input amount (100) is less than output amount (150)');
 
         Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 150)],
+                outputs: [Output::open(150, 'b')],
             ));
     }
 
@@ -118,17 +119,17 @@ final class LedgerTest extends TestCase
         $spend1 = new Spend(
             id: new SpendId('tx1'),
             inputs: [new OutputId('a')],
-            outputs: [new Output(new OutputId('b'), 100)],
+            outputs: [Output::open(100, 'b')],
         );
 
         $spend2 = new Spend(
             id: new SpendId('tx1'),
             inputs: [new OutputId('b')],
-            outputs: [new Output(new OutputId('c'), 100)],
+            outputs: [Output::open(100, 'c')],
         );
 
         Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply($spend1)
             ->apply($spend2);
     }
@@ -139,17 +140,17 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Output 'a' is not in the unspent set");
 
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 100)],
+                outputs: [Output::open(100, 'b')],
             ));
 
         $ledger->apply(new Spend(
             id: new SpendId('tx2'),
             inputs: [new OutputId('a')],
-            outputs: [new Output(new OutputId('c'), 100)],
+            outputs: [Output::open(100, 'c')],
         ));
     }
 
@@ -159,13 +160,13 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Duplicate output id: 'c'");
 
         Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
                 outputs: [
-                    new Output(new OutputId('c'), 50),
-                    new Output(new OutputId('c'), 50),
+                    Output::open(50, 'c'),
+                    Output::open(50, 'c'),
                 ],
             ));
     }
@@ -177,34 +178,34 @@ final class LedgerTest extends TestCase
 
         Ledger::empty()
             ->addGenesis(
-                new Output(new OutputId('a'), 100),
-                new Output(new OutputId('b'), 50),
+                Output::open(100, 'a'),
+                Output::open(50, 'b'),
             )
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 100)],
+                outputs: [Output::open(100, 'b')],
             ));
     }
 
     public function test_multiple_spends_in_sequence(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('genesis')],
                 outputs: [
-                    new Output(new OutputId('a'), 600),
-                    new Output(new OutputId('b'), 400),
+                    Output::open(600, 'a'),
+                    Output::open(400, 'b'),
                 ],
             ))
             ->apply(new Spend(
                 id: new SpendId('tx2'),
                 inputs: [new OutputId('a')],
                 outputs: [
-                    new Output(new OutputId('c'), 300),
-                    new Output(new OutputId('d'), 300),
+                    Output::open(300, 'c'),
+                    Output::open(300, 'd'),
                 ],
             ));
 
@@ -219,13 +220,13 @@ final class LedgerTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(
-                new Output(new OutputId('a'), 100),
-                new Output(new OutputId('b'), 50),
+                Output::open(100, 'a'),
+                Output::open(50, 'b'),
             )
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a'), new OutputId('b')],
-                outputs: [new Output(new OutputId('c'), 150)],
+                outputs: [Output::open(150, 'c')],
             ));
 
         self::assertSame(150, $ledger->totalUnspentAmount());
@@ -236,14 +237,14 @@ final class LedgerTest extends TestCase
     public function test_can_query_if_spend_has_been_applied(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100));
+            ->addGenesis(Output::open(100, 'a'));
 
         self::assertFalse($ledger->hasSpendBeenApplied(new SpendId('tx1')));
 
         $ledger = $ledger->apply(new Spend(
             id: new SpendId('tx1'),
             inputs: [new OutputId('a')],
-            outputs: [new Output(new OutputId('b'), 100)],
+            outputs: [Output::open(100, 'b')],
         ));
 
         self::assertTrue($ledger->hasSpendBeenApplied(new SpendId('tx1')));
@@ -257,11 +258,11 @@ final class LedgerTest extends TestCase
     public function test_fee_calculated_when_inputs_exceed_outputs(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 90)],
+                outputs: [Output::open(90, 'b')],
             ));
 
         self::assertSame(10, $ledger->feeForSpend(new SpendId('tx1')));
@@ -272,11 +273,11 @@ final class LedgerTest extends TestCase
     public function test_zero_fee_when_inputs_equal_outputs(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 100)],
+                outputs: [Output::open(100, 'b')],
             ));
 
         self::assertSame(0, $ledger->feeForSpend(new SpendId('tx1')));
@@ -287,19 +288,19 @@ final class LedgerTest extends TestCase
     public function test_total_fees_accumulate_across_spends(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('genesis')],
                 outputs: [
-                    new Output(new OutputId('a'), 500),
-                    new Output(new OutputId('b'), 490),
+                    Output::open(500, 'a'),
+                    Output::open(490, 'b'),
                 ],
             ))
             ->apply(new Spend(
                 id: new SpendId('tx2'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('c'), 495)],
+                outputs: [Output::open(495, 'c')],
             ));
 
         self::assertSame(10, $ledger->feeForSpend(new SpendId('tx1')));
@@ -311,7 +312,7 @@ final class LedgerTest extends TestCase
     public function test_fee_for_unknown_spend_returns_null(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100));
+            ->addGenesis(Output::open(100, 'a'));
 
         self::assertNull($ledger->feeForSpend(new SpendId('nonexistent')));
     }
@@ -327,8 +328,8 @@ final class LedgerTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(
-                new Output(new OutputId('a'), 1000),
-                new Output(new OutputId('b'), 500),
+                Output::open(1000, 'a'),
+                Output::open(500, 'b'),
             );
 
         self::assertSame(0, $ledger->totalFeesCollected());
@@ -338,16 +339,16 @@ final class LedgerTest extends TestCase
     public function test_all_spend_fees_returns_complete_map(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('genesis')],
-                outputs: [new Output(new OutputId('a'), 990)],
+                outputs: [Output::open(990, 'a')],
             ))
             ->apply(new Spend(
                 id: new SpendId('tx2'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 980)],
+                outputs: [Output::open(980, 'b')],
             ));
 
         $fees = $ledger->allSpendFees();
@@ -359,17 +360,17 @@ final class LedgerTest extends TestCase
     public function test_fees_preserved_through_immutability(): void
     {
         $ledger1 = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->addGenesis(Output::open(100, 'a'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 95)],
+                outputs: [Output::open(95, 'b')],
             ));
 
         $ledger2 = $ledger1->apply(new Spend(
             id: new SpendId('tx2'),
             inputs: [new OutputId('b')],
-            outputs: [new Output(new OutputId('c'), 90)],
+            outputs: [Output::open(90, 'c')],
         ));
 
         // Original ledger unchanged
@@ -392,8 +393,8 @@ final class LedgerTest extends TestCase
             ->applyCoinbase(new Coinbase(
                 id: new SpendId('block-1'),
                 outputs: [
-                    new Output(new OutputId('reward-1'), 50),
-                    new Output(new OutputId('reward-2'), 25),
+                    Output::open(50, 'reward-1'),
+                    Output::open(25, 'reward-2'),
                 ],
             ));
 
@@ -406,7 +407,7 @@ final class LedgerTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->applyCoinbase(Coinbase::create([
-                Output::create(50, 'reward-1'),
+                Output::open(50, 'reward-1'),
             ], 'block-1'));
 
         self::assertSame(50, $ledger->totalMinted());
@@ -419,8 +420,8 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Spend 'block-1' has already been applied");
 
         Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(50, 'a')], 'block-1'))
-            ->applyCoinbase(Coinbase::create([Output::create(50, 'b')], 'block-1'));
+            ->applyCoinbase(Coinbase::create([Output::open(50, 'a')], 'block-1'))
+            ->applyCoinbase(Coinbase::create([Output::open(50, 'b')], 'block-1'));
     }
 
     public function test_apply_coinbase_fails_on_output_id_conflict(): void
@@ -429,14 +430,14 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Duplicate output id: 'reward'");
 
         Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(50, 'reward')], 'block-1'))
-            ->applyCoinbase(Coinbase::create([Output::create(50, 'reward')], 'block-2'));
+            ->applyCoinbase(Coinbase::create([Output::open(50, 'reward')], 'block-1'))
+            ->applyCoinbase(Coinbase::create([Output::open(50, 'reward')], 'block-2'));
     }
 
     public function test_is_coinbase_returns_true_for_coinbase_transactions(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(50, 'a')], 'block-1'));
+            ->applyCoinbase(Coinbase::create([Output::open(50, 'a')], 'block-1'));
 
         self::assertTrue($ledger->isCoinbase(new SpendId('block-1')));
         self::assertFalse($ledger->isCoinbase(new SpendId('nonexistent')));
@@ -445,9 +446,9 @@ final class LedgerTest extends TestCase
     public function test_total_minted_accumulates_across_coinbases(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(50, 'a')], 'block-1'))
-            ->applyCoinbase(Coinbase::create([Output::create(25, 'b')], 'block-2'))
-            ->applyCoinbase(Coinbase::create([Output::create(10, 'c')], 'block-3'));
+            ->applyCoinbase(Coinbase::create([Output::open(50, 'a')], 'block-1'))
+            ->applyCoinbase(Coinbase::create([Output::open(25, 'b')], 'block-2'))
+            ->applyCoinbase(Coinbase::create([Output::open(10, 'c')], 'block-3'));
 
         self::assertSame(85, $ledger->totalMinted());
         self::assertSame(85, $ledger->totalUnspentAmount());
@@ -459,15 +460,15 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage("Spend 'tx-1' has already been applied");
 
         Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(100, 'a')], 'tx-1'))
-            ->apply(Spend::create(['a'], [Output::create(100, 'b')], 'tx-1'));
+            ->applyCoinbase(Coinbase::create([Output::open(100, 'a')], 'tx-1'))
+            ->apply(Spend::create(['a'], [Output::open(100, 'b')], id: 'tx-1'));
     }
 
     public function test_spend_after_coinbase_works(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(100, 'reward')], 'block-1'))
-            ->apply(Spend::create(['reward'], [Output::create(90, 'spent')], 'tx-1'));
+            ->applyCoinbase(Coinbase::create([Output::open(100, 'reward')], 'block-1'))
+            ->apply(Spend::create(['reward'], [Output::open(90, 'spent')], id: 'tx-1'));
 
         self::assertSame(100, $ledger->totalMinted());
         self::assertSame(10, $ledger->totalFeesCollected());
@@ -477,8 +478,8 @@ final class LedgerTest extends TestCase
     public function test_coinbase_amount_returns_null_for_regular_spend(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(100, 'a')], 'block-1'))
-            ->apply(Spend::create(['a'], [Output::create(100, 'b')], 'tx-1'));
+            ->applyCoinbase(Coinbase::create([Output::open(100, 'a')], 'block-1'))
+            ->apply(Spend::create(['a'], [Output::open(100, 'b')], id: 'tx-1'));
 
         self::assertSame(100, $ledger->coinbaseAmount(new SpendId('block-1')));
         self::assertNull($ledger->coinbaseAmount(new SpendId('tx-1')));
@@ -498,11 +499,11 @@ final class LedgerTest extends TestCase
     public function test_ledger_can_be_serialized_to_array(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('genesis')],
-                outputs: [new Output(new OutputId('out1'), 900)],
+                outputs: [Output::open(900, 'out1')],
             ));
 
         $array = $ledger->toArray();
@@ -539,12 +540,12 @@ final class LedgerTest extends TestCase
     public function test_ledger_round_trip_preserves_all_state(): void
     {
         $original = Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(1000, 'cb-out')], 'block-1'))
+            ->applyCoinbase(Coinbase::create([Output::open(1000, 'cb-out')], 'block-1'))
             ->apply(Spend::create(['cb-out'], [
-                Output::create(600, 'alice'),
-                Output::create(350, 'bob'),
-            ], 'tx1'))
-            ->apply(Spend::create(['alice'], [Output::create(550, 'charlie')], 'tx2'));
+                Output::open(600, 'alice'),
+                Output::open(350, 'bob'),
+            ], id: 'tx1'))
+            ->apply(Spend::create(['alice'], [Output::open(550, 'charlie')], id: 'tx2'));
 
         $restored = Ledger::fromArray($original->toArray());
 
@@ -571,11 +572,11 @@ final class LedgerTest extends TestCase
     public function test_ledger_json_serialization(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('genesis')],
-                outputs: [new Output(new OutputId('out1'), 950)],
+                outputs: [Output::open(950, 'out1')],
             ));
 
         $json = $ledger->toJson();
@@ -589,8 +590,8 @@ final class LedgerTest extends TestCase
     public function test_ledger_json_round_trip(): void
     {
         $original = Ledger::empty()
-            ->applyCoinbase(Coinbase::create([Output::create(500, 'reward')], 'block-1'))
-            ->apply(Spend::create(['reward'], [Output::create(450, 'spent')], 'tx1'));
+            ->applyCoinbase(Coinbase::create([Output::open(500, 'reward')], 'block-1'))
+            ->apply(Spend::create(['reward'], [Output::open(450, 'spent')], id: 'tx1'));
 
         $json = $original->toJson();
         $restored = Ledger::fromJson($json);
@@ -619,7 +620,7 @@ final class LedgerTest extends TestCase
     public function test_restored_ledger_can_apply_new_spends(): void
     {
         $original = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('genesis'), 1000));
+            ->addGenesis(Output::open(1000, 'genesis'));
 
         $restored = Ledger::fromArray($original->toArray());
 
@@ -627,7 +628,7 @@ final class LedgerTest extends TestCase
         $restored = $restored->apply(new Spend(
             id: new SpendId('new-tx'),
             inputs: [new OutputId('genesis')],
-            outputs: [new Output(new OutputId('new-out'), 950)],
+            outputs: [Output::open(950, 'new-out')],
         ));
 
         self::assertSame(950, $restored->totalUnspentAmount());
@@ -639,11 +640,11 @@ final class LedgerTest extends TestCase
         $this->expectException(DuplicateSpendException::class);
 
         $original = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('genesis')],
-                outputs: [new Output(new OutputId('out'), 1000)],
+                outputs: [Output::open(1000, 'out')],
             ));
 
         $restored = Ledger::fromArray($original->toArray());
@@ -652,14 +653,14 @@ final class LedgerTest extends TestCase
         $restored->apply(new Spend(
             id: new SpendId('tx1'),
             inputs: [new OutputId('out')],
-            outputs: [new Output(new OutputId('out2'), 1000)],
+            outputs: [Output::open(1000, 'out2')],
         ));
     }
 
     public function test_json_with_pretty_print(): void
     {
         $ledger = Ledger::empty()
-            ->addGenesis(new Output(new OutputId('a'), 100));
+            ->addGenesis(Output::open(100, 'a'));
 
         $json = $ledger->toJson(JSON_PRETTY_PRINT);
 

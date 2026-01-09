@@ -11,26 +11,26 @@ use Chemaclass\Unspent\Spend;
 /**
  * A lock that restricts spending to a specific owner.
  *
- * The spend must have `authorizedBy` matching the owner string.
+ * The spend must have `signedBy` matching the owner name.
  */
-final readonly class OwnerLock implements OutputLock
+final readonly class Owner implements OutputLock
 {
     public function __construct(
-        public string $owner,
+        public string $name,
     ) {}
 
     public function validate(Spend $spend, int $inputIndex): void
     {
-        if ($spend->authorizedBy !== $this->owner) {
-            throw AuthorizationException::notOwner($this->owner, $spend->authorizedBy);
+        if ($spend->signedBy !== $this->name) {
+            throw AuthorizationException::notOwner($this->name, $spend->signedBy);
         }
     }
 
     /**
-     * @return array{type: string, owner: string}
+     * @return array{type: string, name: string}
      */
     public function toArray(): array
     {
-        return ['type' => 'owner', 'owner' => $this->owner];
+        return ['type' => 'owner', 'name' => $this->name];
     }
 }

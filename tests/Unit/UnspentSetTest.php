@@ -28,8 +28,8 @@ final class UnspentSetTest extends TestCase
 
     public function test_can_add_outputs(): void
     {
-        $output1 = new Output(new OutputId('a'), 100);
-        $output2 = new Output(new OutputId('b'), 50);
+        $output1 = Output::open(100, 'a');
+        $output2 = Output::open(50, 'b');
 
         $set = UnspentSet::empty()
             ->add($output1)
@@ -41,7 +41,7 @@ final class UnspentSetTest extends TestCase
 
     public function test_can_check_if_contains_output_id(): void
     {
-        $output = new Output(new OutputId('a'), 100);
+        $output = Output::open(100, 'a');
         $set = UnspentSet::empty()->add($output);
 
         self::assertTrue($set->contains(new OutputId('a')));
@@ -50,7 +50,7 @@ final class UnspentSetTest extends TestCase
 
     public function test_can_get_output_by_id(): void
     {
-        $output = new Output(new OutputId('a'), 100);
+        $output = Output::open(100, 'a');
         $set = UnspentSet::empty()->add($output);
 
         self::assertSame($output, $set->get(new OutputId('a')));
@@ -59,8 +59,8 @@ final class UnspentSetTest extends TestCase
 
     public function test_can_remove_output_by_id(): void
     {
-        $output1 = new Output(new OutputId('a'), 100);
-        $output2 = new Output(new OutputId('b'), 50);
+        $output1 = Output::open(100, 'a');
+        $output2 = Output::open(50, 'b');
 
         $set = UnspentSet::empty()
             ->add($output1)
@@ -74,8 +74,8 @@ final class UnspentSetTest extends TestCase
 
     public function test_is_iterable(): void
     {
-        $output1 = new Output(new OutputId('a'), 100);
-        $output2 = new Output(new OutputId('b'), 50);
+        $output1 = Output::open(100, 'a');
+        $output2 = Output::open(50, 'b');
 
         $set = UnspentSet::empty()->add($output1)->add($output2);
 
@@ -88,8 +88,8 @@ final class UnspentSetTest extends TestCase
 
     public function test_returns_all_output_ids(): void
     {
-        $output1 = new Output(new OutputId('a'), 100);
-        $output2 = new Output(new OutputId('b'), 50);
+        $output1 = Output::open(100, 'a');
+        $output2 = Output::open(50, 'b');
 
         $set = UnspentSet::empty()->add($output1)->add($output2);
 
@@ -100,9 +100,9 @@ final class UnspentSetTest extends TestCase
 
     public function test_can_add_multiple_outputs_at_once(): void
     {
-        $output1 = new Output(new OutputId('a'), 100);
-        $output2 = new Output(new OutputId('b'), 50);
-        $output3 = new Output(new OutputId('c'), 25);
+        $output1 = Output::open(100, 'a');
+        $output2 = Output::open(50, 'b');
+        $output3 = Output::open(25, 'c');
 
         $set = UnspentSet::empty()->addAll($output1, $output2, $output3);
 
@@ -112,9 +112,9 @@ final class UnspentSetTest extends TestCase
 
     public function test_can_remove_multiple_outputs_at_once(): void
     {
-        $output1 = new Output(new OutputId('a'), 100);
-        $output2 = new Output(new OutputId('b'), 50);
-        $output3 = new Output(new OutputId('c'), 25);
+        $output1 = Output::open(100, 'a');
+        $output2 = Output::open(50, 'b');
+        $output3 = Output::open(25, 'c');
 
         $set = UnspentSet::empty()
             ->addAll($output1, $output2, $output3)
@@ -127,8 +127,8 @@ final class UnspentSetTest extends TestCase
 
     public function test_can_create_from_outputs(): void
     {
-        $output1 = new Output(new OutputId('a'), 100);
-        $output2 = new Output(new OutputId('b'), 50);
+        $output1 = Output::open(100, 'a');
+        $output2 = Output::open(50, 'b');
 
         $set = UnspentSet::fromOutputs($output1, $output2);
 
@@ -143,8 +143,8 @@ final class UnspentSetTest extends TestCase
     public function test_can_serialize_to_array(): void
     {
         $set = UnspentSet::fromOutputs(
-            new Output(new OutputId('a'), 100),
-            new Output(new OutputId('b'), 50),
+            Output::open(100, 'a'),
+            Output::open(50, 'b'),
         );
 
         $array = $set->toArray();
@@ -172,9 +172,9 @@ final class UnspentSetTest extends TestCase
     public function test_serialization_round_trip(): void
     {
         $original = UnspentSet::fromOutputs(
-            new Output(new OutputId('x'), 1000),
-            new Output(new OutputId('y'), 500),
-            new Output(new OutputId('z'), 250),
+            Output::open(1000, 'x'),
+            Output::open(500, 'y'),
+            Output::open(250, 'z'),
         );
 
         $restored = UnspentSet::fromArray($original->toArray());

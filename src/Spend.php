@@ -18,7 +18,7 @@ final readonly class Spend
         public SpendId $id,
         public array $inputs,
         public array $outputs,
-        public ?string $authorizedBy = null,
+        public ?string $signedBy = null,
         public array $proofs = [],
     ) {
         if ($inputs === []) {
@@ -65,8 +65,8 @@ final readonly class Spend
     public static function create(
         array $inputIds,
         array $outputs,
+        ?string $signedBy = null,
         ?string $id = null,
-        ?string $authorizedBy = null,
         array $proofs = [],
     ): self {
         $actualId = $id ?? IdGenerator::forSpend($inputIds, $outputs);
@@ -78,7 +78,7 @@ final readonly class Spend
                 $inputIds,
             ),
             outputs: $outputs,
-            authorizedBy: $authorizedBy,
+            signedBy: $signedBy,
             proofs: $proofs,
         );
     }

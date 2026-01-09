@@ -13,7 +13,7 @@ final class AuthorizationException extends UnspentException
     {
         $actualStr = $actual ?? 'null';
 
-        return new self("Output owned by '{$expected}', but spend authorized by '{$actualStr}'");
+        return new self("Output owned by '{$expected}', but spend signed by '{$actualStr}'");
     }
 
     public static function missingProof(int $inputIndex): self

@@ -18,23 +18,24 @@ Track value like Bitcoin tracks coins. Every unit has an origin, can only be spe
 
 ```php
 $ledger = Ledger::empty()->addGenesis(
-    Output::create(1000, 'alice'),
+    Output::ownedBy('alice', 1000, 'genesis'),
 );
 
-// Alice spends 600, keeps 390, burns 10 as fee
+// Alice spends 600 to Bob, keeps 390, burns 10 as fee
 $ledger = $ledger->apply(Spend::create(
-    inputIds: ['alice'],
+    inputIds: ['genesis'],
     outputs: [
-        Output::create(600, 'bob'),
-        Output::create(390, 'alice-change'),
+        Output::ownedBy('bob', 600),
+        Output::ownedBy('alice', 390, 'alice-change'),
     ],
+    signedBy: 'alice',
+    id: 'tx-001',
 ));
 
 $ledger->totalUnspentAmount();  // 990 (10 went to fees)
-$ledger->feeForSpend(new SpendId('tx-001')); // 10
 ```
 
-That's it. Full audit trail. Double-spend protection built in.
+That's it. Full audit trail. Double-spend protection. Ownership verification.
 
 ## When to Use This
 
@@ -57,11 +58,13 @@ PHP 8.4+
 
 ### Outputs
 
-A chunk of value with a unique ID. Spend it, and it's gone - replaced by new outputs.
+A chunk of value with ownership. Spend it, and it's gone - replaced by new outputs.
 
 ```php
-Output::create(100, 'reward-42');  // 100 units, ID "reward-42"
-Output::create(100);               // Auto-generated content-hash ID
+Output::ownedBy('alice', 1000)           // Alice owns 1000 units
+Output::ownedBy('alice', 1000, 'tx-out') // With explicit ID
+Output::signedBy($publicKey, 1000)       // Crypto-locked (Ed25519)
+Output::open(1000)                        // Anyone can spend (explicit)
 ```
 
 ### Spends
@@ -70,9 +73,10 @@ Consume outputs, create new ones. The transaction.
 
 ```php
 Spend::create(
-    inputIds: ['reward-42'],
-    outputs: [Output::create(100, 'spent')],
-    id: 'tx-001',  // Optional - auto-generated if omitted
+    inputIds: ['alice-funds'],
+    outputs: [Output::ownedBy('bob', 100)],
+    signedBy: 'alice',  // Must match output owner
+    id: 'tx-001',       // Optional - auto-generated if omitted
 );
 ```
 
@@ -83,10 +87,87 @@ Inputs must exist. Outputs can't exceed inputs (the gap is the fee).
 Immutable state. Every operation returns a new ledger - you can't mess with history.
 
 ```php
-$v1 = Ledger::empty()->addGenesis(Output::create(100, 'x'));
+$v1 = Ledger::empty()->addGenesis(Output::ownedBy('alice', 100));
 $v2 = $v1->apply($someSpend);
 // $v1 unchanged, $v2 has the new state
 ```
+
+## Ownership
+
+Every output has an owner. Only the owner can spend it.
+
+### Simple Ownership (Server-Side)
+
+For apps where the server controls authentication:
+
+```php
+// Create owned outputs
+$ledger = Ledger::empty()->addGenesis(
+    Output::ownedBy('alice', 1000, 'alice-funds'),
+    Output::ownedBy('bob', 500, 'bob-funds'),
+);
+
+// Alice spends - must sign
+$ledger = $ledger->apply(Spend::create(
+    inputIds: ['alice-funds'],
+    outputs: [Output::ownedBy('bob', 900)],
+    signedBy: 'alice',
+));
+
+// Wrong signer = AuthorizationException
+$ledger->apply(Spend::create(
+    inputIds: ['bob-funds'],
+    outputs: [...],
+    signedBy: 'alice',  // Bob owns this!
+)); // Throws AuthorizationException
+```
+
+### Cryptographic Ownership (Trustless)
+
+For decentralized systems using Ed25519 signatures:
+
+```php
+// Generate keypair (client-side)
+$keypair = sodium_crypto_sign_keypair();
+$publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
+$privateKey = sodium_crypto_sign_secretkey($keypair);
+
+// Lock output to public key
+$ledger = Ledger::empty()->addGenesis(
+    Output::signedBy($publicKey, 1000, 'secure-funds'),
+);
+
+// Spend requires valid signature
+$spendId = 'tx-001';
+$signature = base64_encode(
+    sodium_crypto_sign_detached($spendId, $privateKey)
+);
+
+$ledger = $ledger->apply(Spend::create(
+    inputIds: ['secure-funds'],
+    outputs: [Output::signedBy($publicKey, 900)],
+    proofs: [$signature],
+    id: $spendId,
+));
+```
+
+### Open Outputs
+
+For intentionally public outputs (burn addresses, etc.):
+
+```php
+Output::open(1000, 'burn-address')  // Anyone can spend
+```
+
+### Built-in Locks
+
+| Lock        | Factory Method       | Verification                       |
+|-------------|----------------------|------------------------------------|
+| `Owner`     | `Output::ownedBy()`  | `signedBy` matches owner name      |
+| `PublicKey` | `Output::signedBy()` | Ed25519 signature in `proofs`      |
+| `NoLock`    | `Output::open()`     | No verification (anyone can spend) |
+
+Custom locks? Implement `OutputLock` interface.
 
 ## Fees
 
@@ -109,7 +190,7 @@ Need to create new value? Like miners getting block rewards? Use coinbase transa
 // Mint new coins (no inputs required)
 $ledger = Ledger::empty()
     ->applyCoinbase(Coinbase::create([
-        Output::create(50, 'miner-reward'),
+        Output::ownedBy('miner', 50, 'block-reward'),
     ], 'block-1'));
 
 $ledger->totalMinted();  // 50
@@ -117,49 +198,14 @@ $ledger->isCoinbase(new SpendId('block-1'));  // true
 
 // Spend minted coins like any other output
 $ledger = $ledger->apply(Spend::create(
-    inputIds: ['miner-reward'],
-    outputs: [Output::create(45, 'alice')],
+    inputIds: ['block-reward'],
+    outputs: [Output::ownedBy('alice', 45)],
+    signedBy: 'miner',
 ));
 // 5 goes to fees
 ```
 
 Regular spends need inputs. Coinbase transactions create value out of thin air.
-
-## Ownership (Locks)
-
-Protect outputs so only rightful owners can spend them:
-
-```php
-use Chemaclass\Unspent\Lock\OwnerLock;
-
-// Create output owned by Alice
-$ledger = Ledger::empty()->addGenesis(
-    Output::create(1000, 'alice-funds', new OwnerLock('alice')),
-);
-
-// Alice can spend her output
-$ledger = $ledger->apply(Spend::create(
-    inputIds: ['alice-funds'],
-    outputs: [Output::create(900, 'bob-payment', new OwnerLock('bob'))],
-    authorizedBy: 'alice',
-));
-
-// Bob tries to spend Alice's output - FAILS
-$ledger->apply(Spend::create(
-    inputIds: ['alice-funds'],
-    outputs: [...],
-    authorizedBy: 'bob',
-)); // Throws AuthorizationException
-```
-
-Built-in locks:
-
-| Lock | Behavior |
-|------|----------|
-| `NoLock` | Anyone can spend (default, backwards compatible) |
-| `OwnerLock` | Only matching `authorizedBy` can spend |
-
-Custom locks? Implement `OutputLock` interface.
 
 ## Validation
 
@@ -196,7 +242,7 @@ file_put_contents('ledger.json', $json);
 // Restore later
 $ledger = Ledger::fromJson(file_get_contents('ledger.json'));
 
-// Continue where you left off
+// Continue where you left off - ownership is preserved
 $ledger = $ledger->apply(Spend::create(...));
 ```
 
@@ -210,18 +256,31 @@ $ledger = Ledger::fromArray($array);
 ## API
 
 ```php
-// Create stuff (ID is optional - auto-generated if omitted)
-Output::create(int $amount, ?string $id = null, ?OutputLock $lock = null): Output
-Spend::create(array $inputIds, array $outputs, ?string $id = null, ?string $authorizedBy = null): Spend
-Coinbase::create(array $outputs, ?string $id = null): Coinbase
-Ledger::empty(): Ledger
+// Create outputs
+Output::ownedBy(string $owner, int $amount, ?string $id = null): Output
+Output::signedBy(string $publicKey, int $amount, ?string $id = null): Output
+Output::open(int $amount, ?string $id = null): Output
+Output::lockedWith(OutputLock $lock, int $amount, ?string $id = null): Output
 
-// Do stuff
+// Create spends
+Spend::create(
+    array $inputIds,
+    array $outputs,
+    ?string $signedBy = null,
+    ?string $id = null,
+    array $proofs = [],
+): Spend
+
+// Create coinbase
+Coinbase::create(array $outputs, ?string $id = null): Coinbase
+
+// Ledger operations
+Ledger::empty(): Ledger
 $ledger->addGenesis(Output ...$outputs): Ledger
 $ledger->apply(Spend $spend): Ledger
 $ledger->applyCoinbase(Coinbase $coinbase): Ledger
 
-// Query stuff
+// Query
 $ledger->totalUnspentAmount(): int
 $ledger->totalFeesCollected(): int
 $ledger->feeForSpend(SpendId $id): ?int
@@ -238,13 +297,10 @@ $ledger->toJson(int $flags = 0): string
 Ledger::fromArray(array $data): Ledger
 Ledger::fromJson(string $json): Ledger
 
-// UnspentSet
-$set->contains(OutputId $id): bool
-$set->get(OutputId $id): ?Output
-$set->count(): int
-$set->totalAmount(): int
-$set->toArray(): array
-UnspentSet::fromArray(array $data): UnspentSet
+// Locks
+new Owner(string $name)
+new PublicKey(string $base64Key)
+new NoLock()
 ```
 
 ## Contributing

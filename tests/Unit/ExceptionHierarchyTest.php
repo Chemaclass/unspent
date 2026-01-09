@@ -41,8 +41,8 @@ final class ExceptionHierarchyTest extends TestCase
         // Test DuplicateOutputIdException
         try {
             Ledger::empty()->addGenesis(
-                new Output(new OutputId('a'), 100),
-                new Output(new OutputId('a'), 50),
+                Output::open(100, 'a'),
+                Output::open(50, 'a'),
             );
         } catch (UnspentException $e) {
             $caughtExceptions[] = $e::class;
@@ -51,8 +51,8 @@ final class ExceptionHierarchyTest extends TestCase
         // Test GenesisNotAllowedException
         try {
             Ledger::empty()
-                ->addGenesis(new Output(new OutputId('a'), 100))
-                ->addGenesis(new Output(new OutputId('b'), 50));
+                ->addGenesis(Output::open(100, 'a'))
+                ->addGenesis(Output::open(50, 'b'));
         } catch (UnspentException $e) {
             $caughtExceptions[] = $e::class;
         }
@@ -60,11 +60,11 @@ final class ExceptionHierarchyTest extends TestCase
         // Test OutputAlreadySpentException
         try {
             Ledger::empty()
-                ->addGenesis(new Output(new OutputId('a'), 100))
+                ->addGenesis(Output::open(100, 'a'))
                 ->apply(new Spend(
                     id: new SpendId('tx1'),
                     inputs: [new OutputId('nonexistent')],
-                    outputs: [new Output(new OutputId('b'), 100)],
+                    outputs: [Output::open(100, 'b')],
                 ));
         } catch (UnspentException $e) {
             $caughtExceptions[] = $e::class;
@@ -73,11 +73,11 @@ final class ExceptionHierarchyTest extends TestCase
         // Test InsufficientInputsException (outputs exceed inputs)
         try {
             Ledger::empty()
-                ->addGenesis(new Output(new OutputId('a'), 100))
+                ->addGenesis(Output::open(100, 'a'))
                 ->apply(new Spend(
                     id: new SpendId('tx1'),
                     inputs: [new OutputId('a')],
-                    outputs: [new Output(new OutputId('b'), 150)],
+                    outputs: [Output::open(150, 'b')],
                 ));
         } catch (UnspentException $e) {
             $caughtExceptions[] = $e::class;

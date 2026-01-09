@@ -23,7 +23,8 @@ final class LockFactory
 
         return match ($type) {
             'none' => new NoLock(),
-            'owner' => new OwnerLock((string) ($data['owner'] ?? throw new InvalidArgumentException('Owner is required for owner lock'))),
+            'owner' => new Owner((string) ($data['name'] ?? throw new InvalidArgumentException('Name is required for owner lock'))),
+            'pubkey' => new PublicKey((string) ($data['key'] ?? throw new InvalidArgumentException('Key is required for pubkey lock'))),
             default => throw new InvalidArgumentException("Unknown lock type: {$type}"),
         };
     }
