@@ -12,7 +12,7 @@ use Chemaclass\Unspent\SpendId;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
-use Chemaclass\Unspent\Exception\UnbalancedSpendException;
+use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use PHPUnit\Framework\TestCase;
 
@@ -95,17 +95,17 @@ final class LedgerTest extends TestCase
             ));
     }
 
-    public function test_apply_spend_fails_when_amounts_dont_balance(): void
+    public function test_apply_spend_fails_when_outputs_exceed_inputs(): void
     {
-        $this->expectException(UnbalancedSpendException::class);
-        $this->expectExceptionMessage('Spend is unbalanced: input amount (100) does not equal output amount (50)');
+        $this->expectException(InsufficientInputsException::class);
+        $this->expectExceptionMessage('Insufficient inputs: input amount (100) is less than output amount (150)');
 
         Ledger::empty()
             ->addGenesis(new Output(new OutputId('a'), 100))
             ->apply(new Spend(
                 id: new SpendId('tx1'),
                 inputs: [new OutputId('a')],
-                outputs: [new Output(new OutputId('b'), 50)],
+                outputs: [new Output(new OutputId('b'), 150)],
             ));
     }
 
@@ -247,5 +247,137 @@ final class LedgerTest extends TestCase
 
         self::assertTrue($ledger->hasSpendBeenApplied(new SpendId('tx1')));
         self::assertFalse($ledger->hasSpendBeenApplied(new SpendId('tx2')));
+    }
+
+    // ========================================================================
+    // Fee Tests (Bitcoin-style implicit fees)
+    // ========================================================================
+
+    public function test_fee_calculated_when_inputs_exceed_outputs(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('a')],
+                outputs: [new Output(new OutputId('b'), 90)],
+            ));
+
+        self::assertSame(10, $ledger->feeForSpend(new SpendId('tx1')));
+        self::assertSame(10, $ledger->totalFeesCollected());
+        self::assertSame(90, $ledger->totalUnspentAmount());
+    }
+
+    public function test_zero_fee_when_inputs_equal_outputs(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('a')],
+                outputs: [new Output(new OutputId('b'), 100)],
+            ));
+
+        self::assertSame(0, $ledger->feeForSpend(new SpendId('tx1')));
+        self::assertSame(0, $ledger->totalFeesCollected());
+        self::assertSame(100, $ledger->totalUnspentAmount());
+    }
+
+    public function test_total_fees_accumulate_across_spends(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('genesis')],
+                outputs: [
+                    new Output(new OutputId('a'), 500),
+                    new Output(new OutputId('b'), 490),
+                ],
+            ))
+            ->apply(new Spend(
+                id: new SpendId('tx2'),
+                inputs: [new OutputId('a')],
+                outputs: [new Output(new OutputId('c'), 495)],
+            ));
+
+        self::assertSame(10, $ledger->feeForSpend(new SpendId('tx1')));
+        self::assertSame(5, $ledger->feeForSpend(new SpendId('tx2')));
+        self::assertSame(15, $ledger->totalFeesCollected());
+        self::assertSame(985, $ledger->totalUnspentAmount());
+    }
+
+    public function test_fee_for_unknown_spend_returns_null(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('a'), 100));
+
+        self::assertNull($ledger->feeForSpend(new SpendId('nonexistent')));
+    }
+
+    public function test_empty_ledger_has_zero_total_fees(): void
+    {
+        $ledger = Ledger::empty();
+
+        self::assertSame(0, $ledger->totalFeesCollected());
+    }
+
+    public function test_genesis_does_not_affect_fees(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(
+                new Output(new OutputId('a'), 1000),
+                new Output(new OutputId('b'), 500),
+            );
+
+        self::assertSame(0, $ledger->totalFeesCollected());
+        self::assertSame([], $ledger->allSpendFees());
+    }
+
+    public function test_all_spend_fees_returns_complete_map(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('genesis')],
+                outputs: [new Output(new OutputId('a'), 990)],
+            ))
+            ->apply(new Spend(
+                id: new SpendId('tx2'),
+                inputs: [new OutputId('a')],
+                outputs: [new Output(new OutputId('b'), 980)],
+            ));
+
+        $fees = $ledger->allSpendFees();
+        self::assertCount(2, $fees);
+        self::assertSame(10, $fees['tx1']);
+        self::assertSame(10, $fees['tx2']);
+    }
+
+    public function test_fees_preserved_through_immutability(): void
+    {
+        $ledger1 = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('a'), 100))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('a')],
+                outputs: [new Output(new OutputId('b'), 95)],
+            ));
+
+        $ledger2 = $ledger1->apply(new Spend(
+            id: new SpendId('tx2'),
+            inputs: [new OutputId('b')],
+            outputs: [new Output(new OutputId('c'), 90)],
+        ));
+
+        // Original ledger unchanged
+        self::assertSame(5, $ledger1->totalFeesCollected());
+        self::assertNull($ledger1->feeForSpend(new SpendId('tx2')));
+
+        // New ledger has both fees
+        self::assertSame(10, $ledger2->totalFeesCollected());
+        self::assertSame(5, $ledger2->feeForSpend(new SpendId('tx1')));
+        self::assertSame(5, $ledger2->feeForSpend(new SpendId('tx2')));
     }
 }

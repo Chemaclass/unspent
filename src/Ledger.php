@@ -7,22 +7,25 @@ namespace Chemaclass\Unspent;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
+use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
-use Chemaclass\Unspent\Exception\UnbalancedSpendException;
 
 final readonly class Ledger
 {
     /**
      * @param array<string, true> $appliedSpendIds
+     * @param array<string, int> $spendFees Map of SpendId value to fee amount
      */
     private function __construct(
         private UnspentSet $unspentSet,
         private array $appliedSpendIds,
+        private array $spendFees = [],
+        private int $totalFees = 0,
     ) {}
 
     public static function empty(): self
     {
-        return new self(UnspentSet::empty(), []);
+        return new self(UnspentSet::empty(), [], [], 0);
     }
 
     public function addGenesis(Output ...$outputs): self
@@ -36,6 +39,8 @@ final readonly class Ledger
         return new self(
             UnspentSet::fromOutputs(...$outputs),
             $this->appliedSpendIds,
+            $this->spendFees,
+            $this->totalFees,
         );
     }
 
@@ -43,8 +48,12 @@ final readonly class Ledger
     {
         $this->assertSpendNotAlreadyApplied($spend);
         $inputAmount = $this->validateInputsAndGetTotal($spend);
-        $this->assertSpendIsBalanced($inputAmount, $spend->totalOutputAmount());
+        $outputAmount = $spend->totalOutputAmount();
+        $this->assertSufficientInputs($inputAmount, $outputAmount);
         $this->assertNoOutputIdConflicts($spend);
+
+        // Calculate implicit fee (Bitcoin-style: inputs - outputs)
+        $fee = $inputAmount - $outputAmount;
 
         $unspent = $this->unspentSet
             ->removeAll(...$spend->inputs)
@@ -53,7 +62,15 @@ final readonly class Ledger
         $appliedSpends = $this->appliedSpendIds;
         $appliedSpends[$spend->id->value] = true;
 
-        return new self($unspent, $appliedSpends);
+        $spendFees = $this->spendFees;
+        $spendFees[$spend->id->value] = $fee;
+
+        return new self(
+            $unspent,
+            $appliedSpends,
+            $spendFees,
+            $this->totalFees + $fee,
+        );
     }
 
     public function unspent(): UnspentSet
@@ -69,6 +86,34 @@ final readonly class Ledger
     public function hasSpendBeenApplied(SpendId $spendId): bool
     {
         return isset($this->appliedSpendIds[$spendId->value]);
+    }
+
+    /**
+     * Returns the total fees collected across all applied spends.
+     */
+    public function totalFeesCollected(): int
+    {
+        return $this->totalFees;
+    }
+
+    /**
+     * Returns the fee paid for a specific spend.
+     *
+     * @return int|null Fee amount, or null if spend not found
+     */
+    public function feeForSpend(SpendId $spendId): ?int
+    {
+        return $this->spendFees[$spendId->value] ?? null;
+    }
+
+    /**
+     * Returns all spend IDs with their associated fees.
+     *
+     * @return array<string, int> Map of SpendId value to fee
+     */
+    public function allSpendFees(): array
+    {
+        return $this->spendFees;
     }
 
     /**
@@ -110,10 +155,10 @@ final readonly class Ledger
         return $inputAmount;
     }
 
-    private function assertSpendIsBalanced(int $inputAmount, int $outputAmount): void
+    private function assertSufficientInputs(int $inputAmount, int $outputAmount): void
     {
-        if ($inputAmount !== $outputAmount) {
-            throw UnbalancedSpendException::create($inputAmount, $outputAmount);
+        if ($inputAmount < $outputAmount) {
+            throw InsufficientInputsException::create($inputAmount, $outputAmount);
         }
     }
 

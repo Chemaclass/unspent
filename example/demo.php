@@ -17,7 +17,7 @@ use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
-use Chemaclass\Unspent\Exception\UnbalancedSpendException;
+use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\UnspentException;
 use Chemaclass\Unspent\Id;
 use Chemaclass\Unspent\Ledger;
@@ -167,7 +167,7 @@ section('5. UnspentSet Operations');
 
 info('Creating UnspentSet from outputs...');
 $set = UnspentSet::fromOutputs(
-    new Output(new OutputId('a'), 100),
+    new Output(new OutputId('a'), 100), # what about having a named constructor like this or similar `Output::create('a', 100)`
     new Output(new OutputId('b'), 200),
     new Output(new OutputId('c'), 300),
 );
@@ -235,17 +235,17 @@ try {
     success("Caught OutputAlreadySpentException: {$e->getMessage()}");
 }
 
-// 6.4 Unbalanced spend
-info('Trying to create unbalanced spend (input != output)...');
+// 6.4 Insufficient inputs (outputs exceed inputs)
+info('Trying to spend more than available (outputs > inputs)...');
 try {
     $ledger->apply(new Spend(
         id: new SpendId('bad-tx-3'),
         inputs: [new OutputId('alice-change')], // 400 units
-        outputs: [new Output(new OutputId('y'), 100)], // Only 100 units!
+        outputs: [new Output(new OutputId('y'), 500)], // 500 units - more than inputs!
     ));
     error('Should have thrown exception!');
-} catch (UnbalancedSpendException $e) {
-    success("Caught UnbalancedSpendException: {$e->getMessage()}");
+} catch (InsufficientInputsException $e) {
+    success("Caught InsufficientInputsException: {$e->getMessage()}");
 }
 
 // 6.5 Duplicate spend ID
@@ -319,10 +319,61 @@ echo "  New ledger outputs: {$newLedger->unspent()->count()}\n";
 success('Original ledger unchanged after apply()');
 
 // ============================================================================
-// 8. PERFORMANCE CHARACTERISTICS
+// 8. IMPLICIT FEES (BITCOIN-STYLE)
 // ============================================================================
 
-section('8. Performance Characteristics');
+section('8. Implicit Fees (Bitcoin-Style)');
+
+info('Creating a ledger with fee-bearing spends...');
+$feeLedger = Ledger::empty()
+    ->addGenesis(new Output(new OutputId('fee-genesis'), 1000));
+
+success("Genesis output: 1000 units, total fees: {$feeLedger->totalFeesCollected()}");
+
+info('Applying spend with 10 unit fee (1000 -> 990)...');
+$feeLedger = $feeLedger->apply(new Spend(
+    id: new SpendId('fee-tx-1'),
+    inputs: [new OutputId('fee-genesis')],
+    outputs: [new Output(new OutputId('fee-out-1'), 990)],
+));
+success("Fee for tx-1: {$feeLedger->feeForSpend(new SpendId('fee-tx-1'))} units");
+success("Total fees collected: {$feeLedger->totalFeesCollected()} units");
+success("Unspent amount: {$feeLedger->totalUnspentAmount()} units");
+
+info('Applying spend with 5 unit fee (990 -> 985)...');
+$feeLedger = $feeLedger->apply(new Spend(
+    id: new SpendId('fee-tx-2'),
+    inputs: [new OutputId('fee-out-1')],
+    outputs: [new Output(new OutputId('fee-out-2'), 985)],
+));
+success("Fee for tx-2: {$feeLedger->feeForSpend(new SpendId('fee-tx-2'))} units");
+success("Total fees collected: {$feeLedger->totalFeesCollected()} units");
+
+info('Zero-fee spend is still allowed (backward compatible)...');
+$feeLedger = $feeLedger->apply(new Spend(
+    id: new SpendId('fee-tx-3'),
+    inputs: [new OutputId('fee-out-2')],
+    outputs: [new Output(new OutputId('fee-out-3'), 985)],
+));
+success("Fee for tx-3: {$feeLedger->feeForSpend(new SpendId('fee-tx-3'))} units (zero fee)");
+success("Total fees collected: {$feeLedger->totalFeesCollected()} units");
+
+info('Querying all spend fees...');
+$allFees = $feeLedger->allSpendFees();
+echo "  All spend fees:\n";
+foreach ($allFees as $spendId => $fee) {
+    echo "    - {$spendId}: {$fee} units\n";
+}
+
+info('Unknown spend returns null...');
+$unknownFee = $feeLedger->feeForSpend(new SpendId('nonexistent'));
+success('Fee for unknown spend: ' . ($unknownFee === null ? 'null' : $unknownFee));
+
+// ============================================================================
+// 9. PERFORMANCE CHARACTERISTICS
+// ============================================================================
+
+section('9. Performance Characteristics');
 
 info('O(1) total amount (cached)...');
 $largeSet = UnspentSet::empty();
@@ -370,6 +421,7 @@ echo "    ✓ All invariant enforcement\n";
 echo "    ✓ Unified exception handling\n";
 echo "    ✓ Immutability guarantees\n";
 echo "    ✓ O(1) performance for totals\n";
+echo "    ✓ Bitcoin-style implicit fees\n";
 
 echo "\n" . str_repeat('=', 60) . "\n";
 echo " Demo completed successfully!\n";

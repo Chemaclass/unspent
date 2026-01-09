@@ -8,7 +8,7 @@ use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
-use Chemaclass\Unspent\Exception\UnbalancedSpendException;
+use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\UnspentException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
@@ -26,7 +26,7 @@ final class ExceptionHierarchyTest extends TestCase
         self::assertTrue(is_a(DuplicateSpendException::class, UnspentException::class, true));
         self::assertTrue(is_a(GenesisNotAllowedException::class, UnspentException::class, true));
         self::assertTrue(is_a(OutputAlreadySpentException::class, UnspentException::class, true));
-        self::assertTrue(is_a(UnbalancedSpendException::class, UnspentException::class, true));
+        self::assertTrue(is_a(InsufficientInputsException::class, UnspentException::class, true));
     }
 
     public function test_unspent_exception_extends_runtime_exception(): void
@@ -70,14 +70,14 @@ final class ExceptionHierarchyTest extends TestCase
             $caughtExceptions[] = $e::class;
         }
 
-        // Test UnbalancedSpendException
+        // Test InsufficientInputsException (outputs exceed inputs)
         try {
             Ledger::empty()
                 ->addGenesis(new Output(new OutputId('a'), 100))
                 ->apply(new Spend(
                     id: new SpendId('tx1'),
                     inputs: [new OutputId('a')],
-                    outputs: [new Output(new OutputId('b'), 50)],
+                    outputs: [new Output(new OutputId('b'), 150)],
                 ));
         } catch (UnspentException $e) {
             $caughtExceptions[] = $e::class;
@@ -87,6 +87,6 @@ final class ExceptionHierarchyTest extends TestCase
         self::assertContains(DuplicateOutputIdException::class, $caughtExceptions);
         self::assertContains(GenesisNotAllowedException::class, $caughtExceptions);
         self::assertContains(OutputAlreadySpentException::class, $caughtExceptions);
-        self::assertContains(UnbalancedSpendException::class, $caughtExceptions);
+        self::assertContains(InsufficientInputsException::class, $caughtExceptions);
     }
 }

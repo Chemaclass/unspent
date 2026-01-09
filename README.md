@@ -63,6 +63,36 @@ foreach ($unspent as $id => $output) {
 }
 ```
 
+## Implicit Fees (Bitcoin-Style)
+
+The library supports implicit fees where the difference between inputs and outputs is the fee:
+
+```php
+// Spend with a 10 unit fee (100 input -> 90 output)
+$ledger = $ledger->apply(new Spend(
+    id: new SpendId('tx-001'),
+    inputs: [new OutputId('genesis-1')],
+    outputs: [new Output(new OutputId('alice'), 90)],
+));
+
+// Query fees
+$ledger->feeForSpend(new SpendId('tx-001'));  // 10
+$ledger->totalFeesCollected();                 // 10
+
+// Zero-fee spends are still allowed (backward compatible)
+$ledger = $ledger->apply(new Spend(
+    id: new SpendId('tx-002'),
+    inputs: [new OutputId('alice')],
+    outputs: [new Output(new OutputId('bob'), 90)],  // No fee
+));
+
+$ledger->feeForSpend(new SpendId('tx-002'));  // 0
+$ledger->totalFeesCollected();                 // 10 (unchanged)
+
+// Get all fees as a map
+$ledger->allSpendFees();  // ['tx-001' => 10, 'tx-002' => 0]
+```
+
 ## Invariants
 
 The library enforces the following invariants:
@@ -71,7 +101,7 @@ The library enforces the following invariants:
 
 2. **Valid inputs**: A spend must reference only outputs that exist in the current unspent set.
 
-3. **Conservation**: Total input amount must equal total output amount (no creation or destruction of value).
+3. **Sufficient inputs**: Total input amount must be greater than or equal to total output amount. The difference (inputs - outputs) is the implicit fee.
 
 4. **Unique output IDs**: All output IDs must be unique across the entire ledger.
 
@@ -98,7 +128,7 @@ try {
 Specific exception types:
 
 - `OutputAlreadySpentException`: When trying to spend an output not in the unspent set
-- `UnbalancedSpendException`: When input and output amounts don't match
+- `InsufficientInputsException`: When output amount exceeds input amount
 - `DuplicateOutputIdException`: When creating outputs with duplicate IDs
 - `DuplicateSpendException`: When applying the same spend twice
 - `GenesisNotAllowedException`: When adding genesis outputs to a non-empty ledger
@@ -134,6 +164,9 @@ $ledger->apply(Spend $spend): Ledger              // Apply a spend, returns new 
 $ledger->unspent(): UnspentSet                    // Get current unspent outputs
 $ledger->totalUnspentAmount(): int                // Sum of all unspent amounts (O(1))
 $ledger->hasSpendBeenApplied(SpendId $id): bool   // Check if spend was applied
+$ledger->totalFeesCollected(): int                // Sum of all fees across spends
+$ledger->feeForSpend(SpendId $id): ?int           // Fee for a specific spend (null if not found)
+$ledger->allSpendFees(): array                    // Map of SpendId value => fee amount
 ```
 
 ### UnspentSet Methods
@@ -173,7 +206,7 @@ src/
 │   ├── DuplicateSpendException.php
 │   ├── GenesisNotAllowedException.php
 │   ├── OutputAlreadySpentException.php
-│   └── UnbalancedSpendException.php
+│   └── InsufficientInputsException.php
 ├── Id.php                            # Interface for identifiers
 ├── Ledger.php                        # Main entry point
 ├── Output.php                        # Output value object
