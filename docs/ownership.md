@@ -14,6 +14,8 @@ Every output has a **lock** that determines who can spend it. The library provid
 
 For applications where the server controls authentication. The server verifies identity (via session, JWT, etc.) before calling spend.
 
+**Validation:** Owner names cannot be empty or whitespace-only. Invalid names throw `InvalidArgumentException`.
+
 ```php
 // Create owned outputs
 $ledger = Ledger::withGenesis(
@@ -48,6 +50,8 @@ $ledger->apply(Tx::create(
 ## Cryptographic Ownership (PublicKey Lock)
 
 For trustless systems where you can't trust the server. Uses Ed25519 signatures.
+
+**Validation:** The public key must be a valid base64-encoded 32-byte Ed25519 key. Invalid keys throw `InvalidArgumentException` at construction time.
 
 ```php
 // Generate keypair (client-side, keep private key secret)

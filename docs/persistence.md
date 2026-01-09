@@ -23,6 +23,7 @@ $json = $ledger->toJson(JSON_PRETTY_PRINT);
 
 ```json
 {
+  "version": 1,
   "unspent": [
     {
       "id": "alice-funds",
@@ -61,6 +62,7 @@ $ledger = Ledger::fromArray($this->cache->get('ledger'));
 
 ```php
 [
+    'version' => 1,
     'unspent' => [
         ['id' => 'alice-funds', 'amount' => 1000, 'lock' => ['type' => 'owner', 'name' => 'alice']],
     ],
@@ -161,21 +163,14 @@ $restored->apply(Tx::create(
 
 ## Versioning
 
-The library doesn't include version numbers in serialized data. If you need schema evolution:
+The ledger includes a `version` field in serialized data for future schema evolution:
 
 ```php
-// Wrapper with version
-$data = [
-    'version' => 1,
-    'ledger' => $ledger->toArray(),
-];
+$array = $ledger->toArray();
+// $array['version'] === 1
 
-// On restore, handle migrations
-$data = json_decode($json, true);
-if ($data['version'] < CURRENT_VERSION) {
-    $data['ledger'] = migrate($data['ledger'], $data['version']);
-}
-$ledger = Ledger::fromArray($data['ledger']);
+// The version field is automatically included in toArray() and toJson()
+// Future versions may add migration logic in fromArray() if the format changes
 ```
 
 ## Next Steps

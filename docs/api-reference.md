@@ -6,6 +6,12 @@ Complete reference for all public classes and methods.
 
 A chunk of value with ownership.
 
+### Constants
+
+```php
+Output::MAX_AMOUNT  // PHP_INT_MAX (~9.2e18 on 64-bit systems)
+```
+
 ### Factory Methods
 
 ```php
@@ -242,22 +248,32 @@ UnspentSet::fromArray(array $data): UnspentSet
 ### OutputId
 
 ```php
-new OutputId(string $value)  // Non-empty string
+new OutputId(string $value)
 
 $id->value;     // string
 (string) $id;   // Stringable
 $id->equals(OutputId $other): bool
 ```
 
+**Validation:**
+- Cannot be empty or whitespace-only
+- Maximum 64 characters
+- Only alphanumeric characters, dashes (`-`), and underscores (`_`) allowed
+
 ### TxId
 
 ```php
-new TxId(string $value)  // Non-empty string
+new TxId(string $value)
 
 $id->value;     // string
 (string) $id;   // Stringable
 $id->equals(TxId $other): bool
 ```
+
+**Validation:**
+- Cannot be empty or whitespace-only
+- Maximum 64 characters
+- Only alphanumeric characters, dashes (`-`), and underscores (`_`) allowed
 
 ## Lock Classes
 
@@ -273,17 +289,24 @@ $lock->validate(Tx $tx, int $inputIndex): void
 $lock->toArray(): array  // ['type' => 'owner', 'name' => '...']
 ```
 
+**Validation:** Name cannot be empty or whitespace-only.
+
 ### PublicKey
 
 Ed25519 signature verification.
 
 ```php
-new PublicKey(string $key)  // Base64-encoded public key
+new PublicKey(string $key)  // Base64-encoded Ed25519 public key (32 bytes)
 
 $lock->key;  // string (base64)
 $lock->validate(Tx $tx, int $inputIndex): void
 $lock->toArray(): array  // ['type' => 'pubkey', 'key' => '...']
 ```
+
+**Validation:**
+- Key must be valid base64
+- Decoded key must be exactly 32 bytes (Ed25519 public key size)
+- Signatures verified must be exactly 64 bytes
 
 ### NoLock
 
