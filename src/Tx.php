@@ -7,7 +7,7 @@ namespace Chemaclass\Unspent;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use InvalidArgumentException;
 
-final readonly class Spend
+final readonly class Tx
 {
     /**
      * @param list<OutputId> $inputs
@@ -15,18 +15,18 @@ final readonly class Spend
      * @param list<string>   $proofs  Authorization proofs (signatures, etc.) indexed by input position
      */
     public function __construct(
-        public SpendId $id,
+        public TxId $id,
         public array $inputs,
         public array $outputs,
         public ?string $signedBy = null,
         public array $proofs = [],
     ) {
         if ($inputs === []) {
-            throw new InvalidArgumentException('Spend must have at least one input');
+            throw new InvalidArgumentException('Tx must have at least one input');
         }
 
         if ($outputs === []) {
-            throw new InvalidArgumentException('Spend must have at least one output');
+            throw new InvalidArgumentException('Tx must have at least one output');
         }
 
         $this->assertNoDuplicateInputIds();
@@ -45,10 +45,10 @@ final readonly class Spend
         ?string $id = null,
         array $proofs = [],
     ): self {
-        $actualId = $id ?? IdGenerator::forSpend($inputIds, $outputs);
+        $actualId = $id ?? IdGenerator::forTx($inputIds, $outputs);
 
         return new self(
-            id: new SpendId($actualId),
+            id: new TxId($actualId),
             inputs: array_map(
                 static fn (string $inputId): OutputId => new OutputId($inputId),
                 $inputIds,

@@ -4,19 +4,19 @@ declare(strict_types=1);
 
 namespace Chemaclass\UnspentTests\Unit;
 
-use Chemaclass\Unspent\Coinbase;
+use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\SpendId;
+use Chemaclass\Unspent\TxId;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
-final class CoinbaseTest extends TestCase
+final class CoinbaseTxTest extends TestCase
 {
     public function test_can_create_coinbase_with_outputs(): void
     {
-        $coinbase = new Coinbase(
-            id: new SpendId('block-1'),
+        $coinbase = new CoinbaseTx(
+            id: new TxId('block-1'),
             outputs: [
                 Output::open(50, 'reward-1'),
                 Output::open(25, 'reward-2'),
@@ -30,10 +30,10 @@ final class CoinbaseTest extends TestCase
     public function test_coinbase_must_have_at_least_one_output(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Coinbase must have at least one output');
+        $this->expectExceptionMessage('CoinbaseTx must have at least one output');
 
-        new Coinbase(
-            id: new SpendId('block-1'),
+        new CoinbaseTx(
+            id: new TxId('block-1'),
             outputs: [],
         );
     }
@@ -43,8 +43,8 @@ final class CoinbaseTest extends TestCase
         $this->expectException(DuplicateOutputIdException::class);
         $this->expectExceptionMessage("Duplicate output id: 'reward'");
 
-        new Coinbase(
-            id: new SpendId('block-1'),
+        new CoinbaseTx(
+            id: new TxId('block-1'),
             outputs: [
                 Output::open(50, 'reward'),
                 Output::open(25, 'reward'),
@@ -54,8 +54,8 @@ final class CoinbaseTest extends TestCase
 
     public function test_coinbase_calculates_total_output_amount(): void
     {
-        $coinbase = new Coinbase(
-            id: new SpendId('block-1'),
+        $coinbase = new CoinbaseTx(
+            id: new TxId('block-1'),
             outputs: [
                 Output::open(50, 'reward-1'),
                 Output::open(25, 'reward-2'),
@@ -68,7 +68,7 @@ final class CoinbaseTest extends TestCase
 
     public function test_create_factory_method(): void
     {
-        $coinbase = Coinbase::create([
+        $coinbase = CoinbaseTx::create([
             Output::open(50, 'reward-1'),
             Output::open(25, 'reward-2'),
         ], 'block-1');
@@ -80,7 +80,7 @@ final class CoinbaseTest extends TestCase
 
     public function test_create_with_auto_generated_id(): void
     {
-        $coinbase = Coinbase::create([
+        $coinbase = CoinbaseTx::create([
             Output::open(50, 'reward-1'),
         ]);
 
@@ -90,12 +90,12 @@ final class CoinbaseTest extends TestCase
 
     public function test_same_outputs_generate_same_id(): void
     {
-        $coinbase1 = Coinbase::create([
+        $coinbase1 = CoinbaseTx::create([
             Output::open(50, 'reward-1'),
             Output::open(25, 'reward-2'),
         ]);
 
-        $coinbase2 = Coinbase::create([
+        $coinbase2 = CoinbaseTx::create([
             Output::open(50, 'reward-1'),
             Output::open(25, 'reward-2'),
         ]);

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\Unspent;
 
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
-use Chemaclass\Unspent\Exception\DuplicateSpendException;
+use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
@@ -15,17 +15,17 @@ use JsonException;
 final readonly class Ledger
 {
     /**
-     * @param array<string, true>                                                       $appliedSpendIds
-     * @param array<string, int>                                                        $spendFees       Map of SpendId value to fee amount
-     * @param array<string, int>                                                        $coinbaseAmounts Map of coinbase SpendId to minted amount
-     * @param array<string, string>                                                     $outputCreatedBy Map of OutputId → SpendId|'genesis'
-     * @param array<string, string>                                                     $outputSpentBy   Map of OutputId → SpendId
+     * @param array<string, true>                                                       $appliedTxIds
+     * @param array<string, int>                                                        $txFees          Map of TxId value to fee amount
+     * @param array<string, int>                                                        $coinbaseAmounts Map of coinbase TxId to minted amount
+     * @param array<string, string>                                                     $outputCreatedBy Map of OutputId → TxId|'genesis'
+     * @param array<string, string>                                                     $outputSpentBy   Map of OutputId → TxId
      * @param array<string, array{id: string, amount: int, lock: array<string, mixed>}> $spentOutputs
      */
     private function __construct(
         private UnspentSet $unspentSet,
-        private array $appliedSpendIds,
-        private array $spendFees = [],
+        private array $appliedTxIds,
+        private array $txFees = [],
         private int $totalFees = 0,
         private array $coinbaseAmounts = [],
         private int $totalMinted = 0,
@@ -56,8 +56,8 @@ final readonly class Ledger
 
         return new self(
             UnspentSet::fromOutputs(...$outputs),
-            $this->appliedSpendIds,
-            $this->spendFees,
+            $this->appliedTxIds,
+            $this->txFees,
             $this->totalFees,
             $this->coinbaseAmounts,
             $this->totalMinted,
@@ -67,13 +67,13 @@ final readonly class Ledger
         );
     }
 
-    public function apply(Spend $spend): self
+    public function apply(Tx $tx): self
     {
-        $this->assertSpendNotAlreadyApplied($spend);
-        $inputAmount = $this->validateInputsAndGetTotal($spend);
-        $outputAmount = $spend->totalOutputAmount();
+        $this->assertTxNotAlreadyApplied($tx);
+        $inputAmount = $this->validateInputsAndGetTotal($tx);
+        $outputAmount = $tx->totalOutputAmount();
         $this->assertSufficientInputs($inputAmount, $outputAmount);
-        $this->assertNoOutputIdConflicts($spend);
+        $this->assertNoOutputIdConflicts($tx);
 
         // Calculate implicit fee (Bitcoin-style: inputs - outputs)
         $fee = $inputAmount - $outputAmount;
@@ -81,7 +81,7 @@ final readonly class Ledger
         // Track spent outputs before removing them
         $spentOutputs = $this->spentOutputs;
         $outputSpentBy = $this->outputSpentBy;
-        foreach ($spend->inputs as $inputId) {
+        foreach ($tx->inputs as $inputId) {
             $output = $this->unspentSet->get($inputId);
             if ($output !== null) {
                 $spentOutputs[$inputId->value] = [
@@ -89,30 +89,30 @@ final readonly class Ledger
                     'amount' => $output->amount,
                     'lock' => $output->lock->toArray(),
                 ];
-                $outputSpentBy[$inputId->value] = $spend->id->value;
+                $outputSpentBy[$inputId->value] = $tx->id->value;
             }
         }
 
         // Track provenance for new outputs
         $outputCreatedBy = $this->outputCreatedBy;
-        foreach ($spend->outputs as $output) {
-            $outputCreatedBy[$output->id->value] = $spend->id->value;
+        foreach ($tx->outputs as $output) {
+            $outputCreatedBy[$output->id->value] = $tx->id->value;
         }
 
         $unspent = $this->unspentSet
-            ->removeAll(...$spend->inputs)
-            ->addAll(...$spend->outputs);
+            ->removeAll(...$tx->inputs)
+            ->addAll(...$tx->outputs);
 
-        $appliedSpends = $this->appliedSpendIds;
-        $appliedSpends[$spend->id->value] = true;
+        $appliedTxs = $this->appliedTxIds;
+        $appliedTxs[$tx->id->value] = true;
 
-        $spendFees = $this->spendFees;
-        $spendFees[$spend->id->value] = $fee;
+        $txFees = $this->txFees;
+        $txFees[$tx->id->value] = $fee;
 
         return new self(
             $unspent,
-            $appliedSpends,
-            $spendFees,
+            $appliedTxs,
+            $txFees,
             $this->totalFees + $fee,
             $this->coinbaseAmounts,
             $this->totalMinted,
@@ -122,9 +122,9 @@ final readonly class Ledger
         );
     }
 
-    public function applyCoinbase(Coinbase $coinbase): self
+    public function applyCoinbase(CoinbaseTx $coinbase): self
     {
-        $this->assertSpendIdNotAlreadyUsed($coinbase->id);
+        $this->assertTxIdNotAlreadyUsed($coinbase->id);
         $this->assertNoOutputIdConflictsForCoinbase($coinbase);
 
         // Track provenance for coinbase outputs
@@ -135,16 +135,16 @@ final readonly class Ledger
 
         $unspent = $this->unspentSet->addAll(...$coinbase->outputs);
 
-        $appliedSpends = $this->appliedSpendIds;
-        $appliedSpends[$coinbase->id->value] = true;
+        $appliedTxs = $this->appliedTxIds;
+        $appliedTxs[$coinbase->id->value] = true;
 
         $coinbaseAmounts = $this->coinbaseAmounts;
         $coinbaseAmounts[$coinbase->id->value] = $coinbase->totalOutputAmount();
 
         return new self(
             $unspent,
-            $appliedSpends,
-            $this->spendFees,
+            $appliedTxs,
+            $this->txFees,
             $this->totalFees,
             $coinbaseAmounts,
             $this->totalMinted + $coinbase->totalOutputAmount(),
@@ -164,13 +164,13 @@ final readonly class Ledger
         return $this->unspentSet->totalAmount();
     }
 
-    public function hasSpendBeenApplied(SpendId $spendId): bool
+    public function isTxApplied(TxId $txId): bool
     {
-        return isset($this->appliedSpendIds[$spendId->value]);
+        return isset($this->appliedTxIds[$txId->value]);
     }
 
     /**
-     * Returns the total fees collected across all applied spends.
+     * Returns the total fees collected across all applied transactions.
      */
     public function totalFeesCollected(): int
     {
@@ -178,23 +178,23 @@ final readonly class Ledger
     }
 
     /**
-     * Returns the fee paid for a specific spend.
+     * Returns the fee paid for a specific transaction.
      *
-     * @return int|null Fee amount, or null if spend not found
+     * @return int|null Fee amount, or null if tx not found
      */
-    public function feeForSpend(SpendId $spendId): ?int
+    public function feeForTx(TxId $txId): ?int
     {
-        return $this->spendFees[$spendId->value] ?? null;
+        return $this->txFees[$txId->value] ?? null;
     }
 
     /**
-     * Returns all spend IDs with their associated fees.
+     * Returns all transaction IDs with their associated fees.
      *
-     * @return array<string, int> Map of SpendId value to fee
+     * @return array<string, int> Map of TxId value to fee
      */
-    public function allSpendFees(): array
+    public function allTxFees(): array
     {
-        return $this->spendFees;
+        return $this->txFees;
     }
 
     /**
@@ -208,7 +208,7 @@ final readonly class Ledger
     /**
      * Returns true if the given ID was a coinbase transaction.
      */
-    public function isCoinbase(SpendId $id): bool
+    public function isCoinbase(TxId $id): bool
     {
         return isset($this->coinbaseAmounts[$id->value]);
     }
@@ -218,7 +218,7 @@ final readonly class Ledger
      *
      * @return int|null Minted amount, or null if not a coinbase
      */
-    public function coinbaseAmount(SpendId $id): ?int
+    public function coinbaseAmount(TxId $id): ?int
     {
         return $this->coinbaseAmounts[$id->value] ?? null;
     }
@@ -230,7 +230,7 @@ final readonly class Ledger
     /**
      * Returns which transaction created this output.
      *
-     * @return string|null 'genesis' for genesis outputs, spend ID for others, null if unknown
+     * @return string|null 'genesis' for genesis outputs, tx ID for others, null if unknown
      */
     public function outputCreatedBy(OutputId $id): ?string
     {
@@ -240,7 +240,7 @@ final readonly class Ledger
     /**
      * Returns which transaction spent this output.
      *
-     * @return string|null Spend ID if spent, null if unspent or unknown
+     * @return string|null Tx ID if spent, null if unspent or unknown
      */
     public function outputSpentBy(OutputId $id): ?string
     {
@@ -316,8 +316,8 @@ final readonly class Ledger
      *
      * @return array{
      *     unspent: list<array{id: string, amount: int}>,
-     *     appliedSpends: list<string>,
-     *     spendFees: array<string, int>,
+     *     appliedTxs: list<string>,
+     *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
      *     outputCreatedBy: array<string, string>,
      *     outputSpentBy: array<string, string>,
@@ -328,8 +328,8 @@ final readonly class Ledger
     {
         return [
             'unspent' => $this->unspentSet->toArray(),
-            'appliedSpends' => array_keys($this->appliedSpendIds),
-            'spendFees' => $this->spendFees,
+            'appliedTxs' => array_keys($this->appliedTxIds),
+            'txFees' => $this->txFees,
             'coinbaseAmounts' => $this->coinbaseAmounts,
             'outputCreatedBy' => $this->outputCreatedBy,
             'outputSpentBy' => $this->outputSpentBy,
@@ -342,8 +342,8 @@ final readonly class Ledger
      *
      * @param array{
      *     unspent: list<array{id: string, amount: int}>,
-     *     appliedSpends: list<string>,
-     *     spendFees: array<string, int>,
+     *     appliedTxs: list<string>,
+     *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
      *     outputCreatedBy?: array<string, string>,
      *     outputSpentBy?: array<string, string>,
@@ -352,14 +352,14 @@ final readonly class Ledger
      */
     public static function fromArray(array $data): self
     {
-        $appliedSpendIds = array_fill_keys($data['appliedSpends'], true);
-        $totalFees = array_sum($data['spendFees']);
+        $appliedTxIds = array_fill_keys($data['appliedTxs'], true);
+        $totalFees = array_sum($data['txFees']);
         $totalMinted = array_sum($data['coinbaseAmounts']);
 
         return new self(
             unspentSet: UnspentSet::fromArray($data['unspent']),
-            appliedSpendIds: $appliedSpendIds,
-            spendFees: $data['spendFees'],
+            appliedTxIds: $appliedTxIds,
+            txFees: $data['txFees'],
             totalFees: $totalFees,
             coinbaseAmounts: $data['coinbaseAmounts'],
             totalMinted: $totalMinted,
@@ -410,33 +410,33 @@ final readonly class Ledger
         }
     }
 
-    private function assertSpendNotAlreadyApplied(Spend $spend): void
+    private function assertTxNotAlreadyApplied(Tx $tx): void
     {
-        $this->assertSpendIdNotAlreadyUsed($spend->id);
+        $this->assertTxIdNotAlreadyUsed($tx->id);
     }
 
-    private function assertSpendIdNotAlreadyUsed(SpendId $id): void
+    private function assertTxIdNotAlreadyUsed(TxId $id): void
     {
-        if (isset($this->appliedSpendIds[$id->value])) {
-            throw DuplicateSpendException::forId($id->value);
+        if (isset($this->appliedTxIds[$id->value])) {
+            throw DuplicateTxException::forId($id->value);
         }
     }
 
     /**
      * Validates all inputs exist in unspent set, checks authorization, and returns total input amount.
      */
-    private function validateInputsAndGetTotal(Spend $spend): int
+    private function validateInputsAndGetTotal(Tx $tx): int
     {
         $inputAmount = 0;
         $inputIndex = 0;
 
-        foreach ($spend->inputs as $inputId) {
+        foreach ($tx->inputs as $inputId) {
             $output = $this->unspentSet->get($inputId);
             if ($output === null) {
                 throw OutputAlreadySpentException::forId($inputId->value);
             }
 
-            $output->lock->validate($spend, $inputIndex);
+            $output->lock->validate($tx, $inputIndex);
 
             $inputAmount += $output->amount;
             ++$inputIndex;
@@ -452,16 +452,16 @@ final readonly class Ledger
         }
     }
 
-    private function assertNoOutputIdConflicts(Spend $spend): void
+    private function assertNoOutputIdConflicts(Tx $tx): void
     {
         // Build set of input IDs being spent (O(n))
         $inputIds = [];
-        foreach ($spend->inputs as $inputId) {
+        foreach ($tx->inputs as $inputId) {
             $inputIds[$inputId->value] = true;
         }
 
         // Check each output ID (O(m))
-        foreach ($spend->outputs as $output) {
+        foreach ($tx->outputs as $output) {
             $id = $output->id->value;
 
             // Skip IDs that are being spent (they will be removed)
@@ -476,7 +476,7 @@ final readonly class Ledger
         }
     }
 
-    private function assertNoOutputIdConflictsForCoinbase(Coinbase $coinbase): void
+    private function assertNoOutputIdConflictsForCoinbase(CoinbaseTx $coinbase): void
     {
         foreach ($coinbase->outputs as $output) {
             if ($this->unspentSet->contains($output->id)) {

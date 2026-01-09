@@ -13,12 +13,12 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Chemaclass\Unspent\Coinbase;
+use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
-use Chemaclass\Unspent\SpendId;
+use Chemaclass\Unspent\Tx;
+use Chemaclass\Unspent\TxId;
 
 echo "==========================================================\n";
 echo " Loyalty Points Example - Customer Rewards Program\n";
@@ -34,7 +34,7 @@ echo "------------------------------------------------\n";
 $rewards = Ledger::empty();
 
 // Customer alice makes a purchase and earns points (1 point per dollar)
-$rewards = $rewards->applyCoinbase(Coinbase::create(
+$rewards = $rewards->applyCoinbase(CoinbaseTx::create(
     outputs: [Output::ownedBy('alice', 50, 'purchase-001-points')],
     id: 'purchase-001',
 ));
@@ -44,7 +44,7 @@ echo "  Earned: 50 points (purchase-001)\n";
 echo "  Total points minted: {$rewards->totalMinted()}\n\n";
 
 // Second purchase
-$rewards = $rewards->applyCoinbase(Coinbase::create(
+$rewards = $rewards->applyCoinbase(CoinbaseTx::create(
     outputs: [Output::ownedBy('alice', 30, 'purchase-002-points')],
     id: 'purchase-002',
 ));
@@ -54,7 +54,7 @@ echo "  Earned: 30 points (purchase-002)\n";
 echo "  Total points minted: {$rewards->totalMinted()}\n\n";
 
 // Third purchase with bonus multiplier
-$rewards = $rewards->applyCoinbase(Coinbase::create(
+$rewards = $rewards->applyCoinbase(CoinbaseTx::create(
     outputs: [Output::ownedBy('alice', 40, 'purchase-003-points')], // $20 x2 bonus
     id: 'purchase-003',
 ));
@@ -72,7 +72,7 @@ echo "2. OWNERSHIP - Points Belong to Specific Customers\n";
 echo "---------------------------------------------------\n";
 
 // Bob also earns points
-$rewards = $rewards->applyCoinbase(Coinbase::create(
+$rewards = $rewards->applyCoinbase(CoinbaseTx::create(
     outputs: [Output::ownedBy('bob', 100, 'bob-purchase-points')],
     id: 'bob-purchase-001',
 ));
@@ -107,7 +107,7 @@ foreach ($aliceOutputs as $outputId) {
     $history = $rewards->outputHistory(new OutputId($outputId));
     \assert($history !== null);
     $coinbaseId = $history['createdBy'] ?? 'unknown';
-    $isCoinbase = $rewards->isCoinbase(new SpendId($coinbaseId)) ? 'Yes' : 'No';
+    $isCoinbase = $rewards->isCoinbase(new TxId($coinbaseId)) ? 'Yes' : 'No';
     echo "  {$outputId}:\n";
     echo "    Amount: {$history['amount']} points\n";
     echo "    From purchase: {$coinbaseId}\n";
@@ -123,7 +123,7 @@ echo "4. REDEMPTION - Burn Points for Rewards\n";
 echo "----------------------------------------\n";
 
 // Alice redeems 60 points for a reward (combines two batches)
-$rewards = $rewards->apply(Spend::create(
+$rewards = $rewards->apply(Tx::create(
     inputIds: ['purchase-001-points', 'purchase-002-points'], // 50 + 30 = 80
     outputs: [
         Output::open(60, 'reward-coffee-voucher'), // Redeemed (burned to system)
@@ -147,7 +147,7 @@ echo "5. PARTIAL REDEMPTION - Use Some, Keep Rest\n";
 echo "--------------------------------------------\n";
 
 // Alice uses some of her remaining points
-$rewards = $rewards->apply(Spend::create(
+$rewards = $rewards->apply(Tx::create(
     inputIds: ['alice-remaining', 'purchase-003-points'], // 20 + 40 = 60
     outputs: [
         Output::open(25, 'reward-discount-code'),
@@ -209,7 +209,7 @@ echo "  Points currently in circulation: {$rewards->totalUnspentAmount()}\n";
 echo '  Points burned/redeemed: ' . ($rewards->totalMinted() - $rewards->totalUnspentAmount()) . "\n";
 
 // Count redemptions
-$allFees = $rewards->allSpendFees();
+$allFees = $rewards->allTxFees();
 echo '  Number of redemptions: ' . \count($allFees) . "\n";
 
 // Calculate total redeemed

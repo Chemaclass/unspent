@@ -7,8 +7,8 @@ namespace Chemaclass\UnspentTests\Feature;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
-use Chemaclass\Unspent\SpendId;
+use Chemaclass\Unspent\Tx;
+use Chemaclass\Unspent\TxId;
 use PHPUnit\Framework\TestCase;
 
 final class LedgerIntegrationTest extends TestCase
@@ -25,7 +25,7 @@ final class LedgerIntegrationTest extends TestCase
         self::assertSame(1500, $ledger->totalUnspentAmount());
 
         // Apply a spend with implicit fee (1000 -> 600 + 390 = 990, fee = 10)
-        $ledger = $ledger->apply(Spend::create(
+        $ledger = $ledger->apply(Tx::create(
             inputIds: ['genesis-1'],
             outputs: [
                 Output::open(600, 'alice'),
@@ -36,7 +36,7 @@ final class LedgerIntegrationTest extends TestCase
 
         // Verify conservation minus fee
         self::assertSame(1490, $ledger->totalUnspentAmount());
-        self::assertSame(10, $ledger->feeForSpend(new SpendId('tx-001')));
+        self::assertSame(10, $ledger->feeForTx(new TxId('tx-001')));
 
         // Check unspent outputs
         $unspent = $ledger->unspent();
@@ -51,8 +51,8 @@ final class LedgerIntegrationTest extends TestCase
         self::assertSame(600, $aliceOutput->amount);
 
         // Check spend history
-        self::assertTrue($ledger->hasSpendBeenApplied(new SpendId('tx-001')));
-        self::assertFalse($ledger->hasSpendBeenApplied(new SpendId('tx-999')));
+        self::assertTrue($ledger->isTxApplied(new TxId('tx-001')));
+        self::assertFalse($ledger->isTxApplied(new TxId('tx-999')));
 
         // Iterate over unspent outputs
         $count = 0;
@@ -68,17 +68,17 @@ final class LedgerIntegrationTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['genesis'],
                 outputs: [Output::open(990, 'a')],
                 id: 'tx-1',
             ))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['a'],
                 outputs: [Output::open(980, 'b')],
                 id: 'tx-2',
             ))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['b'],
                 outputs: [Output::open(970, 'c')],
                 id: 'tx-3',
@@ -89,12 +89,12 @@ final class LedgerIntegrationTest extends TestCase
         self::assertSame(970, $ledger->totalUnspentAmount());
 
         // Query individual fees
-        self::assertSame(10, $ledger->feeForSpend(new SpendId('tx-1')));
-        self::assertSame(10, $ledger->feeForSpend(new SpendId('tx-2')));
-        self::assertSame(10, $ledger->feeForSpend(new SpendId('tx-3')));
+        self::assertSame(10, $ledger->feeForTx(new TxId('tx-1')));
+        self::assertSame(10, $ledger->feeForTx(new TxId('tx-2')));
+        self::assertSame(10, $ledger->feeForTx(new TxId('tx-3')));
 
         // All spend fees
-        $fees = $ledger->allSpendFees();
+        $fees = $ledger->allTxFees();
         self::assertCount(3, $fees);
         self::assertSame(['tx-1' => 10, 'tx-2' => 10, 'tx-3' => 10], $fees);
     }
@@ -107,14 +107,14 @@ final class LedgerIntegrationTest extends TestCase
                 Output::open(200, 'b'),
                 Output::open(300, 'c'),
             )
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['a', 'b', 'c'],
                 outputs: [Output::open(600, 'combined')],
                 id: 'combine',
             ));
 
         self::assertSame(600, $ledger->totalUnspentAmount());
-        self::assertSame(0, $ledger->feeForSpend(new SpendId('combine')));
+        self::assertSame(0, $ledger->feeForTx(new TxId('combine')));
         self::assertSame(1, $ledger->unspent()->count());
     }
 }

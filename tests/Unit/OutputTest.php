@@ -121,7 +121,7 @@ final class OutputTest extends TestCase
     public function test_locked_with_accepts_custom_lock(): void
     {
         $customLock = new class() implements OutputLock {
-            public function validate(\Chemaclass\Unspent\Spend $spend, int $inputIndex): void
+            public function validate(\Chemaclass\Unspent\Tx $tx, int $inputIndex): void
             {
             }
             public function toArray(): array

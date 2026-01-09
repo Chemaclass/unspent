@@ -6,12 +6,12 @@ namespace Chemaclass\Unspent\Lock;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\OutputLock;
-use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\Tx;
 
 /**
  * A lock that restricts spending to a specific owner.
  *
- * The spend must have `signedBy` matching the owner name.
+ * The tx must have `signedBy` matching the owner name.
  */
 final readonly class Owner implements OutputLock
 {
@@ -20,10 +20,10 @@ final readonly class Owner implements OutputLock
     ) {
     }
 
-    public function validate(Spend $spend, int $inputIndex): void
+    public function validate(Tx $tx, int $inputIndex): void
     {
-        if ($spend->signedBy !== $this->name) {
-            throw AuthorizationException::notOwner($this->name, $spend->signedBy);
+        if ($tx->signedBy !== $this->name) {
+            throw AuthorizationException::notOwner($this->name, $tx->signedBy);
         }
     }
 

@@ -7,17 +7,17 @@ namespace Chemaclass\Unspent;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use InvalidArgumentException;
 
-final readonly class Coinbase
+final readonly class CoinbaseTx
 {
     /**
      * @param list<Output> $outputs
      */
     public function __construct(
-        public SpendId $id,
+        public TxId $id,
         public array $outputs,
     ) {
         if ($outputs === []) {
-            throw new InvalidArgumentException('Coinbase must have at least one output');
+            throw new InvalidArgumentException('CoinbaseTx must have at least one output');
         }
 
         $this->assertNoDuplicateOutputIds();
@@ -30,7 +30,7 @@ final readonly class Coinbase
     {
         $actualId = $id ?? IdGenerator::forCoinbase($outputs);
 
-        return new self(new SpendId($actualId), $outputs);
+        return new self(new TxId($actualId), $outputs);
     }
 
     public function totalOutputAmount(): int

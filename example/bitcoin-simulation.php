@@ -14,11 +14,11 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Chemaclass\Unspent\Coinbase;
+use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\Spend;
-use Chemaclass\Unspent\SpendId;
+use Chemaclass\Unspent\Tx;
+use Chemaclass\Unspent\TxId;
 
 // =============================================================================
 // HELPER FUNCTIONS
@@ -84,7 +84,7 @@ echo "  In the beginning, there was nothing. Then Satoshi mined the\n";
 echo "  first block, creating 50 BTC out of thin air.\n\n";
 
 $ledger = Ledger::empty()
-    ->applyCoinbase(Coinbase::create([
+    ->applyCoinbase(CoinbaseTx::create([
         Output::open(5_000_000_000, 'satoshi-reward-0'), // 50 BTC in satoshis
     ], 'block-0-coinbase'));
 
@@ -101,7 +101,7 @@ printHeader('BLOCK 1: The Network Grows');
 
 echo "  Satoshi mines another block. The network now has 100 BTC.\n\n";
 
-$ledger = $ledger->applyCoinbase(Coinbase::create([
+$ledger = $ledger->applyCoinbase(CoinbaseTx::create([
     Output::open(5_000_000_000, 'satoshi-reward-1'),
 ], 'block-1-coinbase'));
 
@@ -127,7 +127,7 @@ echo "       • 39.99 BTC back to himself (change)\n";
 echo "       • 0.01 BTC goes to the miner as fee\n\n";
 
 // Transaction: Satoshi -> Hal (10 BTC)
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['satoshi-reward-0'],
     outputs: [
         Output::open(1_000_000_000, 'hal-10btc'),      // 10 BTC to Hal
@@ -137,12 +137,12 @@ $ledger = $ledger->apply(Spend::create(
 ));
 
 // Miner (Satoshi again) mines block 2, collecting the fee
-$ledger = $ledger->applyCoinbase(Coinbase::create([
+$ledger = $ledger->applyCoinbase(CoinbaseTx::create([
     Output::open(5_000_000_000, 'satoshi-reward-2'),
 ], 'block-2-coinbase'));
 
 echo "  ✅ Transaction confirmed in block 2!\n";
-echo '     Fee paid: ' . btc($ledger->feeForSpend(new SpendId('tx-satoshi-to-hal')) ?? 0) . "\n\n";
+echo '     Fee paid: ' . btc($ledger->feeForTx(new TxId('tx-satoshi-to-hal')) ?? 0) . "\n\n";
 
 printLedgerState($ledger);
 printUTXOs($ledger);
@@ -156,7 +156,7 @@ printHeader('BLOCK 3: Hal Buys Pizza');
 echo "  Hal wants to buy pizza from Laszlo for 5 BTC (a bargain!).\n";
 echo "  He has exactly 10 BTC, so he'll pay and get change.\n\n";
 
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['hal-10btc'],
     outputs: [
         Output::open(500_000_000, 'laszlo-pizza-payment'), // 5 BTC
@@ -166,7 +166,7 @@ $ledger = $ledger->apply(Spend::create(
 ));
 
 // Block 3 mined
-$ledger = $ledger->applyCoinbase(Coinbase::create([
+$ledger = $ledger->applyCoinbase(CoinbaseTx::create([
     Output::open(5_000_000_000, 'miner-reward-3'),
 ], 'block-3-coinbase'));
 
@@ -190,7 +190,7 @@ echo "     • satoshi-change-1:  39.99 BTC\n";
 echo "     • satoshi-reward-2:  50 BTC\n";
 echo "     Total: 139.99 BTC in 3 UTXOs\n\n";
 
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['satoshi-reward-1', 'satoshi-change-1', 'satoshi-reward-2'],
     outputs: [
         Output::open(13_998_000_000, 'satoshi-consolidated'), // ~139.98 BTC
@@ -199,7 +199,7 @@ $ledger = $ledger->apply(Spend::create(
 ));
 
 // Block 4 mined by a new miner
-$ledger = $ledger->applyCoinbase(Coinbase::create([
+$ledger = $ledger->applyCoinbase(CoinbaseTx::create([
     Output::open(5_000_000_000, 'miner-reward-4'),
 ], 'block-4-coinbase'));
 
@@ -221,7 +221,7 @@ printHeader('BLOCK 5: Creating Multiple Outputs');
 echo "  Laszlo wants to pay three people at once from his pizza money.\n";
 echo "  Bitcoin allows multiple outputs in a single transaction!\n\n";
 
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['laszlo-pizza-payment'],
     outputs: [
         Output::open(150_000_000, 'alice-payment'),  // 1.5 BTC
@@ -232,7 +232,7 @@ $ledger = $ledger->apply(Spend::create(
     id: 'tx-laszlo-pays-three',
 ));
 
-$ledger = $ledger->applyCoinbase(Coinbase::create([
+$ledger = $ledger->applyCoinbase(CoinbaseTx::create([
     Output::open(5_000_000_000, 'miner-reward-5'),
 ], 'block-5-coinbase'));
 

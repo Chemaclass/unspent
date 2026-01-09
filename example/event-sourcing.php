@@ -16,7 +16,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\Tx;
 
 echo "==========================================================\n";
 echo " Event Sourcing Example - Order Lifecycle as UTXO\n";
@@ -57,7 +57,7 @@ $v1_placed = $orderSystem;
 echo "2. PAYMENT RECEIVED - Order paid\n";
 echo "---------------------------------\n";
 
-$orderSystem = $orderSystem->apply(Spend::create(
+$orderSystem = $orderSystem->apply(Tx::create(
     inputIds: ['order-1001:placed'],
     outputs: [Output::open(1, 'order-1001:paid')],
     id: 'event:order-1001:payment-received',
@@ -77,7 +77,7 @@ $v2_paid = $orderSystem;
 echo "3. ORDER SHIPPED - Fulfillment complete\n";
 echo "----------------------------------------\n";
 
-$orderSystem = $orderSystem->apply(Spend::create(
+$orderSystem = $orderSystem->apply(Tx::create(
     inputIds: ['order-1001:paid'],
     outputs: [Output::open(1, 'order-1001:shipped')],
     id: 'event:order-1001:shipped',
@@ -97,7 +97,7 @@ $v3_shipped = $orderSystem;
 echo "4. ORDER DELIVERED - Complete\n";
 echo "------------------------------\n";
 
-$orderSystem = $orderSystem->apply(Spend::create(
+$orderSystem = $orderSystem->apply(Tx::create(
     inputIds: ['order-1001:shipped'],
     outputs: [Output::open(1, 'order-1001:delivered')],
     id: 'event:order-1001:delivered',
@@ -207,19 +207,19 @@ $multiOrder = Ledger::empty()->addGenesis(
 );
 
 // Progress each order differently
-$multiOrder = $multiOrder->apply(Spend::create(
+$multiOrder = $multiOrder->apply(Tx::create(
     inputIds: ['order-2001:placed'],
     outputs: [Output::open(1, 'order-2001:paid')],
     id: 'event:order-2001:payment',
 ));
 
-$multiOrder = $multiOrder->apply(Spend::create(
+$multiOrder = $multiOrder->apply(Tx::create(
     inputIds: ['order-2002:placed'],
     outputs: [Output::open(1, 'order-2002:paid')],
     id: 'event:order-2002:payment',
 ));
 
-$multiOrder = $multiOrder->apply(Spend::create(
+$multiOrder = $multiOrder->apply(Tx::create(
     inputIds: ['order-2002:paid'],
     outputs: [Output::open(1, 'order-2002:shipped')],
     id: 'event:order-2002:shipped',

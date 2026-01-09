@@ -18,8 +18,8 @@ use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
-use Chemaclass\Unspent\SpendId;
+use Chemaclass\Unspent\Tx;
+use Chemaclass\Unspent\TxId;
 
 echo "==========================================================\n";
 echo " Internal Accounting Example - Department Budgets\n";
@@ -54,7 +54,7 @@ echo "2. OWNERSHIP - Departments Control Their Budgets\n";
 echo "-------------------------------------------------\n";
 
 // Engineering allocates to sub-projects
-$company = $company->apply(Spend::create(
+$company = $company->apply(Tx::create(
     inputIds: ['eng-fy24-budget'],
     outputs: [
         Output::ownedBy('engineering', 40_000, 'eng-backend-q1'),
@@ -73,7 +73,7 @@ echo "  DevOps:   \$25,000\n";
 // Finance (unauthorized) tries to reallocate engineering funds
 echo "\nFinance tries to reallocate engineering funds...\n";
 try {
-    $company->apply(Spend::create(
+    $company->apply(Tx::create(
         inputIds: ['eng-backend-q1'],
         outputs: [Output::ownedBy('marketing', 40_000, 'unauthorized')],
         signedBy: 'finance',
@@ -92,7 +92,7 @@ echo "3. TRANSFERS - Inter-Department Transfers\n";
 echo "------------------------------------------\n";
 
 // Engineering transfers $10k to Marketing for a joint campaign
-$company = $company->apply(Spend::create(
+$company = $company->apply(Tx::create(
     inputIds: ['eng-backend-q1'],
     outputs: [
         Output::ownedBy('marketing', 10_000, 'mkt-joint-campaign'),
@@ -114,7 +114,7 @@ echo "4. FEES - Administrative Overhead on Transfers\n";
 echo "-----------------------------------------------\n";
 
 // Operations transfers with 2% admin fee
-$company = $company->apply(Spend::create(
+$company = $company->apply(Tx::create(
     inputIds: ['ops-fy24-budget'],
     outputs: [
         Output::ownedBy('hr', 14_700, 'hr-recruitment-budget'),
@@ -125,7 +125,7 @@ $company = $company->apply(Spend::create(
     id: 'ops-to-hr-transfer',
 ));
 
-$fee = $company->feeForSpend(new SpendId('ops-to-hr-transfer'));
+$fee = $company->feeForTx(new TxId('ops-to-hr-transfer'));
 echo "Operations transfers \$14,700 to HR with admin overhead.\n";
 echo "  Admin fee (overhead): \${$fee}\n";
 echo "  Total overhead collected: \${$company->totalFeesCollected()}\n\n";
@@ -138,7 +138,7 @@ echo "5. MULTI-INPUT - Consolidate Budget Lines\n";
 echo "------------------------------------------\n";
 
 // Marketing consolidates all their budget lines
-$company = $company->apply(Spend::create(
+$company = $company->apply(Tx::create(
     inputIds: ['mkt-fy24-budget', 'mkt-joint-campaign'],
     outputs: [
         Output::ownedBy('marketing', 60_000, 'mkt-consolidated'),
@@ -234,7 +234,7 @@ echo "HR tries to spend more than their budget...\n";
 try {
     // HR has 20,000 + 14,700 = 34,700
     $hrTotal = 20_000 + 14_700;
-    $company->apply(Spend::create(
+    $company->apply(Tx::create(
         inputIds: ['hr-fy24-budget', 'hr-recruitment-budget'],
         outputs: [Output::ownedBy('vendor', 50_000, 'over-budget')],
         signedBy: 'hr',
@@ -283,7 +283,7 @@ foreach ($q2Company->unspent() as $id => $output) {
 }
 
 echo "\nAll transactions:\n";
-$allFees = $q2Company->allSpendFees();
+$allFees = $q2Company->allTxFees();
 foreach ($allFees as $txId => $fee) {
     echo "  {$txId}: overhead = \${$fee}\n";
 }

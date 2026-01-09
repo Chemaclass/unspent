@@ -6,7 +6,7 @@ namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Id;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\SpendId;
+use Chemaclass\Unspent\TxId;
 use PHPUnit\Framework\TestCase;
 use Stringable;
 
@@ -22,7 +22,7 @@ final class IdInterfaceTest extends TestCase
 
     public function test_spend_id_implements_id_interface(): void
     {
-        $id = new SpendId('test');
+        $id = new TxId('test');
 
         self::assertInstanceOf(Id::class, $id);
         self::assertInstanceOf(Stringable::class, $id);
@@ -32,7 +32,7 @@ final class IdInterfaceTest extends TestCase
     {
         $ids = [
             new OutputId('output-1'),
-            new SpendId('spend-1'),
+            new TxId('spend-1'),
             new OutputId('output-2'),
         ];
 
@@ -47,7 +47,7 @@ final class IdInterfaceTest extends TestCase
     public function test_ids_are_stringable(): void
     {
         $outputId = new OutputId('out-123');
-        $spendId = new SpendId('tx-456');
+        $spendId = new TxId('tx-456');
 
         self::assertSame('out-123', (string) $outputId);
         self::assertSame('tx-456', (string) $spendId);

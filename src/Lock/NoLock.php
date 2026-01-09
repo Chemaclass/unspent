@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\Unspent\Lock;
 
 use Chemaclass\Unspent\OutputLock;
-use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\Tx;
 
 /**
  * A lock that allows anyone to spend the output.
@@ -15,7 +15,7 @@ use Chemaclass\Unspent\Spend;
  */
 final readonly class NoLock implements OutputLock
 {
-    public function validate(Spend $spend, int $inputIndex): void
+    public function validate(Tx $tx, int $inputIndex): void
     {
         // No restrictions - anyone can spend
     }

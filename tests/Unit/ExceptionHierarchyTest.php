@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
-use Chemaclass\Unspent\Exception\DuplicateSpendException;
+use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
@@ -13,8 +13,8 @@ use Chemaclass\Unspent\Exception\UnspentException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
-use Chemaclass\Unspent\SpendId;
+use Chemaclass\Unspent\Tx;
+use Chemaclass\Unspent\TxId;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
@@ -23,7 +23,7 @@ final class ExceptionHierarchyTest extends TestCase
     public function test_all_domain_exceptions_extend_unspent_exception(): void
     {
         self::assertTrue(is_a(DuplicateOutputIdException::class, UnspentException::class, true));
-        self::assertTrue(is_a(DuplicateSpendException::class, UnspentException::class, true));
+        self::assertTrue(is_a(DuplicateTxException::class, UnspentException::class, true));
         self::assertTrue(is_a(GenesisNotAllowedException::class, UnspentException::class, true));
         self::assertTrue(is_a(OutputAlreadySpentException::class, UnspentException::class, true));
         self::assertTrue(is_a(InsufficientInputsException::class, UnspentException::class, true));
@@ -61,8 +61,8 @@ final class ExceptionHierarchyTest extends TestCase
         try {
             Ledger::empty()
                 ->addGenesis(Output::open(100, 'a'))
-                ->apply(new Spend(
-                    id: new SpendId('tx1'),
+                ->apply(new Tx(
+                    id: new TxId('tx1'),
                     inputs: [new OutputId('nonexistent')],
                     outputs: [Output::open(100, 'b')],
                 ));
@@ -74,8 +74,8 @@ final class ExceptionHierarchyTest extends TestCase
         try {
             Ledger::empty()
                 ->addGenesis(Output::open(100, 'a'))
-                ->apply(new Spend(
-                    id: new SpendId('tx1'),
+                ->apply(new Tx(
+                    id: new TxId('tx1'),
                     inputs: [new OutputId('a')],
                     outputs: [Output::open(150, 'b')],
                 ));

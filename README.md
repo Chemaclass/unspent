@@ -21,7 +21,7 @@ $ledger = Ledger::empty()->addGenesis(
     Output::ownedBy('alice', 1000, 'genesis'),
 );
 
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['genesis'],
     outputs: [
         Output::ownedBy('bob', 600),
@@ -53,7 +53,7 @@ Requires PHP 8.4+
 ## Quick Start
 
 ```php
-use Chemaclass\Unspent\{Ledger, Output, Spend};
+use Chemaclass\Unspent\{Ledger, Output, Tx};
 
 // 1. Create initial value
 $ledger = Ledger::empty()->addGenesis(
@@ -61,7 +61,7 @@ $ledger = Ledger::empty()->addGenesis(
 );
 
 // 2. Transfer value
-$ledger = $ledger->apply(Spend::create(
+$ledger = $ledger->apply(Tx::create(
     inputIds: ['alice-funds'],
     outputs: [
         Output::ownedBy('bob', 600, 'bob-funds'),
@@ -90,7 +90,11 @@ $ledger->unspent()->get(new OutputId('bob-funds'))->amount;  // 600
 
 See the [`example/`](example/) directory:
 
-- [`demo.php`](example/demo.php) - Comprehensive feature walkthrough
+- [`virtual-currency.php`](example/virtual-currency.php) - In-game economy with gold tracking
+- [`loyalty-points.php`](example/loyalty-points.php) - Customer rewards program
+- [`internal-accounting.php`](example/internal-accounting.php) - Department budget tracking
+- [`event-sourcing.php`](example/event-sourcing.php) - Order lifecycle as domain events
+- [`crypto-wallet.php`](example/crypto-wallet.php) - Trustless Ed25519 signatures
 - [`bitcoin-simulation.php`](example/bitcoin-simulation.php) - Multi-block Bitcoin-style simulation
 
 ## Contributing

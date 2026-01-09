@@ -6,13 +6,13 @@ namespace Chemaclass\Unspent;
 
 use InvalidArgumentException;
 
-final readonly class SpendId implements Id
+final readonly class TxId implements Id
 {
     public function __construct(
         public string $value,
     ) {
         if (trim($value) === '') {
-            throw new InvalidArgumentException('SpendId cannot be empty');
+            throw new InvalidArgumentException('TxId cannot be empty');
         }
     }
 

@@ -17,7 +17,7 @@ use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\Tx;
 
 echo "==========================================================\n";
 echo " Crypto Wallet Example - Trustless Ed25519 Signatures\n";
@@ -82,7 +82,7 @@ echo "  Transaction ID: {$txId}\n";
 echo '  Signature: ' . substr($aliceSignature, 0, 30) . "...\n";
 
 // Apply the signed transaction
-$wallet = $wallet->apply(Spend::create(
+$wallet = $wallet->apply(Tx::create(
     inputIds: ['alice-wallet'],
     outputs: [
         Output::signedBy($bobPublicKey, 300, 'bob-received'),
@@ -115,7 +115,7 @@ $fakeSignature = base64_encode(
 );
 
 try {
-    $wallet->apply(Spend::create(
+    $wallet->apply(Tx::create(
         inputIds: ['bob-wallet'],
         outputs: [Output::open(500, 'stolen')],
         proofs: [$fakeSignature],
@@ -128,7 +128,7 @@ try {
 // Try without any signature
 echo "\nMallory tries without any signature...\n";
 try {
-    $wallet->apply(Spend::create(
+    $wallet->apply(Tx::create(
         inputIds: ['bob-wallet'],
         outputs: [Output::open(500, 'stolen-2')],
         proofs: [],
@@ -154,7 +154,7 @@ $combineTxId = 'tx-bob-combine';
 $bobSig1 = base64_encode(sodium_crypto_sign_detached($combineTxId, $bobPrivateKey));
 $bobSig2 = base64_encode(sodium_crypto_sign_detached($combineTxId, $bobPrivateKey));
 
-$wallet = $wallet->apply(Spend::create(
+$wallet = $wallet->apply(Tx::create(
     inputIds: ['bob-wallet', 'bob-received'], // 500 + 300 = 800
     outputs: [Output::signedBy($bobPublicKey, 800, 'bob-combined')],
     proofs: [$bobSig1, $bobSig2], // Signature at each input index
@@ -180,7 +180,7 @@ $jointTxId = 'tx-joint-contribution';
 $aliceSigJoint = base64_encode(sodium_crypto_sign_detached($jointTxId, $alicePrivateKey));
 $bobSigJoint = base64_encode(sodium_crypto_sign_detached($jointTxId, $bobPrivateKey));
 
-$wallet = $wallet->apply(Spend::create(
+$wallet = $wallet->apply(Tx::create(
     inputIds: ['alice-change', 'bob-combined'], // Alice's 700 + Bob's 800
     outputs: [
         Output::signedBy($alicePublicKey, 750, 'alice-final'),
@@ -194,7 +194,7 @@ echo "Alice (700) and Bob (800) create a joint transaction:\n";
 echo "  Input 0: Alice's 700 (Alice signature at index 0)\n";
 echo "  Input 1: Bob's 800 (Bob signature at index 1)\n";
 echo "  Output: Each gets 750\n";
-echo '  Fee: ' . $wallet->feeForSpend(new Chemaclass\Unspent\SpendId($jointTxId)) . " units\n\n";
+echo '  Fee: ' . $wallet->feeForTx(new Chemaclass\Unspent\TxId($jointTxId)) . " units\n\n";
 
 // ============================================================================
 // 7. VERIFYING LOCK TYPE
@@ -270,7 +270,7 @@ echo '  Public key preserved: ' . ($keyMatch ? 'YES' : 'NO') . "\n";
 // Try spending without proper signature (should fail)
 echo "\nAttempting to spend restored output without signature...\n";
 try {
-    $restored->apply(Spend::create(
+    $restored->apply(Tx::create(
         inputIds: ['alice-final'],
         outputs: [Output::open(750, 'theft')],
         proofs: [],

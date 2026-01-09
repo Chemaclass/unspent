@@ -11,13 +11,13 @@ final class IdGenerator
     private const int ID_LENGTH = 32;
 
     /**
-     * Generate a deterministic ID from spend content (inputs + outputs).
+     * Generate a deterministic ID from transaction content (inputs + outputs).
      * Same content always produces the same ID.
      *
      * @param list<string> $inputIds
      * @param list<Output> $outputs
      */
-    public static function forSpend(array $inputIds, array $outputs): string
+    public static function forTx(array $inputIds, array $outputs): string
     {
         $data = implode('|', $inputIds) . '||' . self::serializeOutputs($outputs);
 

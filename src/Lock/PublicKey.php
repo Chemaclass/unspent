@@ -6,13 +6,13 @@ namespace Chemaclass\Unspent\Lock;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\OutputLock;
-use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\Tx;
 
 /**
  * A lock that requires Ed25519 signature verification.
  *
- * The spend must provide a valid signature in `proofs` at the same index as the input.
- * The message to sign is the spend ID.
+ * The tx must provide a valid signature in `proofs` at the same index as the input.
+ * The message to sign is the tx ID.
  */
 final readonly class PublicKey implements OutputLock
 {
@@ -21,14 +21,14 @@ final readonly class PublicKey implements OutputLock
     ) {
     }
 
-    public function validate(Spend $spend, int $inputIndex): void
+    public function validate(Tx $tx, int $inputIndex): void
     {
-        $signature = $spend->proofs[$inputIndex] ?? null;
+        $signature = $tx->proofs[$inputIndex] ?? null;
         if ($signature === null) {
             throw AuthorizationException::missingProof($inputIndex);
         }
 
-        $message = $spend->id->value;
+        $message = $tx->id->value;
 
         if (!$this->verifySignature($signature, $message)) {
             throw AuthorizationException::invalidSignature($inputIndex);

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Chemaclass\UnspentTests\Unit;
 
-use Chemaclass\Unspent\Coinbase;
+use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\Tx;
 use PHPUnit\Framework\TestCase;
 
 final class HistoryTest extends TestCase
@@ -30,7 +30,7 @@ final class HistoryTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['genesis'],
                 outputs: [
                     Output::open(600, 'output-a'),
@@ -46,7 +46,7 @@ final class HistoryTest extends TestCase
     public function test_coinbase_outputs_created_by_coinbase_id(): void
     {
         $ledger = Ledger::empty()
-            ->applyCoinbase(Coinbase::create([
+            ->applyCoinbase(CoinbaseTx::create([
                 Output::open(50, 'miner-reward'),
             ], 'block-1'));
 
@@ -70,7 +70,7 @@ final class HistoryTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
@@ -102,7 +102,7 @@ final class HistoryTest extends TestCase
                 Output::open(500, 'alice-funds'),
                 Output::open(300, 'bob-funds'),
             )
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['alice-funds', 'bob-funds'],
                 outputs: [Output::open(800, 'combined')],
                 id: 'tx-combine',
@@ -133,7 +133,7 @@ final class HistoryTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
@@ -171,7 +171,7 @@ final class HistoryTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
@@ -212,7 +212,7 @@ final class HistoryTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
@@ -255,7 +255,7 @@ final class HistoryTest extends TestCase
     {
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['genesis'],
                 outputs: [
                     Output::open(600, 'alice'),
@@ -263,7 +263,7 @@ final class HistoryTest extends TestCase
                 ],
                 id: 'tx-001',
             ))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['alice'],
                 outputs: [Output::open(600, 'charlie')],
                 id: 'tx-002',
@@ -294,7 +294,7 @@ final class HistoryTest extends TestCase
     {
         $original = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['genesis'],
                 outputs: [Output::open(1000, 'alice')],
                 id: 'tx-001',
@@ -317,7 +317,7 @@ final class HistoryTest extends TestCase
     {
         $original = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
-            ->apply(Spend::create(
+            ->apply(Tx::create(
                 inputIds: ['genesis'],
                 outputs: [Output::open(1000, 'alice')],
                 id: 'tx-001',
@@ -337,7 +337,7 @@ final class HistoryTest extends TestCase
     public function test_history_tracks_across_immutable_ledgers(): void
     {
         $v1 = Ledger::empty()->addGenesis(Output::open(1000, 'genesis'));
-        $v2 = $v1->apply(Spend::create(
+        $v2 = $v1->apply(Tx::create(
             inputIds: ['genesis'],
             outputs: [Output::open(1000, 'alice')],
             id: 'tx-001',
