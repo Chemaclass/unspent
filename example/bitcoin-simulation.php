@@ -41,16 +41,16 @@ function btc(int $satoshis): string
 function printHeader(string $title): void
 {
     echo "\n" . str_repeat('━', 60) . "\n";
-    echo "  $title\n";
+    echo "  {$title}\n";
     echo str_repeat('━', 60) . "\n\n";
 }
 
 function printLedgerState(Ledger $ledger): void
 {
     echo "  📊 Ledger State:\n";
-    echo "     Total minted:    " . btc($ledger->totalMinted()) . "\n";
-    echo "     Total fees:      " . btc($ledger->totalFeesCollected()) . "\n";
-    echo "     In circulation:  " . btc($ledger->totalUnspentAmount()) . "\n";
+    echo '     Total minted:    ' . btc($ledger->totalMinted()) . "\n";
+    echo '     Total fees:      ' . btc($ledger->totalFeesCollected()) . "\n";
+    echo '     In circulation:  ' . btc($ledger->totalUnspentAmount()) . "\n";
     echo "     UTXOs:           {$ledger->unspent()->count()}\n\n";
 }
 
@@ -142,7 +142,7 @@ $ledger = $ledger->applyCoinbase(Coinbase::create([
 ], 'block-2-coinbase'));
 
 echo "  ✅ Transaction confirmed in block 2!\n";
-echo "     Fee paid: " . btc($ledger->feeForSpend(new SpendId('tx-satoshi-to-hal')) ?? 0) . "\n\n";
+echo '     Fee paid: ' . btc($ledger->feeForSpend(new SpendId('tx-satoshi-to-hal')) ?? 0) . "\n\n";
 
 printLedgerState($ledger);
 printUTXOs($ledger);
@@ -256,9 +256,9 @@ printUTXOs($ledger);
 
 echo "  📈 Network Statistics:\n";
 echo "     Blocks mined:     6 (0-5)\n";
-echo "     Total minted:     " . btc($ledger->totalMinted()) . "\n";
-echo "     Total fees:       " . btc($ledger->totalFeesCollected()) . "\n";
-echo "     In circulation:   " . btc($ledger->totalUnspentAmount()) . "\n";
+echo '     Total minted:     ' . btc($ledger->totalMinted()) . "\n";
+echo '     Total fees:       ' . btc($ledger->totalFeesCollected()) . "\n";
+echo '     In circulation:   ' . btc($ledger->totalUnspentAmount()) . "\n";
 echo "     Active UTXOs:     {$ledger->unspent()->count()}\n\n";
 
 // =============================================================================

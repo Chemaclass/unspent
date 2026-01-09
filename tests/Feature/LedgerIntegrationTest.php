@@ -59,7 +59,7 @@ final class LedgerIntegrationTest extends TestCase
         foreach ($unspent as $id => $output) {
             self::assertIsString($id);
             self::assertInstanceOf(Output::class, $output);
-            $count++;
+            ++$count;
         }
         self::assertSame(3, $count);
     }

@@ -37,7 +37,7 @@ final class IdInterfaceTest extends TestCase
         ];
 
         $values = array_map(
-            static fn(Id $id): string => $id->value,
+            static fn (Id $id): string => $id->value,
             $ids,
         );
 

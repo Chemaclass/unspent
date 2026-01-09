@@ -9,7 +9,9 @@ use InvalidArgumentException;
 
 final readonly class Coinbase
 {
-    /** @param list<Output> $outputs */
+    /**
+     * @param list<Output> $outputs
+     */
     public function __construct(
         public SpendId $id,
         public array $outputs,
@@ -21,7 +23,9 @@ final readonly class Coinbase
         $this->assertNoDuplicateOutputIds();
     }
 
-    /** @param list<Output> $outputs */
+    /**
+     * @param list<Output> $outputs
+     */
     public static function create(array $outputs, ?string $id = null): self
     {
         $actualId = $id ?? IdGenerator::forCoinbase($outputs);
@@ -32,7 +36,7 @@ final readonly class Coinbase
     public function totalOutputAmount(): int
     {
         return array_sum(array_map(
-            static fn(Output $o): int => $o->amount,
+            static fn (Output $o): int => $o->amount,
             $this->outputs,
         ));
     }

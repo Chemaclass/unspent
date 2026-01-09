@@ -5,17 +5,16 @@ declare(strict_types=1);
 namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Coinbase;
-use Chemaclass\Unspent\Ledger;
-use Chemaclass\Unspent\Lock\NoLock;
-use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Spend;
-use Chemaclass\Unspent\SpendId;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
+use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\Output;
+use Chemaclass\Unspent\OutputId;
+use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\SpendId;
 use PHPUnit\Framework\TestCase;
 
 final class LedgerTest extends TestCase

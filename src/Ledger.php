@@ -15,11 +15,11 @@ use JsonException;
 final readonly class Ledger
 {
     /**
-     * @param array<string, true> $appliedSpendIds
-     * @param array<string, int> $spendFees Map of SpendId value to fee amount
-     * @param array<string, int> $coinbaseAmounts Map of coinbase SpendId to minted amount
-     * @param array<string, string> $outputCreatedBy Map of OutputId → SpendId|'genesis'
-     * @param array<string, string> $outputSpentBy Map of OutputId → SpendId
+     * @param array<string, true>                                                       $appliedSpendIds
+     * @param array<string, int>                                                        $spendFees       Map of SpendId value to fee amount
+     * @param array<string, int>                                                        $coinbaseAmounts Map of coinbase SpendId to minted amount
+     * @param array<string, string>                                                     $outputCreatedBy Map of OutputId → SpendId|'genesis'
+     * @param array<string, string>                                                     $outputSpentBy   Map of OutputId → SpendId
      * @param array<string, array{id: string, amount: int, lock: array<string, mixed>}> $spentOutputs
      */
     private function __construct(
@@ -32,7 +32,8 @@ final readonly class Ledger
         private array $outputCreatedBy = [],
         private array $outputSpentBy = [],
         private array $spentOutputs = [],
-    ) {}
+    ) {
+    }
 
     public static function empty(): self
     {
@@ -438,7 +439,7 @@ final readonly class Ledger
             $output->lock->validate($spend, $inputIndex);
 
             $inputAmount += $output->amount;
-            $inputIndex++;
+            ++$inputIndex;
         }
 
         return $inputAmount;

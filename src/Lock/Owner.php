@@ -17,7 +17,8 @@ final readonly class Owner implements OutputLock
 {
     public function __construct(
         public string $name,
-    ) {}
+    ) {
+    }
 
     public function validate(Spend $spend, int $inputIndex): void
     {

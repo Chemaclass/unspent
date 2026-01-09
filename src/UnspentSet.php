@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
+use ArrayIterator;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Countable;
 use IteratorAggregate;
 use Traversable;
-use ArrayIterator;
 
 /**
  * @implements IteratorAggregate<string, Output>
@@ -21,7 +21,8 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     private function __construct(
         private array $outputs,
         private int $cachedTotal,
-    ) {}
+    ) {
+    }
 
     public static function empty(): self
     {
@@ -120,7 +121,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
 
     public function count(): int
     {
-        return count($this->outputs);
+        return \count($this->outputs);
     }
 
     public function totalAmount(): int
@@ -134,7 +135,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     public function outputIds(): array
     {
         return array_map(
-            static fn(Output $output): OutputId => $output->id,
+            static fn (Output $output): OutputId => $output->id,
             array_values($this->outputs),
         );
     }
@@ -152,7 +153,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     public function toArray(): array
     {
         return array_map(
-            static fn(Output $o): array => [
+            static fn (Output $o): array => [
                 'id' => $o->id->value,
                 'amount' => $o->amount,
                 'lock' => $o->lock->toArray(),
@@ -169,7 +170,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     public static function fromArray(array $data): self
     {
         $outputs = array_map(
-            static fn(array $item): Output => new Output(
+            static fn (array $item): Output => new Output(
                 new OutputId($item['id']),
                 $item['amount'],
                 isset($item['lock']) ? LockFactory::fromArray($item['lock']) : new Lock\NoLock(),

@@ -18,13 +18,11 @@ use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
-use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Exception\InsufficientInputsException;
+use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Exception\UnspentException;
 use Chemaclass\Unspent\Id;
 use Chemaclass\Unspent\Ledger;
-use Chemaclass\Unspent\Lock\NoLock;
-use Chemaclass\Unspent\Lock\Owner;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Spend;
@@ -188,7 +186,7 @@ success("After removeAll: {$set->count()} outputs, total: {$set->totalAmount()}"
 
 info('Getting all output IDs...');
 $ids = $set->outputIds();
-echo "  Remaining IDs: " . implode(', ', array_map(fn($id) => $id->value, $ids)) . "\n";
+echo '  Remaining IDs: ' . implode(', ', array_map(static fn ($id) => $id->value, $ids)) . "\n";
 
 // ============================================================================
 // 6. INVARIANT ENFORCEMENT (ERROR HANDLING)
@@ -273,8 +271,8 @@ try {
 info('Using UnspentException to catch all domain errors...');
 $errorCount = 0;
 $badOperations = [
-    fn() => $ledger->addGenesis(Output::open(1, 'x')),
-    fn() => $ledger->apply(Spend::create(
+    static fn () => $ledger->addGenesis(Output::open(1, 'x')),
+    static fn () => $ledger->apply(Spend::create(
         inputIds: ['a'],
         outputs: [Output::open(1, 'b')],
         id: 'tx-001',
@@ -284,7 +282,7 @@ foreach ($badOperations as $operation) {
     try {
         $operation();
     } catch (UnspentException) {
-        $errorCount++;
+        ++$errorCount;
     }
 }
 success("Caught {$errorCount} errors using base UnspentException type");
@@ -423,27 +421,27 @@ section('10. Performance Characteristics');
 
 info('O(1) total amount (cached)...');
 $largeSet = UnspentSet::empty();
-for ($i = 0; $i < 1000; $i++) {
+for ($i = 0; $i < 1000; ++$i) {
     $largeSet = $largeSet->add(Output::open($i + 1, "perf-{$i}"));
 }
 
 $start = hrtime(true);
-for ($i = 0; $i < 10000; $i++) {
+for ($i = 0; $i < 10000; ++$i) {
     $_ = $largeSet->totalAmount();
 }
 $elapsed = (hrtime(true) - $start) / 1_000_000;
-success(sprintf("10,000 calls to totalAmount() on 1,000 outputs: %.2fms", $elapsed));
+success(\sprintf('10,000 calls to totalAmount() on 1,000 outputs: %.2fms', $elapsed));
 
 info('Batch operations reduce object creation...');
 $outputs = [];
-for ($i = 0; $i < 100; $i++) {
+for ($i = 0; $i < 100; ++$i) {
     $outputs[] = Output::open(10, "batch-{$i}");
 }
 
 $start = hrtime(true);
 $set = UnspentSet::fromOutputs(...$outputs);
 $elapsed = (hrtime(true) - $start) / 1_000_000;
-success(sprintf("Created set with 100 outputs using fromOutputs: %.2fms", $elapsed));
+success(\sprintf('Created set with 100 outputs using fromOutputs: %.2fms', $elapsed));
 
 // ============================================================================
 // 11. OWNERSHIP (LOCKS)
@@ -457,7 +455,7 @@ $ownerLedger = Ledger::empty()->addGenesis(
     Output::ownedBy('bob', 500, 'bob-funds'),
     Output::open(300, 'open-funds'),
 );
-success("Created 3 outputs: alice (1000), bob (500), open (300)");
+success('Created 3 outputs: alice (1000), bob (500), open (300)');
 
 info('Alice spending her own output...');
 $ownerLedger = $ownerLedger->apply(Spend::create(
@@ -469,7 +467,7 @@ $ownerLedger = $ownerLedger->apply(Spend::create(
     signedBy: 'alice',
     id: 'alice-tx',
 ));
-success("Alice sent 600 to Bob, kept 400 as change");
+success('Alice sent 600 to Bob, kept 400 as change');
 
 info('Anyone can spend unlocked outputs...');
 $ownerLedger = $ownerLedger->apply(Spend::create(
@@ -477,7 +475,7 @@ $ownerLedger = $ownerLedger->apply(Spend::create(
     outputs: [Output::open(300, 'claimed')],
     id: 'open-tx',
 ));
-success("Open funds claimed without authorization");
+success('Open funds claimed without authorization');
 
 info('Attempting unauthorized spend (should fail)...');
 try {
@@ -519,13 +517,13 @@ $persistLedger = Ledger::empty()
         signedBy: 'alice',
         id: 'persist-tx',
     ));
-success("Created ledger with 2 outputs, 10 units fee");
+success('Created ledger with 2 outputs, 10 units fee');
 
 info('Converting to JSON...');
 $json = $persistLedger->toJson(JSON_PRETTY_PRINT);
 echo "  JSON preview:\n";
 $preview = substr($json, 0, 200) . "...\n";
-echo "    " . str_replace("\n", "\n    ", $preview);
+echo '    ' . str_replace("\n", "\n    ", $preview);
 
 info('Restoring from JSON...');
 $restored = Ledger::fromJson($json);

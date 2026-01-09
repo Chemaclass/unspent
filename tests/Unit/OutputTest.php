@@ -58,7 +58,7 @@ final class OutputTest extends TestCase
     {
         $output = Output::ownedBy('alice', 1000);
 
-        self::assertSame(32, strlen($output->id->value));
+        self::assertSame(32, \strlen($output->id->value));
         self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $output->id->value);
         self::assertInstanceOf(Owner::class, $output->lock);
     }
@@ -93,7 +93,7 @@ final class OutputTest extends TestCase
 
         $output = Output::signedBy($publicKey, 1000);
 
-        self::assertSame(32, strlen($output->id->value));
+        self::assertSame(32, \strlen($output->id->value));
         self::assertInstanceOf(PublicKey::class, $output->lock);
     }
 
@@ -112,7 +112,7 @@ final class OutputTest extends TestCase
     {
         $output = Output::open(1000);
 
-        self::assertSame(32, strlen($output->id->value));
+        self::assertSame(32, \strlen($output->id->value));
         self::assertInstanceOf(NoLock::class, $output->lock);
     }
 
@@ -120,9 +120,14 @@ final class OutputTest extends TestCase
 
     public function test_locked_with_accepts_custom_lock(): void
     {
-        $customLock = new class implements OutputLock {
-            public function validate(\Chemaclass\Unspent\Spend $spend, int $inputIndex): void {}
-            public function toArray(): array { return ['type' => 'custom']; }
+        $customLock = new class() implements OutputLock {
+            public function validate(\Chemaclass\Unspent\Spend $spend, int $inputIndex): void
+            {
+            }
+            public function toArray(): array
+            {
+                return ['type' => 'custom'];
+            }
         };
 
         $output = Output::lockedWith($customLock, 1000, 'custom-id');
@@ -136,7 +141,7 @@ final class OutputTest extends TestCase
     {
         $output = Output::lockedWith(new Owner('bob'), 500);
 
-        self::assertSame(32, strlen($output->id->value));
+        self::assertSame(32, \strlen($output->id->value));
         self::assertInstanceOf(Owner::class, $output->lock);
     }
 }

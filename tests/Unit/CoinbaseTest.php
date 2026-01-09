@@ -7,7 +7,6 @@ namespace Chemaclass\UnspentTests\Unit;
 use Chemaclass\Unspent\Coinbase;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\SpendId;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
@@ -85,7 +84,7 @@ final class CoinbaseTest extends TestCase
             Output::open(50, 'reward-1'),
         ]);
 
-        self::assertSame(32, strlen($coinbase->id->value));
+        self::assertSame(32, \strlen($coinbase->id->value));
         self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $coinbase->id->value);
     }
 

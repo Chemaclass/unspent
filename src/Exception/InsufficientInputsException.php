@@ -8,7 +8,7 @@ final class InsufficientInputsException extends UnspentException
 {
     public static function create(int $inputAmount, int $outputAmount): self
     {
-        return new self(sprintf(
+        return new self(\sprintf(
             'Insufficient inputs: input amount (%d) is less than output amount (%d)',
             $inputAmount,
             $outputAmount,

@@ -11,8 +11,8 @@ final readonly class Spend
 {
     /**
      * @param list<OutputId> $inputs
-     * @param list<Output> $outputs
-     * @param list<string> $proofs Authorization proofs (signatures, etc.) indexed by input position
+     * @param list<Output>   $outputs
+     * @param list<string>   $proofs  Authorization proofs (signatures, etc.) indexed by input position
      */
     public function __construct(
         public SpendId $id,
@@ -31,6 +31,40 @@ final readonly class Spend
 
         $this->assertNoDuplicateInputIds();
         $this->assertNoDuplicateOutputIds();
+    }
+
+    /**
+     * @param list<string> $inputIds
+     * @param list<Output> $outputs
+     * @param list<string> $proofs   Authorization proofs indexed by input position
+     */
+    public static function create(
+        array $inputIds,
+        array $outputs,
+        ?string $signedBy = null,
+        ?string $id = null,
+        array $proofs = [],
+    ): self {
+        $actualId = $id ?? IdGenerator::forSpend($inputIds, $outputs);
+
+        return new self(
+            id: new SpendId($actualId),
+            inputs: array_map(
+                static fn (string $inputId): OutputId => new OutputId($inputId),
+                $inputIds,
+            ),
+            outputs: $outputs,
+            signedBy: $signedBy,
+            proofs: $proofs,
+        );
+    }
+
+    public function totalOutputAmount(): int
+    {
+        return array_sum(array_map(
+            static fn (Output $output): int => $output->amount,
+            $this->outputs,
+        ));
     }
 
     private function assertNoDuplicateInputIds(): void
@@ -55,39 +89,5 @@ final readonly class Spend
             }
             $seen[$key] = true;
         }
-    }
-
-    /**
-     * @param list<string> $inputIds
-     * @param list<Output> $outputs
-     * @param list<string> $proofs Authorization proofs indexed by input position
-     */
-    public static function create(
-        array $inputIds,
-        array $outputs,
-        ?string $signedBy = null,
-        ?string $id = null,
-        array $proofs = [],
-    ): self {
-        $actualId = $id ?? IdGenerator::forSpend($inputIds, $outputs);
-
-        return new self(
-            id: new SpendId($actualId),
-            inputs: array_map(
-                static fn(string $inputId): OutputId => new OutputId($inputId),
-                $inputIds,
-            ),
-            outputs: $outputs,
-            signedBy: $signedBy,
-            proofs: $proofs,
-        );
-    }
-
-    public function totalOutputAmount(): int
-    {
-        return array_sum(array_map(
-            static fn(Output $output): int => $output->amount,
-            $this->outputs,
-        ));
     }
 }

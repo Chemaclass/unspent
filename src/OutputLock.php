@@ -15,8 +15,8 @@ interface OutputLock
     /**
      * Validates that the spend is authorized to consume this output.
      *
-     * @param Spend $spend The spend attempting to consume the output
-     * @param int $inputIndex Which input in the spend references this output
+     * @param Spend $spend      The spend attempting to consume the output
+     * @param int   $inputIndex Which input in the spend references this output
      *
      * @throws Exception\AuthorizationException If not authorized
      */

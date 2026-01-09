@@ -52,7 +52,7 @@ final class IdGenerator
     private static function serializeOutputs(array $outputs): string
     {
         return implode('|', array_map(
-            static fn(Output $o): string => $o->id->value . ':' . $o->amount,
+            static fn (Output $o): string => $o->id->value . ':' . $o->amount,
             $outputs,
         ));
     }

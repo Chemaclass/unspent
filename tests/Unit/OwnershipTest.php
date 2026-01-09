@@ -177,7 +177,7 @@ final class OwnershipTest extends TestCase
 
         $spendId = 'tx-001';
         $signature = base64_encode(
-            sodium_crypto_sign_detached($spendId, $privateKey)
+            sodium_crypto_sign_detached($spendId, $privateKey),
         );
 
         $ledger = $ledger->apply(Spend::create(
@@ -205,7 +205,7 @@ final class OwnershipTest extends TestCase
 
         $spendId = 'tx-001';
         $wrongSignature = base64_encode(
-            sodium_crypto_sign_detached($spendId, $wrongPrivateKey)
+            sodium_crypto_sign_detached($spendId, $wrongPrivateKey),
         );
 
         $this->expectException(AuthorizationException::class);
@@ -252,7 +252,7 @@ final class OwnershipTest extends TestCase
 
         $spendId = 'tx-001';
         $signature = base64_encode(
-            sodium_crypto_sign_detached($spendId, $privateKey)
+            sodium_crypto_sign_detached($spendId, $privateKey),
         );
 
         $restored = $restored->apply(Spend::create(

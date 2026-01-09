@@ -6,7 +6,6 @@ namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Lock\NoLock;
-use Chemaclass\Unspent\Lock\Owner;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Spend;
@@ -152,7 +151,7 @@ final class SpendTest extends TestCase
             ],
         );
 
-        self::assertSame(32, strlen($spend->id->value));
+        self::assertSame(32, \strlen($spend->id->value));
         self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $spend->id->value);
     }
 

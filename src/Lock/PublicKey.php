@@ -18,7 +18,8 @@ final readonly class PublicKey implements OutputLock
 {
     public function __construct(
         public string $key,
-    ) {}
+    ) {
+    }
 
     public function validate(Spend $spend, int $inputIndex): void
     {
@@ -32,6 +33,14 @@ final readonly class PublicKey implements OutputLock
         if (!$this->verifySignature($signature, $message)) {
             throw AuthorizationException::invalidSignature($inputIndex);
         }
+    }
+
+    /**
+     * @return array{type: string, key: string}
+     */
+    public function toArray(): array
+    {
+        return ['type' => 'pubkey', 'key' => $this->key];
     }
 
     private function verifySignature(string $signature, string $message): bool
@@ -48,13 +57,5 @@ final readonly class PublicKey implements OutputLock
         }
 
         return sodium_crypto_sign_verify_detached($decodedSignature, $message, $decodedKey);
-    }
-
-    /**
-     * @return array{type: string, key: string}
-     */
-    public function toArray(): array
-    {
-        return ['type' => 'pubkey', 'key' => $this->key];
     }
 }
