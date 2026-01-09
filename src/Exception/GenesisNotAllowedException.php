@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent\Exception;
 
-use RuntimeException;
-
-final class GenesisNotAllowedException extends RuntimeException
+final class GenesisNotAllowedException extends UnspentException
 {
     public static function ledgerNotEmpty(): self
     {

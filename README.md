@@ -83,7 +83,19 @@ The library enforces the following invariants:
 
 ## Exceptions
 
-All invariant violations throw specific domain exceptions:
+All domain exceptions extend `UnspentException`, allowing you to catch all library errors with a single type:
+
+```php
+use Chemaclass\Unspent\Exception\UnspentException;
+
+try {
+    $ledger->apply($spend);
+} catch (UnspentException $e) {
+    // Handle any domain error
+}
+```
+
+Specific exception types:
 
 - `OutputAlreadySpentException`: When trying to spend an output not in the unspent set
 - `UnbalancedSpendException`: When input and output amounts don't match
@@ -94,10 +106,14 @@ All invariant violations throw specific domain exceptions:
 
 ## API
 
+### Interfaces
+
+- `Id`: Common interface for all identifier value objects (extends `Stringable`)
+
 ### Value Objects
 
-- `OutputId`: Identifies an output (non-empty string wrapper)
-- `SpendId`: Identifies a spend/transaction (non-empty string wrapper)
+- `OutputId`: Identifies an output (implements `Id`)
+- `SpendId`: Identifies a spend/transaction (implements `Id`)
 - `Output`: A discrete piece of value with an ID and positive integer amount
 
 ### Collections
@@ -143,8 +159,29 @@ The library follows these design principles:
 
 - **Immutability**: All operations return new instances rather than mutating state
 - **Value Objects**: IDs and outputs are immutable value objects with validation
-- **Domain Exceptions**: Clear, specific exceptions for each invariant violation
+- **Interface Segregation**: `Id` interface enables generic handling of identifiers
+- **Exception Hierarchy**: All domain exceptions extend `UnspentException` for unified error handling
 - **Performance**: O(1) cached totals, O(n+m) conflict checking, batch operations
+
+### File Structure
+
+```
+src/
+├── Exception/
+│   ├── UnspentException.php          # Base exception class
+│   ├── DuplicateOutputIdException.php
+│   ├── DuplicateSpendException.php
+│   ├── GenesisNotAllowedException.php
+│   ├── OutputAlreadySpentException.php
+│   └── UnbalancedSpendException.php
+├── Id.php                            # Interface for identifiers
+├── Ledger.php                        # Main entry point
+├── Output.php                        # Output value object
+├── OutputId.php                      # Output identifier
+├── Spend.php                         # Spend/transaction
+├── SpendId.php                       # Spend identifier
+└── UnspentSet.php                    # Collection of outputs
+```
 
 ## Development
 

@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent\Exception;
 
-use RuntimeException;
-
-final class DuplicateSpendException extends RuntimeException
+final class DuplicateSpendException extends UnspentException
 {
     public static function forId(string $id): self
     {

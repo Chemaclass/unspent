@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Chemaclass\Unspent;
 
 use InvalidArgumentException;
-use Stringable;
 
-final readonly class SpendId implements Stringable
+final readonly class SpendId implements Id
 {
     public function __construct(
         public string $value,

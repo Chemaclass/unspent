@@ -4,9 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent\Exception;
 
-use RuntimeException;
-
-final class UnbalancedSpendException extends RuntimeException
+final class UnbalancedSpendException extends UnspentException
 {
     public static function create(int $inputAmount, int $outputAmount): self
     {
