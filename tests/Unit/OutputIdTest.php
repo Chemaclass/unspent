@@ -55,4 +55,34 @@ final class OutputIdTest extends TestCase
 
         new OutputId('   ');
     }
+
+    public function test_rejects_id_exceeding_max_length(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('OutputId cannot exceed 64 characters');
+
+        new OutputId(str_repeat('a', 65));
+    }
+
+    public function test_accepts_id_at_max_length(): void
+    {
+        $id = new OutputId(str_repeat('a', 64));
+
+        self::assertSame(64, \strlen($id->value));
+    }
+
+    public function test_rejects_invalid_characters(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('OutputId can only contain alphanumeric characters, dashes, and underscores');
+
+        new OutputId('output@invalid!');
+    }
+
+    public function test_accepts_valid_characters(): void
+    {
+        $id = new OutputId('valid-output_ID-123');
+
+        self::assertSame('valid-output_ID-123', $id->value);
+    }
 }

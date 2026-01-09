@@ -55,4 +55,34 @@ final class TxIdTest extends TestCase
 
         new TxId('   ');
     }
+
+    public function test_rejects_id_exceeding_max_length(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('TxId cannot exceed 64 characters');
+
+        new TxId(str_repeat('a', 65));
+    }
+
+    public function test_accepts_id_at_max_length(): void
+    {
+        $id = new TxId(str_repeat('a', 64));
+
+        self::assertSame(64, \strlen($id->value));
+    }
+
+    public function test_rejects_invalid_characters(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('TxId can only contain alphanumeric characters, dashes, and underscores');
+
+        new TxId('tx@invalid!');
+    }
+
+    public function test_accepts_valid_characters(): void
+    {
+        $id = new TxId('valid-tx_ID-123');
+
+        self::assertSame('valid-tx_ID-123', $id->value);
+    }
 }
