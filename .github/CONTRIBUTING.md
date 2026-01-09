@@ -18,13 +18,14 @@ vendor/bin/phpunit --testsuite Unit   # unit only
 vendor/bin/phpunit --testsuite Feature # integration only
 ```
 
-## Demo
+## Examples
 
 ```bash
-php example/demo.php
+php example/demo.php              # All features demo
+php example/bitcoin-simulation.php # Bitcoin-like scenario
 ```
 
-Shows all the features in action.
+The demo shows all features. The simulation walks through a realistic Bitcoin use case.
 
 ## Project Layout
 
