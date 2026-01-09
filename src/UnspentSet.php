@@ -142,4 +142,35 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     {
         return new ArrayIterator($this->outputs);
     }
+
+    /**
+     * Serializes the unspent set to an array format.
+     *
+     * @return list<array{id: string, amount: int}>
+     */
+    public function toArray(): array
+    {
+        return array_map(
+            static fn(Output $o): array => ['id' => $o->id->value, 'amount' => $o->amount],
+            array_values($this->outputs),
+        );
+    }
+
+    /**
+     * Creates an UnspentSet from a serialized array.
+     *
+     * @param list<array{id: string, amount: int}> $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $outputs = array_map(
+            static fn(array $item): Output => new Output(
+                new OutputId($item['id']),
+                $item['amount'],
+            ),
+            $data,
+        );
+
+        return self::fromOutputs(...$outputs);
+    }
 }

@@ -135,4 +135,71 @@ final class UnspentSetTest extends TestCase
         self::assertSame(150, $set->totalAmount());
         self::assertSame(2, $set->count());
     }
+
+    // ========================================================================
+    // Serialization Tests
+    // ========================================================================
+
+    public function test_can_serialize_to_array(): void
+    {
+        $set = UnspentSet::fromOutputs(
+            new Output(new OutputId('a'), 100),
+            new Output(new OutputId('b'), 50),
+        );
+
+        $array = $set->toArray();
+
+        self::assertCount(2, $array);
+        self::assertContains(['id' => 'a', 'amount' => 100], $array);
+        self::assertContains(['id' => 'b', 'amount' => 50], $array);
+    }
+
+    public function test_can_deserialize_from_array(): void
+    {
+        $data = [
+            ['id' => 'a', 'amount' => 100],
+            ['id' => 'b', 'amount' => 50],
+        ];
+
+        $set = UnspentSet::fromArray($data);
+
+        self::assertSame(150, $set->totalAmount());
+        self::assertSame(2, $set->count());
+        self::assertTrue($set->contains(new OutputId('a')));
+        self::assertTrue($set->contains(new OutputId('b')));
+    }
+
+    public function test_serialization_round_trip(): void
+    {
+        $original = UnspentSet::fromOutputs(
+            new Output(new OutputId('x'), 1000),
+            new Output(new OutputId('y'), 500),
+            new Output(new OutputId('z'), 250),
+        );
+
+        $restored = UnspentSet::fromArray($original->toArray());
+
+        self::assertSame($original->totalAmount(), $restored->totalAmount());
+        self::assertSame($original->count(), $restored->count());
+
+        foreach ($original->outputIds() as $id) {
+            self::assertTrue($restored->contains($id));
+            self::assertSame(
+                $original->get($id)?->amount,
+                $restored->get($id)?->amount,
+            );
+        }
+    }
+
+    public function test_empty_set_serialization(): void
+    {
+        $empty = UnspentSet::empty();
+
+        $array = $empty->toArray();
+        self::assertSame([], $array);
+
+        $restored = UnspentSet::fromArray([]);
+        self::assertTrue($restored->isEmpty());
+        self::assertSame(0, $restored->totalAmount());
+    }
 }

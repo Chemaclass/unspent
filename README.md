@@ -18,16 +18,15 @@ Track value like Bitcoin tracks coins. Every unit has an origin, can only be spe
 
 ```php
 $ledger = Ledger::empty()->addGenesis(
-    Output::create('alice', 1000),
+    Output::create(1000, 'alice'),
 );
 
 // Alice spends 600, keeps 390, burns 10 as fee
 $ledger = $ledger->apply(Spend::create(
-    id: 'tx-001',
     inputIds: ['alice'],
     outputs: [
-        Output::create('bob', 600),
-        Output::create('alice-change', 390),
+        Output::create(600, 'bob'),
+        Output::create(390, 'alice-change'),
     ],
 ));
 
@@ -61,7 +60,8 @@ PHP 8.4+
 A chunk of value with a unique ID. Spend it, and it's gone - replaced by new outputs.
 
 ```php
-Output::create('reward-42', 100);  // 100 units, ID "reward-42"
+Output::create(100, 'reward-42');  // 100 units, ID "reward-42"
+Output::create(100);               // Auto-generated content-hash ID
 ```
 
 ### Spends
@@ -70,9 +70,9 @@ Consume outputs, create new ones. The transaction.
 
 ```php
 Spend::create(
-    id: 'tx-001',
     inputIds: ['reward-42'],
-    outputs: [Output::create('spent', 100)],
+    outputs: [Output::create(100, 'spent')],
+    id: 'tx-001',  // Optional - auto-generated if omitted
 );
 ```
 
@@ -83,7 +83,7 @@ Inputs must exist. Outputs can't exceed inputs (the gap is the fee).
 Immutable state. Every operation returns a new ledger - you can't mess with history.
 
 ```php
-$v1 = Ledger::empty()->addGenesis(Output::create('x', 100));
+$v1 = Ledger::empty()->addGenesis(Output::create(100, 'x'));
 $v2 = $v1->apply($someSpend);
 // $v1 unchanged, $v2 has the new state
 ```
@@ -108,18 +108,17 @@ Need to create new value? Like miners getting block rewards? Use coinbase transa
 ```php
 // Mint new coins (no inputs required)
 $ledger = Ledger::empty()
-    ->applyCoinbase(Coinbase::create('block-1', [
-        Output::create('miner-reward', 50),
-    ]));
+    ->applyCoinbase(Coinbase::create([
+        Output::create(50, 'miner-reward'),
+    ], 'block-1'));
 
 $ledger->totalMinted();  // 50
 $ledger->isCoinbase(new SpendId('block-1'));  // true
 
 // Spend minted coins like any other output
 $ledger = $ledger->apply(Spend::create(
-    id: 'tx-001',
     inputIds: ['miner-reward'],
-    outputs: [Output::create('alice', 45)],
+    outputs: [Output::create(45, 'alice')],
 ));
 // 5 goes to fees
 ```
@@ -148,13 +147,36 @@ try {
 }
 ```
 
+## Persistence
+
+Save and restore ledger state. Perfect for databases, caching, or cross-machine sync.
+
+```php
+// Save to file/database
+$json = $ledger->toJson();
+file_put_contents('ledger.json', $json);
+
+// Restore later
+$ledger = Ledger::fromJson(file_get_contents('ledger.json'));
+
+// Continue where you left off
+$ledger = $ledger->apply(Spend::create(...));
+```
+
+Also works with arrays for custom serialization:
+
+```php
+$array = $ledger->toArray();   // For database storage
+$ledger = Ledger::fromArray($array);
+```
+
 ## API
 
 ```php
-// Create stuff
-Output::create(string $id, int $amount): Output
-Spend::create(string $id, array $inputIds, array $outputs): Spend
-Coinbase::create(string $id, array $outputs): Coinbase
+// Create stuff (ID is optional - auto-generated if omitted)
+Output::create(int $amount, ?string $id = null): Output
+Spend::create(array $inputIds, array $outputs, ?string $id = null): Spend
+Coinbase::create(array $outputs, ?string $id = null): Coinbase
 Ledger::empty(): Ledger
 
 // Do stuff
@@ -173,11 +195,19 @@ $ledger->totalMinted(): int
 $ledger->isCoinbase(SpendId $id): bool
 $ledger->coinbaseAmount(SpendId $id): ?int
 
+// Persistence
+$ledger->toArray(): array
+$ledger->toJson(int $flags = 0): string
+Ledger::fromArray(array $data): Ledger
+Ledger::fromJson(string $json): Ledger
+
 // UnspentSet
 $set->contains(OutputId $id): bool
 $set->get(OutputId $id): ?Output
 $set->count(): int
 $set->totalAmount(): int
+$set->toArray(): array
+UnspentSet::fromArray(array $data): UnspentSet
 ```
 
 ## Contributing

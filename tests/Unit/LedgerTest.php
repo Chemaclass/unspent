@@ -490,4 +490,179 @@ final class LedgerTest extends TestCase
 
         self::assertSame(0, $ledger->totalMinted());
     }
+
+    // ========================================================================
+    // Serialization Tests
+    // ========================================================================
+
+    public function test_ledger_can_be_serialized_to_array(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('genesis')],
+                outputs: [new Output(new OutputId('out1'), 900)],
+            ));
+
+        $array = $ledger->toArray();
+
+        self::assertArrayHasKey('unspent', $array);
+        self::assertArrayHasKey('appliedSpends', $array);
+        self::assertArrayHasKey('spendFees', $array);
+        self::assertArrayHasKey('coinbaseAmounts', $array);
+
+        self::assertCount(1, $array['unspent']);
+        self::assertContains('tx1', $array['appliedSpends']);
+        self::assertSame(100, $array['spendFees']['tx1']);
+    }
+
+    public function test_ledger_can_be_restored_from_array(): void
+    {
+        $data = [
+            'unspent' => [
+                ['id' => 'out1', 'amount' => 900],
+            ],
+            'appliedSpends' => ['tx1'],
+            'spendFees' => ['tx1' => 100],
+            'coinbaseAmounts' => [],
+        ];
+
+        $ledger = Ledger::fromArray($data);
+
+        self::assertSame(900, $ledger->totalUnspentAmount());
+        self::assertTrue($ledger->hasSpendBeenApplied(new SpendId('tx1')));
+        self::assertSame(100, $ledger->feeForSpend(new SpendId('tx1')));
+        self::assertSame(100, $ledger->totalFeesCollected());
+    }
+
+    public function test_ledger_round_trip_preserves_all_state(): void
+    {
+        $original = Ledger::empty()
+            ->applyCoinbase(Coinbase::create([Output::create(1000, 'cb-out')], 'block-1'))
+            ->apply(Spend::create(['cb-out'], [
+                Output::create(600, 'alice'),
+                Output::create(350, 'bob'),
+            ], 'tx1'))
+            ->apply(Spend::create(['alice'], [Output::create(550, 'charlie')], 'tx2'));
+
+        $restored = Ledger::fromArray($original->toArray());
+
+        // Verify unspent state
+        self::assertSame($original->totalUnspentAmount(), $restored->totalUnspentAmount());
+        self::assertSame($original->unspent()->count(), $restored->unspent()->count());
+
+        // Verify spend tracking
+        self::assertTrue($restored->hasSpendBeenApplied(new SpendId('block-1')));
+        self::assertTrue($restored->hasSpendBeenApplied(new SpendId('tx1')));
+        self::assertTrue($restored->hasSpendBeenApplied(new SpendId('tx2')));
+
+        // Verify fees
+        self::assertSame($original->totalFeesCollected(), $restored->totalFeesCollected());
+        self::assertSame($original->feeForSpend(new SpendId('tx1')), $restored->feeForSpend(new SpendId('tx1')));
+        self::assertSame($original->feeForSpend(new SpendId('tx2')), $restored->feeForSpend(new SpendId('tx2')));
+
+        // Verify coinbase tracking
+        self::assertSame($original->totalMinted(), $restored->totalMinted());
+        self::assertTrue($restored->isCoinbase(new SpendId('block-1')));
+        self::assertSame(1000, $restored->coinbaseAmount(new SpendId('block-1')));
+    }
+
+    public function test_ledger_json_serialization(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('genesis')],
+                outputs: [new Output(new OutputId('out1'), 950)],
+            ));
+
+        $json = $ledger->toJson();
+        $decoded = json_decode($json, true);
+
+        self::assertIsArray($decoded);
+        self::assertArrayHasKey('unspent', $decoded);
+        self::assertArrayHasKey('appliedSpends', $decoded);
+    }
+
+    public function test_ledger_json_round_trip(): void
+    {
+        $original = Ledger::empty()
+            ->applyCoinbase(Coinbase::create([Output::create(500, 'reward')], 'block-1'))
+            ->apply(Spend::create(['reward'], [Output::create(450, 'spent')], 'tx1'));
+
+        $json = $original->toJson();
+        $restored = Ledger::fromJson($json);
+
+        self::assertSame($original->totalUnspentAmount(), $restored->totalUnspentAmount());
+        self::assertSame($original->totalFeesCollected(), $restored->totalFeesCollected());
+        self::assertSame($original->totalMinted(), $restored->totalMinted());
+    }
+
+    public function test_empty_ledger_serialization(): void
+    {
+        $empty = Ledger::empty();
+
+        $array = $empty->toArray();
+        self::assertSame([], $array['unspent']);
+        self::assertSame([], $array['appliedSpends']);
+        self::assertSame([], $array['spendFees']);
+        self::assertSame([], $array['coinbaseAmounts']);
+
+        $restored = Ledger::fromArray($array);
+        self::assertSame(0, $restored->totalUnspentAmount());
+        self::assertSame(0, $restored->totalFeesCollected());
+        self::assertSame(0, $restored->totalMinted());
+    }
+
+    public function test_restored_ledger_can_apply_new_spends(): void
+    {
+        $original = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('genesis'), 1000));
+
+        $restored = Ledger::fromArray($original->toArray());
+
+        // Apply a new spend to the restored ledger
+        $restored = $restored->apply(new Spend(
+            id: new SpendId('new-tx'),
+            inputs: [new OutputId('genesis')],
+            outputs: [new Output(new OutputId('new-out'), 950)],
+        ));
+
+        self::assertSame(950, $restored->totalUnspentAmount());
+        self::assertSame(50, $restored->feeForSpend(new SpendId('new-tx')));
+    }
+
+    public function test_restored_ledger_prevents_duplicate_spends(): void
+    {
+        $this->expectException(DuplicateSpendException::class);
+
+        $original = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('genesis'), 1000))
+            ->apply(new Spend(
+                id: new SpendId('tx1'),
+                inputs: [new OutputId('genesis')],
+                outputs: [new Output(new OutputId('out'), 1000)],
+            ));
+
+        $restored = Ledger::fromArray($original->toArray());
+
+        // Try to apply the same spend ID again
+        $restored->apply(new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('out')],
+            outputs: [new Output(new OutputId('out2'), 1000)],
+        ));
+    }
+
+    public function test_json_with_pretty_print(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('a'), 100));
+
+        $json = $ledger->toJson(JSON_PRETTY_PRINT);
+
+        self::assertStringContainsString("\n", $json);
+    }
 }

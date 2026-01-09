@@ -9,6 +9,7 @@ use Chemaclass\Unspent\Exception\DuplicateSpendException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
+use JsonException;
 
 final readonly class Ledger
 {
@@ -170,6 +171,74 @@ final readonly class Ledger
     public function coinbaseAmount(SpendId $id): ?int
     {
         return $this->coinbaseAmounts[$id->value] ?? null;
+    }
+
+    /**
+     * Serializes the ledger to an array format suitable for persistence.
+     *
+     * @return array{
+     *     unspent: list<array{id: string, amount: int}>,
+     *     appliedSpends: list<string>,
+     *     spendFees: array<string, int>,
+     *     coinbaseAmounts: array<string, int>
+     * }
+     */
+    public function toArray(): array
+    {
+        return [
+            'unspent' => $this->unspentSet->toArray(),
+            'appliedSpends' => array_keys($this->appliedSpendIds),
+            'spendFees' => $this->spendFees,
+            'coinbaseAmounts' => $this->coinbaseAmounts,
+        ];
+    }
+
+    /**
+     * Creates a Ledger from a serialized array.
+     *
+     * @param array{
+     *     unspent: list<array{id: string, amount: int}>,
+     *     appliedSpends: list<string>,
+     *     spendFees: array<string, int>,
+     *     coinbaseAmounts: array<string, int>
+     * } $data
+     */
+    public static function fromArray(array $data): self
+    {
+        $appliedSpendIds = array_fill_keys($data['appliedSpends'], true);
+        $totalFees = array_sum($data['spendFees']);
+        $totalMinted = array_sum($data['coinbaseAmounts']);
+
+        return new self(
+            unspentSet: UnspentSet::fromArray($data['unspent']),
+            appliedSpendIds: $appliedSpendIds,
+            spendFees: $data['spendFees'],
+            totalFees: $totalFees,
+            coinbaseAmounts: $data['coinbaseAmounts'],
+            totalMinted: $totalMinted,
+        );
+    }
+
+    /**
+     * Serializes the ledger to a JSON string.
+     *
+     * @throws JsonException If encoding fails
+     */
+    public function toJson(int $flags = 0): string
+    {
+        return json_encode($this->toArray(), $flags | JSON_THROW_ON_ERROR);
+    }
+
+    /**
+     * Creates a Ledger from a JSON string.
+     *
+     * @throws JsonException If decoding fails
+     */
+    public static function fromJson(string $json): self
+    {
+        $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+
+        return self::fromArray($data);
     }
 
     /**
