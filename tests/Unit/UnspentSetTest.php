@@ -157,8 +157,8 @@ final class UnspentSetTest extends TestCase
     public function test_can_deserialize_from_array(): void
     {
         $data = [
-            ['id' => 'a', 'amount' => 100],
-            ['id' => 'b', 'amount' => 50],
+            ['id' => 'a', 'amount' => 100, 'lock' => ['type' => 'none']],
+            ['id' => 'b', 'amount' => 50, 'lock' => ['type' => 'owner', 'name' => 'alice']],
         ];
 
         $set = UnspentSet::fromArray($data);

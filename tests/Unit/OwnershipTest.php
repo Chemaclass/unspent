@@ -6,10 +6,13 @@ namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Lock\Owner;
 use Chemaclass\Unspent\Lock\PublicKey;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Tx;
+use Chemaclass\Unspent\UnspentSet;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class OwnershipTest extends TestCase
@@ -292,5 +295,106 @@ final class OwnershipTest extends TestCase
         ));
 
         self::assertSame(750, $ledger->totalUnspentAmount());
+    }
+
+    // Security hardening tests (TIER 1)
+
+    public function test_public_key_rejects_invalid_base64(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid Ed25519 public key');
+
+        new PublicKey('not-valid-base64!!!');
+    }
+
+    public function test_public_key_rejects_wrong_length_key(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid Ed25519 public key');
+
+        new PublicKey(base64_encode('too-short')); // Not 32 bytes
+    }
+
+    public function test_public_key_accepts_valid_key(): void
+    {
+        $keypair = sodium_crypto_sign_keypair();
+        $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
+
+        $lock = new PublicKey($publicKey);
+
+        self::assertSame($publicKey, $lock->key);
+    }
+
+    public function test_signature_wrong_length_rejected(): void
+    {
+        $keypair = sodium_crypto_sign_keypair();
+        $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
+
+        $ledger = Ledger::withGenesis(
+            Output::signedBy($publicKey, 1000, 'secure-funds'),
+        );
+
+        $this->expectException(AuthorizationException::class);
+        $this->expectExceptionMessage('Invalid signature for input 0');
+
+        // Provide a signature that's not 64 bytes
+        $wrongLengthSig = base64_encode('short-signature');
+
+        $ledger->apply(Tx::create(
+            inputIds: ['secure-funds'],
+            outputs: [Output::open(900)],
+            proofs: [$wrongLengthSig],
+            id: 'tx-001',
+        ));
+    }
+
+    public function test_owner_rejects_empty_name(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Owner name cannot be empty or whitespace');
+
+        new Owner('');
+    }
+
+    public function test_owner_rejects_whitespace_only_name(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Owner name cannot be empty or whitespace');
+
+        new Owner('   ');
+    }
+
+    public function test_lock_factory_rejects_missing_type(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Lock type is required');
+
+        LockFactory::fromArray([]);
+    }
+
+    public function test_lock_factory_rejects_missing_owner_name(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Name is required for owner lock');
+
+        LockFactory::fromArray(['type' => 'owner']);
+    }
+
+    public function test_lock_factory_rejects_missing_pubkey_key(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Key is required for pubkey lock');
+
+        LockFactory::fromArray(['type' => 'pubkey']);
+    }
+
+    public function test_unspent_set_throws_on_missing_lock_data(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Output 'test-id' missing lock data");
+
+        UnspentSet::fromArray([
+            ['id' => 'test-id', 'amount' => 100],
+        ]);
     }
 }

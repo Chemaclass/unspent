@@ -7,6 +7,7 @@ namespace Chemaclass\Unspent;
 use ArrayIterator;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Countable;
+use InvalidArgumentException;
 use IteratorAggregate;
 use Traversable;
 
@@ -170,11 +171,19 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     public static function fromArray(array $data): self
     {
         $outputs = array_map(
-            static fn (array $item): Output => new Output(
-                new OutputId($item['id']),
-                $item['amount'],
-                isset($item['lock']) ? LockFactory::fromArray($item['lock']) : new Lock\NoLock(),
-            ),
+            static function (array $item): Output {
+                if (!isset($item['lock'])) {
+                    throw new InvalidArgumentException(
+                        "Output '{$item['id']}' missing lock data - cannot deserialize safely",
+                    );
+                }
+
+                return new Output(
+                    new OutputId($item['id']),
+                    $item['amount'],
+                    LockFactory::fromArray($item['lock']),
+                );
+            },
             $data,
         );
 

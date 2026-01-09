@@ -7,6 +7,7 @@ namespace Chemaclass\Unspent\Lock;
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\OutputLock;
 use Chemaclass\Unspent\Tx;
+use InvalidArgumentException;
 
 /**
  * A lock that requires Ed25519 signature verification.
@@ -19,6 +20,12 @@ final readonly class PublicKey implements OutputLock
     public function __construct(
         public string $key,
     ) {
+        $decoded = base64_decode($key, true);
+        if ($decoded === false || \strlen($decoded) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
+            throw new InvalidArgumentException(
+                'Invalid Ed25519 public key: must be 32-byte key encoded as base64',
+            );
+        }
     }
 
     public function validate(Tx $tx, int $inputIndex): void
@@ -48,11 +55,13 @@ final readonly class PublicKey implements OutputLock
         $decodedSignature = base64_decode($signature, true);
         $decodedKey = base64_decode($this->key, true);
 
-        if ($decodedSignature === false || $decodedSignature === '') {
+        // Explicit length validation (Ed25519 signature = 64 bytes)
+        if ($decodedSignature === false || \strlen($decodedSignature) !== SODIUM_CRYPTO_SIGN_BYTES) {
             return false;
         }
 
-        if ($decodedKey === false || $decodedKey === '') {
+        // Should never fail if constructor validates, but defense in depth
+        if ($decodedKey === false || \strlen($decodedKey) !== SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES) {
             return false;
         }
 
