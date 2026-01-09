@@ -1,0 +1,80 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Chemaclass\UnspentTests;
+
+use Chemaclass\Unspent\Output;
+use Chemaclass\Unspent\OutputId;
+use Chemaclass\Unspent\Spend;
+use Chemaclass\Unspent\SpendId;
+use InvalidArgumentException;
+use PHPUnit\Framework\TestCase;
+
+final class SpendTest extends TestCase
+{
+    public function test_can_be_created_with_inputs_and_outputs(): void
+    {
+        $spend = new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('a'), new OutputId('b')],
+            outputs: [
+                new Output(new OutputId('c'), 100),
+                new Output(new OutputId('d'), 50),
+            ],
+        );
+
+        self::assertSame('tx1', $spend->id->value);
+        self::assertCount(2, $spend->inputs);
+        self::assertCount(2, $spend->outputs);
+    }
+
+    public function test_must_have_at_least_one_input(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Spend must have at least one input');
+
+        new Spend(
+            id: new SpendId('tx1'),
+            inputs: [],
+            outputs: [new Output(new OutputId('c'), 100)],
+        );
+    }
+
+    public function test_must_have_at_least_one_output(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Spend must have at least one output');
+
+        new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('a')],
+            outputs: [],
+        );
+    }
+
+    public function test_total_input_amount_returns_zero_without_unspent_set(): void
+    {
+        $spend = new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('a')],
+            outputs: [new Output(new OutputId('c'), 100)],
+        );
+
+        self::assertCount(1, $spend->inputs);
+    }
+
+    public function test_total_output_amount(): void
+    {
+        $spend = new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('a')],
+            outputs: [
+                new Output(new OutputId('c'), 100),
+                new Output(new OutputId('d'), 50),
+            ],
+        );
+
+        self::assertSame(150, $spend->totalOutputAmount());
+    }
+}
