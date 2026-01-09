@@ -501,6 +501,7 @@ final class LedgerTest extends TestCase
     public function test_ledger_can_be_restored_from_array(): void
     {
         $data = [
+            'version' => 1,
             'unspent' => [
                 ['id' => 'out1', 'amount' => 900, 'lock' => ['type' => 'none']],
             ],

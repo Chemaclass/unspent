@@ -10,6 +10,9 @@ final class IdGenerator
 
     private const int ID_LENGTH = 32;
 
+    /** Number of random bytes for output ID entropy (128-bit). */
+    private const int RANDOM_BYTES = 16;
+
     /**
      * Generate a deterministic ID from transaction content (inputs + outputs).
      * Same content always produces the same ID.
@@ -41,7 +44,7 @@ final class IdGenerator
      */
     public static function forOutput(int $amount): string
     {
-        $data = $amount . '|' . bin2hex(random_bytes(8));
+        $data = $amount . '|' . bin2hex(random_bytes(self::RANDOM_BYTES));
 
         return self::hash($data);
     }

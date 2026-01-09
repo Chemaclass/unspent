@@ -14,6 +14,9 @@ use JsonException;
 
 final readonly class Ledger
 {
+    /** Serialization format version for future migration support. */
+    private const int SERIALIZATION_VERSION = 1;
+
     /**
      * @param array<string, true>                                                       $appliedTxIds
      * @param array<string, int>                                                        $txFees          Map of TxId value to fee amount
@@ -320,7 +323,8 @@ final readonly class Ledger
      * Serializes the ledger to an array format suitable for persistence.
      *
      * @return array{
-     *     unspent: list<array{id: string, amount: int}>,
+     *     version: int,
+     *     unspent: list<array{id: string, amount: int, lock: array<string, mixed>}>,
      *     appliedTxs: list<string>,
      *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
@@ -332,6 +336,7 @@ final readonly class Ledger
     public function toArray(): array
     {
         return [
+            'version' => self::SERIALIZATION_VERSION,
             'unspent' => $this->unspentSet->toArray(),
             'appliedTxs' => array_keys($this->appliedTxIds),
             'txFees' => $this->txFees,
@@ -346,7 +351,8 @@ final readonly class Ledger
      * Creates a Ledger from a serialized array.
      *
      * @param array{
-     *     unspent: list<array{id: string, amount: int}>,
+     *     version: int,
+     *     unspent: list<array{id: string, amount: int, lock: array<string, mixed>}>,
      *     appliedTxs: list<string>,
      *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
