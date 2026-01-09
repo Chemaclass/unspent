@@ -1,7 +1,5 @@
 # Contributing
 
-Want to help? Cool.
-
 ## Setup
 
 ```bash
@@ -10,44 +8,38 @@ cd unspent
 composer install
 ```
 
-## Tests
+## Development
 
 ```bash
-vendor/bin/phpunit                    # everything
-vendor/bin/phpunit --testsuite Unit   # unit only
-vendor/bin/phpunit --testsuite Feature # integration only
+composer test                          # Run all checks (cs, stan, tests)
+vendor/bin/phpunit                     # Tests only
+vendor/bin/phpstan analyse             # Static analysis
+vendor/bin/php-cs-fixer fix            # Fix code style
 ```
 
-## Examples
-
-```bash
-php example/demo.php              # All features demo
-php example/bitcoin-simulation.php # Bitcoin-like scenario
-```
-
-The demo shows all features. The simulation walks through a realistic Bitcoin use case.
-
-## Project Layout
+## Project Structure
 
 ```
 src/
-├── Exception/          # All the ways things can go wrong
-├── Ledger.php          # The main thing
-├── Output.php          # Value objects
-├── Spend.php           # Transactions
-└── UnspentSet.php      # Collection of outputs
+├── Ledger.php         # Main state container
+├── Tx.php             # Transactions (spend inputs, create outputs)
+├── CoinbaseTx.php     # Minting transactions
+├── Output.php         # Value with ownership lock
+├── UnspentSet.php     # UTXO collection
+├── Lock/              # Authorization (Owner, PublicKey, NoLock)
+└── Exception/         # Domain errors
 
 tests/
-├── Unit/               # Test individual pieces
-└── Feature/            # Test the whole flow
+├── Unit/              # Individual components
+└── Feature/           # Integration scenarios
 ```
 
-## Before You PR
+## Before PR
 
-1. Write tests
-2. Make sure `vendor/bin/phpunit` passes
-3. Don't break the API without good reason
+1. Add tests for new functionality
+2. Run `composer test` - all checks must pass
+3. Keep backward compatibility unless discussed
 
-## Questions?
+## Questions
 
 Open an issue.
