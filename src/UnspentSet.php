@@ -19,27 +19,87 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
      */
     private function __construct(
         private array $outputs,
+        private int $cachedTotal,
     ) {}
 
     public static function empty(): self
     {
-        return new self([]);
+        return new self([], 0);
+    }
+
+    public static function fromOutputs(Output ...$outputs): self
+    {
+        return self::empty()->addAll(...$outputs);
     }
 
     public function add(Output $output): self
     {
+        $key = $output->id->value;
         $outputs = $this->outputs;
-        $outputs[$output->id->value] = $output;
+        $delta = $output->amount;
 
-        return new self($outputs);
+        if (isset($outputs[$key])) {
+            $delta -= $outputs[$key]->amount;
+        }
+
+        $outputs[$key] = $output;
+
+        return new self($outputs, $this->cachedTotal + $delta);
+    }
+
+    public function addAll(Output ...$outputs): self
+    {
+        if ($outputs === []) {
+            return $this;
+        }
+
+        $newOutputs = $this->outputs;
+        $newTotal = $this->cachedTotal;
+
+        foreach ($outputs as $output) {
+            $key = $output->id->value;
+            if (isset($newOutputs[$key])) {
+                $newTotal -= $newOutputs[$key]->amount;
+            }
+            $newOutputs[$key] = $output;
+            $newTotal += $output->amount;
+        }
+
+        return new self($newOutputs, $newTotal);
     }
 
     public function remove(OutputId $id): self
     {
-        $outputs = $this->outputs;
-        unset($outputs[$id->value]);
+        $key = $id->value;
+        if (!isset($this->outputs[$key])) {
+            return $this;
+        }
 
-        return new self($outputs);
+        $outputs = $this->outputs;
+        $removedAmount = $outputs[$key]->amount;
+        unset($outputs[$key]);
+
+        return new self($outputs, $this->cachedTotal - $removedAmount);
+    }
+
+    public function removeAll(OutputId ...$ids): self
+    {
+        if ($ids === []) {
+            return $this;
+        }
+
+        $outputs = $this->outputs;
+        $newTotal = $this->cachedTotal;
+
+        foreach ($ids as $id) {
+            $key = $id->value;
+            if (isset($outputs[$key])) {
+                $newTotal -= $outputs[$key]->amount;
+                unset($outputs[$key]);
+            }
+        }
+
+        return new self($outputs, $newTotal);
     }
 
     public function contains(OutputId $id): bool
@@ -64,10 +124,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
 
     public function totalAmount(): int
     {
-        return array_sum(array_map(
-            static fn(Output $output): int => $output->amount,
-            $this->outputs,
-        ));
+        return $this->cachedTotal;
     }
 
     /**

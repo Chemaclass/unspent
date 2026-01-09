@@ -53,6 +53,10 @@ $unspent->contains(new OutputId('bob'));       // true
 $aliceOutput = $unspent->get(new OutputId('alice'));
 echo $aliceOutput->amount; // 600
 
+// Check if a spend has been applied
+$ledger->hasSpendBeenApplied(new SpendId('tx-001')); // true
+$ledger->hasSpendBeenApplied(new SpendId('tx-999')); // false
+
 // Iterate over unspent outputs
 foreach ($unspent as $id => $output) {
     echo "{$id}: {$output->amount}\n";
@@ -73,6 +77,10 @@ The library enforces the following invariants:
 
 5. **Idempotent spends**: The same spend (by ID) cannot be applied twice.
 
+6. **Non-empty IDs**: Output and Spend IDs cannot be empty or whitespace-only strings.
+
+7. **Valid spend structure**: A spend must have at least one input and one output, with no duplicate input or output IDs within the same spend.
+
 ## Exceptions
 
 All invariant violations throw specific domain exceptions:
@@ -82,13 +90,14 @@ All invariant violations throw specific domain exceptions:
 - `DuplicateOutputIdException`: When creating outputs with duplicate IDs
 - `DuplicateSpendException`: When applying the same spend twice
 - `GenesisNotAllowedException`: When adding genesis outputs to a non-empty ledger
+- `InvalidArgumentException`: When IDs are empty or spend structure is invalid
 
 ## API
 
 ### Value Objects
 
-- `OutputId`: Identifies an output (string wrapper)
-- `SpendId`: Identifies a spend/transaction (string wrapper)
+- `OutputId`: Identifies an output (non-empty string wrapper)
+- `SpendId`: Identifies a spend/transaction (non-empty string wrapper)
 - `Output`: A discrete piece of value with an ID and positive integer amount
 
 ### Collections
@@ -103,12 +112,39 @@ All invariant violations throw specific domain exceptions:
 ### Ledger Methods
 
 ```php
-Ledger::empty(): Ledger                      // Create an empty ledger
-$ledger->addGenesis(Output ...$outputs): Ledger  // Add initial outputs (only when empty)
-$ledger->apply(Spend $spend): Ledger         // Apply a spend, returns new ledger
-$ledger->unspent(): UnspentSet               // Get current unspent outputs
-$ledger->totalUnspentAmount(): int           // Sum of all unspent amounts
+Ledger::empty(): Ledger                           // Create an empty ledger
+$ledger->addGenesis(Output ...$outputs): Ledger   // Add initial outputs (only when empty)
+$ledger->apply(Spend $spend): Ledger              // Apply a spend, returns new ledger
+$ledger->unspent(): UnspentSet                    // Get current unspent outputs
+$ledger->totalUnspentAmount(): int                // Sum of all unspent amounts (O(1))
+$ledger->hasSpendBeenApplied(SpendId $id): bool   // Check if spend was applied
 ```
+
+### UnspentSet Methods
+
+```php
+UnspentSet::empty(): UnspentSet                   // Create empty set
+UnspentSet::fromOutputs(Output ...$o): UnspentSet // Create from outputs
+$set->add(Output $output): UnspentSet             // Add single output
+$set->addAll(Output ...$outputs): UnspentSet      // Add multiple outputs
+$set->remove(OutputId $id): UnspentSet            // Remove single output
+$set->removeAll(OutputId ...$ids): UnspentSet     // Remove multiple outputs
+$set->contains(OutputId $id): bool                // Check if contains ID
+$set->get(OutputId $id): ?Output                  // Get output by ID
+$set->totalAmount(): int                          // Sum of amounts (O(1) cached)
+$set->count(): int                                // Number of outputs
+$set->isEmpty(): bool                             // Check if empty
+$set->outputIds(): array                          // Get all output IDs
+```
+
+## Architecture
+
+The library follows these design principles:
+
+- **Immutability**: All operations return new instances rather than mutating state
+- **Value Objects**: IDs and outputs are immutable value objects with validation
+- **Domain Exceptions**: Clear, specific exceptions for each invariant violation
+- **Performance**: O(1) cached totals, O(n+m) conflict checking, batch operations
 
 ## Development
 

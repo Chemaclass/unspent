@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\UnspentTests;
 
 use Chemaclass\Unspent\SpendId;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class SpendIdTest extends TestCase
@@ -37,5 +38,21 @@ final class SpendIdTest extends TestCase
         $id = new SpendId('spend-id');
 
         self::assertSame('spend-id', (string) $id);
+    }
+
+    public function test_empty_string_is_not_allowed(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('SpendId cannot be empty');
+
+        new SpendId('');
+    }
+
+    public function test_whitespace_only_is_not_allowed(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('SpendId cannot be empty');
+
+        new SpendId('   ');
     }
 }

@@ -33,30 +33,22 @@ final readonly class Ledger
 
         $this->assertNoDuplicateOutputIds($outputs);
 
-        $unspent = $this->unspentSet;
-        foreach ($outputs as $output) {
-            $unspent = $unspent->add($output);
-        }
-
-        return new self($unspent, $this->appliedSpendIds);
+        return new self(
+            UnspentSet::fromOutputs(...$outputs),
+            $this->appliedSpendIds,
+        );
     }
 
     public function apply(Spend $spend): self
     {
         $this->assertSpendNotAlreadyApplied($spend);
-        $this->assertAllInputsExistInUnspentSet($spend);
-        $this->assertSpendIsBalanced($spend);
+        $inputAmount = $this->validateInputsAndGetTotal($spend);
+        $this->assertSpendIsBalanced($inputAmount, $spend->totalOutputAmount());
         $this->assertNoOutputIdConflicts($spend);
 
-        $unspent = $this->unspentSet;
-
-        foreach ($spend->inputs as $inputId) {
-            $unspent = $unspent->remove($inputId);
-        }
-
-        foreach ($spend->outputs as $output) {
-            $unspent = $unspent->add($output);
-        }
+        $unspent = $this->unspentSet
+            ->removeAll(...$spend->inputs)
+            ->addAll(...$spend->outputs);
 
         $appliedSpends = $this->appliedSpendIds;
         $appliedSpends[$spend->id->value] = true;
@@ -72,6 +64,11 @@ final readonly class Ledger
     public function totalUnspentAmount(): int
     {
         return $this->unspentSet->totalAmount();
+    }
+
+    public function hasSpendBeenApplied(SpendId $spendId): bool
+    {
+        return isset($this->appliedSpendIds[$spendId->value]);
     }
 
     /**
@@ -96,27 +93,25 @@ final readonly class Ledger
         }
     }
 
-    private function assertAllInputsExistInUnspentSet(Spend $spend): void
-    {
-        foreach ($spend->inputs as $inputId) {
-            if (!$this->unspentSet->contains($inputId)) {
-                throw OutputAlreadySpentException::forId($inputId->value);
-            }
-        }
-    }
-
-    private function assertSpendIsBalanced(Spend $spend): void
+    /**
+     * Validates all inputs exist in unspent set and returns total input amount.
+     */
+    private function validateInputsAndGetTotal(Spend $spend): int
     {
         $inputAmount = 0;
         foreach ($spend->inputs as $inputId) {
             $output = $this->unspentSet->get($inputId);
-            if ($output !== null) {
-                $inputAmount += $output->amount;
+            if ($output === null) {
+                throw OutputAlreadySpentException::forId($inputId->value);
             }
+            $inputAmount += $output->amount;
         }
 
-        $outputAmount = $spend->totalOutputAmount();
+        return $inputAmount;
+    }
 
+    private function assertSpendIsBalanced(int $inputAmount, int $outputAmount): void
+    {
         if ($inputAmount !== $outputAmount) {
             throw UnbalancedSpendException::create($inputAmount, $outputAmount);
         }
@@ -124,28 +119,25 @@ final readonly class Ledger
 
     private function assertNoOutputIdConflicts(Spend $spend): void
     {
-        $seen = [];
+        // Build set of input IDs being spent (O(n))
+        $inputIds = [];
+        foreach ($spend->inputs as $inputId) {
+            $inputIds[$inputId->value] = true;
+        }
+
+        // Check each output ID (O(m))
         foreach ($spend->outputs as $output) {
             $id = $output->id->value;
 
-            if (isset($seen[$id])) {
+            // Skip IDs that are being spent (they will be removed)
+            if (isset($inputIds[$id])) {
+                continue;
+            }
+
+            // Check for conflict with existing unspent outputs
+            if ($this->unspentSet->contains($output->id)) {
                 throw DuplicateOutputIdException::forId($id);
             }
-
-            if ($this->unspentSet->contains($output->id)) {
-                $isBeingSpent = false;
-                foreach ($spend->inputs as $inputId) {
-                    if ($inputId->equals($output->id)) {
-                        $isBeingSpent = true;
-                        break;
-                    }
-                }
-                if (!$isBeingSpent) {
-                    throw DuplicateOutputIdException::forId($id);
-                }
-            }
-
-            $seen[$id] = true;
         }
     }
 }

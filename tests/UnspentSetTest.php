@@ -97,4 +97,42 @@ final class UnspentSetTest extends TestCase
 
         self::assertCount(2, $ids);
     }
+
+    public function test_can_add_multiple_outputs_at_once(): void
+    {
+        $output1 = new Output(new OutputId('a'), 100);
+        $output2 = new Output(new OutputId('b'), 50);
+        $output3 = new Output(new OutputId('c'), 25);
+
+        $set = UnspentSet::empty()->addAll($output1, $output2, $output3);
+
+        self::assertSame(175, $set->totalAmount());
+        self::assertSame(3, $set->count());
+    }
+
+    public function test_can_remove_multiple_outputs_at_once(): void
+    {
+        $output1 = new Output(new OutputId('a'), 100);
+        $output2 = new Output(new OutputId('b'), 50);
+        $output3 = new Output(new OutputId('c'), 25);
+
+        $set = UnspentSet::empty()
+            ->addAll($output1, $output2, $output3)
+            ->removeAll(new OutputId('a'), new OutputId('c'));
+
+        self::assertSame(50, $set->totalAmount());
+        self::assertSame(1, $set->count());
+        self::assertTrue($set->contains(new OutputId('b')));
+    }
+
+    public function test_can_create_from_outputs(): void
+    {
+        $output1 = new Output(new OutputId('a'), 100);
+        $output2 = new Output(new OutputId('b'), 50);
+
+        $set = UnspentSet::fromOutputs($output1, $output2);
+
+        self::assertSame(150, $set->totalAmount());
+        self::assertSame(2, $set->count());
+    }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\UnspentTests;
 
+use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Spend;
@@ -76,5 +77,32 @@ final class SpendTest extends TestCase
         );
 
         self::assertSame(150, $spend->totalOutputAmount());
+    }
+
+    public function test_outputs_must_have_unique_ids(): void
+    {
+        $this->expectException(DuplicateOutputIdException::class);
+        $this->expectExceptionMessage("Duplicate output id: 'c'");
+
+        new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('a')],
+            outputs: [
+                new Output(new OutputId('c'), 50),
+                new Output(new OutputId('c'), 50),
+            ],
+        );
+    }
+
+    public function test_inputs_must_have_unique_ids(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Duplicate input id: 'a'");
+
+        new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('a'), new OutputId('a')],
+            outputs: [new Output(new OutputId('c'), 100)],
+        );
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\UnspentTests;
 
 use Chemaclass\Unspent\OutputId;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class OutputIdTest extends TestCase
@@ -37,5 +38,21 @@ final class OutputIdTest extends TestCase
         $id = new OutputId('test-id');
 
         self::assertSame('test-id', (string) $id);
+    }
+
+    public function test_empty_string_is_not_allowed(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('OutputId cannot be empty');
+
+        new OutputId('');
+    }
+
+    public function test_whitespace_only_is_not_allowed(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('OutputId cannot be empty');
+
+        new OutputId('   ');
     }
 }

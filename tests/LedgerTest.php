@@ -231,4 +231,21 @@ final class LedgerTest extends TestCase
         self::assertSame(1, $ledger->unspent()->count());
         self::assertTrue($ledger->unspent()->contains(new OutputId('c')));
     }
+
+    public function test_can_query_if_spend_has_been_applied(): void
+    {
+        $ledger = Ledger::empty()
+            ->addGenesis(new Output(new OutputId('a'), 100));
+
+        self::assertFalse($ledger->hasSpendBeenApplied(new SpendId('tx1')));
+
+        $ledger = $ledger->apply(new Spend(
+            id: new SpendId('tx1'),
+            inputs: [new OutputId('a')],
+            outputs: [new Output(new OutputId('b'), 100)],
+        ));
+
+        self::assertTrue($ledger->hasSpendBeenApplied(new SpendId('tx1')));
+        self::assertFalse($ledger->hasSpendBeenApplied(new SpendId('tx2')));
+    }
 }
