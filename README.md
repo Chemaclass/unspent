@@ -81,6 +81,7 @@ $ledger->unspent()->get(new OutputId('bob-funds'))->amount;  // 600
 |-------|-------------|
 | [Core Concepts](docs/concepts.md) | UTXO model, outputs, spends, ledger |
 | [Ownership](docs/ownership.md) | Simple, cryptographic, and custom locks |
+| [History & Provenance](docs/history.md) | Trace outputs through transactions |
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees and coinbase transactions |
 | [Persistence](docs/persistence.md) | JSON/array serialization |
 | [API Reference](docs/api-reference.md) | Complete method reference |

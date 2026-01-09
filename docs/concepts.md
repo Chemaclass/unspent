@@ -167,8 +167,26 @@ try {
 }
 ```
 
+## History & Provenance
+
+The ledger tracks where every output came from and where it went:
+
+```php
+// Where did this output come from?
+$ledger->outputCreatedBy(new OutputId('bob-funds'));  // 'tx-001' or 'genesis'
+
+// Where did it go?
+$ledger->outputSpentBy(new OutputId('alice-funds'));  // 'tx-001' or null
+
+// Get output even if spent
+$ledger->getOutput(new OutputId('spent-output'));     // Output or null
+```
+
+See [History & Provenance](history.md) for full details.
+
 ## Next Steps
 
 - [Ownership](ownership.md) - Learn about locks and authorization
+- [History & Provenance](history.md) - Trace outputs through transactions
 - [Fees & Minting](fees-and-minting.md) - Implicit fees and creating new value
 - [API Reference](api-reference.md) - Complete method reference

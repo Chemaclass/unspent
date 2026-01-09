@@ -159,6 +159,26 @@ $ledger->coinbaseAmount(SpendId $id): ?int
 $ledger->totalMinted(): int              // Sum of all coinbases
 ```
 
+### Query - History & Provenance
+
+```php
+// Which transaction created this output? ('genesis' for genesis outputs)
+$ledger->outputCreatedBy(OutputId $id): ?string
+
+// Which transaction spent this output? (null if unspent or unknown)
+$ledger->outputSpentBy(OutputId $id): ?string
+
+// Get output data even if spent (returns null if never existed)
+$ledger->getOutput(OutputId $id): ?Output
+
+// Check if output ever existed (spent or unspent)
+$ledger->outputExists(OutputId $id): bool
+
+// Get complete history of an output
+$ledger->outputHistory(OutputId $id): ?array
+// Returns: ['id', 'amount', 'lock', 'createdBy' (nullable), 'spentBy', 'status']
+```
+
 ### Serialization
 
 ```php
