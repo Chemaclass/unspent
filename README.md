@@ -24,19 +24,19 @@ use Chemaclass\Unspent\SpendId;
 // Create a ledger with genesis outputs
 $ledger = Ledger::empty()
     ->addGenesis(
-        new Output(new OutputId('genesis-1'), 1000),
-        new Output(new OutputId('genesis-2'), 500),
+        Output::create('genesis-1', 1000),
+        Output::create('genesis-2', 500),
     );
 
 echo $ledger->totalUnspentAmount(); // 1500
 
 // Apply a spend: consume genesis-1 and create two new outputs
-$ledger = $ledger->apply(new Spend(
-    id: new SpendId('tx-001'),
-    inputs: [new OutputId('genesis-1')],
+$ledger = $ledger->apply(Spend::create(
+    id: 'tx-001',
+    inputIds: ['genesis-1'],
     outputs: [
-        new Output(new OutputId('alice'), 600),
-        new Output(new OutputId('bob'), 400),
+        Output::create('alice', 600),
+        Output::create('bob', 400),
     ],
 ));
 
@@ -69,10 +69,10 @@ The library supports implicit fees where the difference between inputs and outpu
 
 ```php
 // Spend with a 10 unit fee (100 input -> 90 output)
-$ledger = $ledger->apply(new Spend(
-    id: new SpendId('tx-001'),
-    inputs: [new OutputId('genesis-1')],
-    outputs: [new Output(new OutputId('alice'), 90)],
+$ledger = $ledger->apply(Spend::create(
+    id: 'tx-001',
+    inputIds: ['genesis-1'],
+    outputs: [Output::create('alice', 90)],
 ));
 
 // Query fees
@@ -80,10 +80,10 @@ $ledger->feeForSpend(new SpendId('tx-001'));  // 10
 $ledger->totalFeesCollected();                 // 10
 
 // Zero-fee spends are still allowed (backward compatible)
-$ledger = $ledger->apply(new Spend(
-    id: new SpendId('tx-002'),
-    inputs: [new OutputId('alice')],
-    outputs: [new Output(new OutputId('bob'), 90)],  // No fee
+$ledger = $ledger->apply(Spend::create(
+    id: 'tx-002',
+    inputIds: ['alice'],
+    outputs: [Output::create('bob', 90)],  // No fee
 ));
 
 $ledger->feeForSpend(new SpendId('tx-002'));  // 0
@@ -145,6 +145,9 @@ Specific exception types:
 - `OutputId`: Identifies an output (implements `Id`)
 - `SpendId`: Identifies a spend/transaction (implements `Id`)
 - `Output`: A discrete piece of value with an ID and positive integer amount
+  - `Output::create(string $id, int $amount)`: Factory for quick instantiation
+- `Spend`: Transaction with inputs and outputs
+  - `Spend::create(string $id, array $inputIds, array $outputs)`: Factory for quick instantiation
 
 ### Collections
 
@@ -152,7 +155,6 @@ Specific exception types:
 
 ### Core
 
-- `Spend`: Represents a transaction that consumes inputs and produces outputs
 - `Ledger`: The main entry point; tracks unspent outputs and enforces invariants
 
 ### Ledger Methods

@@ -54,6 +54,22 @@ final readonly class Spend
         }
     }
 
+    /**
+     * @param list<string> $inputIds
+     * @param list<Output> $outputs
+     */
+    public static function create(string $id, array $inputIds, array $outputs): self
+    {
+        return new self(
+            id: new SpendId($id),
+            inputs: array_map(
+                static fn(string $inputId): OutputId => new OutputId($inputId),
+                $inputIds,
+            ),
+            outputs: $outputs,
+        );
+    }
+
     public function totalOutputAmount(): int
     {
         return array_sum(array_map(

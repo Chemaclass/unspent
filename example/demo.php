@@ -62,9 +62,9 @@ success("Empty ledger created. Total unspent: {$ledger->totalUnspentAmount()}");
 
 info('Adding genesis outputs (initial coin distribution)...');
 $ledger = $ledger->addGenesis(
-    new Output(new OutputId('genesis-alice'), 1000),
-    new Output(new OutputId('genesis-bob'), 500),
-    new Output(new OutputId('genesis-charlie'), 300),
+    Output::create('genesis-alice', 1000),
+    Output::create('genesis-bob', 500),
+    Output::create('genesis-charlie', 300),
 );
 success("Genesis outputs added. Total unspent: {$ledger->totalUnspentAmount()}");
 
@@ -80,26 +80,21 @@ foreach ($ledger->unspent() as $id => $output) {
 section('2. Applying Spends (Transactions)');
 
 info('Alice sends 600 to Bob and keeps 400 as change...');
-$ledger = $ledger->apply(new Spend(
-    id: new SpendId('tx-001'),
-    inputs: [new OutputId('genesis-alice')],
+$ledger = $ledger->apply(Spend::create(
+    id: 'tx-001',
+    inputIds: ['genesis-alice'],
     outputs: [
-        new Output(new OutputId('bob-from-alice'), 600),
-        new Output(new OutputId('alice-change'), 400),
+        Output::create('bob-from-alice', 600),
+        Output::create('alice-change', 400),
     ],
 ));
 success("Transaction tx-001 applied. Total unspent: {$ledger->totalUnspentAmount()}");
 
 info('Bob and Charlie combine their funds to create a shared account...');
-$ledger = $ledger->apply(new Spend(
-    id: new SpendId('tx-002'),
-    inputs: [
-        new OutputId('genesis-bob'),
-        new OutputId('genesis-charlie'),
-    ],
-    outputs: [
-        new Output(new OutputId('bob-charlie-shared'), 800),
-    ],
+$ledger = $ledger->apply(Spend::create(
+    id: 'tx-002',
+    inputIds: ['genesis-bob', 'genesis-charlie'],
+    outputs: [Output::create('bob-charlie-shared', 800)],
 ));
 success("Transaction tx-002 applied. Total unspent: {$ledger->totalUnspentAmount()}");
 
@@ -167,16 +162,16 @@ section('5. UnspentSet Operations');
 
 info('Creating UnspentSet from outputs...');
 $set = UnspentSet::fromOutputs(
-    new Output(new OutputId('a'), 100), # what about having a named constructor like this or similar `Output::create('a', 100)`
-    new Output(new OutputId('b'), 200),
-    new Output(new OutputId('c'), 300),
+    Output::create('a', 100),
+    Output::create('b', 200),
+    Output::create('c', 300),
 );
 success("Created set with {$set->count()} outputs, total: {$set->totalAmount()}");
 
 info('Adding outputs with addAll...');
 $set = $set->addAll(
-    new Output(new OutputId('d'), 400),
-    new Output(new OutputId('e'), 500),
+    Output::create('d', 400),
+    Output::create('e', 500),
 );
 success("After addAll: {$set->count()} outputs, total: {$set->totalAmount()}");
 
@@ -200,7 +195,7 @@ section('6. Invariant Enforcement (Error Handling)');
 // 6.1 Genesis only on empty ledger
 info('Trying to add genesis to non-empty ledger...');
 try {
-    $ledger->addGenesis(new Output(new OutputId('invalid'), 100));
+    $ledger->addGenesis(Output::create('invalid', 100));
     error('Should have thrown exception!');
 } catch (GenesisNotAllowedException $e) {
     success("Caught GenesisNotAllowedException: {$e->getMessage()}");
@@ -209,12 +204,12 @@ try {
 // 6.2 Duplicate output IDs
 info('Trying to create spend with duplicate output IDs...');
 try {
-    new Spend(
-        id: new SpendId('bad-tx'),
-        inputs: [new OutputId('alice-change')],
+    Spend::create(
+        id: 'bad-tx',
+        inputIds: ['alice-change'],
         outputs: [
-            new Output(new OutputId('same-id'), 200),
-            new Output(new OutputId('same-id'), 200),
+            Output::create('same-id', 200),
+            Output::create('same-id', 200),
         ],
     );
     error('Should have thrown exception!');
@@ -225,10 +220,10 @@ try {
 // 6.3 Spending non-existent output
 info('Trying to spend a non-existent output...');
 try {
-    $ledger->apply(new Spend(
-        id: new SpendId('bad-tx-2'),
-        inputs: [new OutputId('nonexistent-output')],
-        outputs: [new Output(new OutputId('x'), 100)],
+    $ledger->apply(Spend::create(
+        id: 'bad-tx-2',
+        inputIds: ['nonexistent-output'],
+        outputs: [Output::create('x', 100)],
     ));
     error('Should have thrown exception!');
 } catch (OutputAlreadySpentException $e) {
@@ -238,10 +233,10 @@ try {
 // 6.4 Insufficient inputs (outputs exceed inputs)
 info('Trying to spend more than available (outputs > inputs)...');
 try {
-    $ledger->apply(new Spend(
-        id: new SpendId('bad-tx-3'),
-        inputs: [new OutputId('alice-change')], // 400 units
-        outputs: [new Output(new OutputId('y'), 500)], // 500 units - more than inputs!
+    $ledger->apply(Spend::create(
+        id: 'bad-tx-3',
+        inputIds: ['alice-change'], // 400 units
+        outputs: [Output::create('y', 500)], // 500 units - more than inputs!
     ));
     error('Should have thrown exception!');
 } catch (InsufficientInputsException $e) {
@@ -251,10 +246,10 @@ try {
 // 6.5 Duplicate spend ID
 info('Trying to apply the same spend twice...');
 try {
-    $ledger->apply(new Spend(
-        id: new SpendId('tx-001'), // Already applied!
-        inputs: [new OutputId('alice-change')],
-        outputs: [new Output(new OutputId('z'), 400)],
+    $ledger->apply(Spend::create(
+        id: 'tx-001', // Already applied!
+        inputIds: ['alice-change'],
+        outputs: [Output::create('z', 400)],
     ));
     error('Should have thrown exception!');
 } catch (DuplicateSpendException $e) {
@@ -274,11 +269,11 @@ try {
 info('Using UnspentException to catch all domain errors...');
 $errorCount = 0;
 $badOperations = [
-    fn() => $ledger->addGenesis(new Output(new OutputId('x'), 1)),
-    fn() => $ledger->apply(new Spend(
-        id: new SpendId('tx-001'),
-        inputs: [new OutputId('a')],
-        outputs: [new Output(new OutputId('b'), 1)],
+    fn() => $ledger->addGenesis(Output::create('x', 1)),
+    fn() => $ledger->apply(Spend::create(
+        id: 'tx-001',
+        inputIds: ['a'],
+        outputs: [Output::create('b', 1)],
     )),
 ];
 foreach ($badOperations as $operation) {
@@ -299,16 +294,16 @@ section('7. Immutability Demonstration');
 info('All operations return new instances, original is unchanged...');
 
 $originalLedger = Ledger::empty()->addGenesis(
-    new Output(new OutputId('immutable-test'), 1000),
+    Output::create('immutable-test', 1000),
 );
 $originalTotal = $originalLedger->totalUnspentAmount();
 
-$newLedger = $originalLedger->apply(new Spend(
-    id: new SpendId('immutable-tx'),
-    inputs: [new OutputId('immutable-test')],
+$newLedger = $originalLedger->apply(Spend::create(
+    id: 'immutable-tx',
+    inputIds: ['immutable-test'],
     outputs: [
-        new Output(new OutputId('new-output-1'), 600),
-        new Output(new OutputId('new-output-2'), 400),
+        Output::create('new-output-1', 600),
+        Output::create('new-output-2', 400),
     ],
 ));
 
@@ -326,34 +321,34 @@ section('8. Implicit Fees (Bitcoin-Style)');
 
 info('Creating a ledger with fee-bearing spends...');
 $feeLedger = Ledger::empty()
-    ->addGenesis(new Output(new OutputId('fee-genesis'), 1000));
+    ->addGenesis(Output::create('fee-genesis', 1000));
 
 success("Genesis output: 1000 units, total fees: {$feeLedger->totalFeesCollected()}");
 
 info('Applying spend with 10 unit fee (1000 -> 990)...');
-$feeLedger = $feeLedger->apply(new Spend(
-    id: new SpendId('fee-tx-1'),
-    inputs: [new OutputId('fee-genesis')],
-    outputs: [new Output(new OutputId('fee-out-1'), 990)],
+$feeLedger = $feeLedger->apply(Spend::create(
+    id: 'fee-tx-1',
+    inputIds: ['fee-genesis'],
+    outputs: [Output::create('fee-out-1', 990)],
 ));
 success("Fee for tx-1: {$feeLedger->feeForSpend(new SpendId('fee-tx-1'))} units");
 success("Total fees collected: {$feeLedger->totalFeesCollected()} units");
 success("Unspent amount: {$feeLedger->totalUnspentAmount()} units");
 
 info('Applying spend with 5 unit fee (990 -> 985)...');
-$feeLedger = $feeLedger->apply(new Spend(
-    id: new SpendId('fee-tx-2'),
-    inputs: [new OutputId('fee-out-1')],
-    outputs: [new Output(new OutputId('fee-out-2'), 985)],
+$feeLedger = $feeLedger->apply(Spend::create(
+    id: 'fee-tx-2',
+    inputIds: ['fee-out-1'],
+    outputs: [Output::create('fee-out-2', 985)],
 ));
 success("Fee for tx-2: {$feeLedger->feeForSpend(new SpendId('fee-tx-2'))} units");
 success("Total fees collected: {$feeLedger->totalFeesCollected()} units");
 
 info('Zero-fee spend is still allowed (backward compatible)...');
-$feeLedger = $feeLedger->apply(new Spend(
-    id: new SpendId('fee-tx-3'),
-    inputs: [new OutputId('fee-out-2')],
-    outputs: [new Output(new OutputId('fee-out-3'), 985)],
+$feeLedger = $feeLedger->apply(Spend::create(
+    id: 'fee-tx-3',
+    inputIds: ['fee-out-2'],
+    outputs: [Output::create('fee-out-3', 985)],
 ));
 success("Fee for tx-3: {$feeLedger->feeForSpend(new SpendId('fee-tx-3'))} units (zero fee)");
 success("Total fees collected: {$feeLedger->totalFeesCollected()} units");
@@ -378,7 +373,7 @@ section('9. Performance Characteristics');
 info('O(1) total amount (cached)...');
 $largeSet = UnspentSet::empty();
 for ($i = 0; $i < 1000; $i++) {
-    $largeSet = $largeSet->add(new Output(new OutputId("perf-{$i}"), $i + 1));
+    $largeSet = $largeSet->add(Output::create("perf-{$i}", $i + 1));
 }
 
 $start = hrtime(true);
@@ -391,7 +386,7 @@ success(sprintf("10,000 calls to totalAmount() on 1,000 outputs: %.2fms", $elaps
 info('Batch operations reduce object creation...');
 $outputs = [];
 for ($i = 0; $i < 100; $i++) {
-    $outputs[] = new Output(new OutputId("batch-{$i}"), 10);
+    $outputs[] = Output::create("batch-{$i}", 10);
 }
 
 $start = hrtime(true);

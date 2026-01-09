@@ -16,4 +16,9 @@ final readonly class Output
             throw new InvalidArgumentException('Amount must be positive');
         }
     }
+
+    public static function create(string $id, int $amount): self
+    {
+        return new self(new OutputId($id), $amount);
+    }
 }

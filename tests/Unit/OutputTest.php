@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Chemaclass\UnspentTests;
+namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -34,5 +34,13 @@ final class OutputTest extends TestCase
         $this->expectExceptionMessage('Amount must be positive');
 
         new Output(new OutputId('out-1'), -50);
+    }
+
+    public function test_create_factory_method(): void
+    {
+        $output = Output::create('test-id', 100);
+
+        self::assertSame('test-id', $output->id->value);
+        self::assertSame(100, $output->amount);
     }
 }

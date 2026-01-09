@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Chemaclass\UnspentTests;
+namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Output;
@@ -104,5 +104,24 @@ final class SpendTest extends TestCase
             inputs: [new OutputId('a'), new OutputId('a')],
             outputs: [new Output(new OutputId('c'), 100)],
         );
+    }
+
+    public function test_create_factory_method(): void
+    {
+        $spend = Spend::create(
+            id: 'tx1',
+            inputIds: ['a', 'b'],
+            outputs: [
+                Output::create('c', 100),
+                Output::create('d', 50),
+            ],
+        );
+
+        self::assertSame('tx1', $spend->id->value);
+        self::assertCount(2, $spend->inputs);
+        self::assertSame('a', $spend->inputs[0]->value);
+        self::assertSame('b', $spend->inputs[1]->value);
+        self::assertCount(2, $spend->outputs);
+        self::assertSame(150, $spend->totalOutputAmount());
     }
 }

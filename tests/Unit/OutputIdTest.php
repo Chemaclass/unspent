@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Chemaclass\UnspentTests;
+namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\OutputId;
 use InvalidArgumentException;
