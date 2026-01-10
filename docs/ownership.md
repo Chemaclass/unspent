@@ -173,33 +173,52 @@ Output::lockedWith(
 
 ### Custom Lock Serialization
 
-Since `LockFactory` is `final`, deserialize custom locks manually before reconstructing the ledger:
+Register your custom lock handler with `LockFactory` before deserializing:
 
 ```php
-// Your custom lock deserializer
-function deserializeLock(array $data): OutputLock
-{
-    return match ($data['type']) {
-        'timelock' => new TimeLock($data['unlockTimestamp'], $data['owner']),
-        'owner' => new Owner($data['name']),
-        'pubkey' => new PublicKey($data['key']),
-        'none' => new NoLock(),
-        default => throw new \InvalidArgumentException("Unknown lock: {$data['type']}"),
-    };
-}
+use Chemaclass\Unspent\Lock\LockFactory;
 
-// Manual deserialization with custom locks
-$data = json_decode($json, true);
-$outputs = array_map(
-    fn(array $item) => Output::lockedWith(
-        deserializeLock($item['lock']),
-        $item['amount'],
-        $item['id'],
-    ),
-    $data['unspent'],
-);
-$ledger = Ledger::withGenesis(...$outputs);
+// Register BEFORE calling Ledger::fromJson()
+LockFactory::register('timelock', fn(array $data) => new TimeLock(
+    $data['unlockTimestamp'],
+    $data['owner'],
+));
+
+// Now deserialization works transparently
+$ledger = Ledger::fromJson($json);
+
+// Custom locks are fully restored
+$output = $ledger->unspent()->get(new OutputId('locked-funds'));
+assert($output->lock instanceof TimeLock);
 ```
+
+**Important**: Register handlers at application bootstrap, before any deserialization.
+
+#### Available Helper Methods
+
+```php
+// Check if a handler is registered
+LockFactory::hasHandler('timelock');  // true
+
+// List all registered custom types
+LockFactory::registeredTypes();  // ['timelock']
+
+// Reset handlers (useful in tests)
+LockFactory::reset();
+```
+
+#### Handler Signature
+
+Handlers receive the full serialized lock data:
+
+```php
+LockFactory::register('mylock', function (array $data): OutputLock {
+    // $data contains: ['type' => 'mylock', 'field1' => ..., 'field2' => ...]
+    return new MyLock($data['field1'], $data['field2']);
+});
+```
+
+Custom handlers take precedence over built-in types, allowing you to override `none`, `owner`, or `pubkey` if needed.
 
 ## Ownership Through Serialization
 

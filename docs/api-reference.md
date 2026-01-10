@@ -329,6 +329,42 @@ interface OutputLock
 }
 ```
 
+### LockFactory
+
+Factory for deserializing locks. Supports custom lock type registration.
+
+```php
+// Register custom lock handler (before deserialization)
+LockFactory::register(
+    string $type,      // Lock type name (matches 'type' in serialized data)
+    callable $handler  // fn(array $data): OutputLock
+): void
+
+// Check if custom handler is registered
+LockFactory::hasHandler(string $type): bool
+
+// List registered custom types
+LockFactory::registeredTypes(): array  // list<string>
+
+// Reset custom handlers (for testing)
+LockFactory::reset(): void
+
+// Deserialize lock from array
+LockFactory::fromArray(array $data): OutputLock
+```
+
+**Usage:**
+
+```php
+// Register before calling Ledger::fromJson()
+LockFactory::register('timelock', fn(array $data) => new TimeLock(
+    $data['unlockTimestamp'],
+    $data['owner'],
+));
+
+$ledger = Ledger::fromJson($json);  // Custom locks restored transparently
+```
+
 ## Exceptions
 
 All extend `UnspentException` which extends `RuntimeException`.

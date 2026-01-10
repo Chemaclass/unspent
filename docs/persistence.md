@@ -161,6 +161,25 @@ $restored->apply(Tx::create(
 {"type": "none"}
 ```
 
+## Custom Lock Types
+
+If you use custom `OutputLock` implementations, register their handlers before deserialization:
+
+```php
+use Chemaclass\Unspent\Lock\LockFactory;
+
+// Bootstrap: register custom handlers
+LockFactory::register('timelock', fn(array $data) => new TimeLock(
+    $data['unlockTimestamp'],
+    $data['owner'],
+));
+
+// Now Ledger::fromJson() handles custom locks transparently
+$ledger = Ledger::fromJson(file_get_contents('ledger.json'));
+```
+
+See [Custom Locks](ownership.md#custom-locks) for more details.
+
 ## Versioning
 
 The ledger includes a `version` field in serialized data for future schema evolution:
