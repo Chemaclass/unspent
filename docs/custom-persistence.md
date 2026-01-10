@@ -33,7 +33,7 @@ final class RedisLedgerRepository implements LedgerRepository
     public function find(string $id): ?Ledger
     {
         $json = $this->redis->get("ledger:{$id}");
-        return $json ? Ledger::fromJson($json) : null;
+        return $json ? InMemoryLedger::fromJson($json) : null;
     }
 
     public function delete(string $id): void
@@ -83,7 +83,7 @@ final class MySQLLedgerRepository extends AbstractLedgerRepository
 
         // Use inherited helper
         $data = $this->buildLedgerDataArray($unspent, $spent, $txs);
-        return Ledger::fromArray($data);
+        return InMemoryLedger::fromArray($data);
     }
 
     // Implement remaining methods...
@@ -105,7 +105,7 @@ $this->rowsToOutputs($rows);
 
 // Build ledger data
 $this->buildLedgerDataArray($unspent, $spent, $txs);
-// Returns: array for Ledger::fromArray()
+// Returns: array for InMemoryLedger::fromArray()
 ```
 
 ## Expected Column Names

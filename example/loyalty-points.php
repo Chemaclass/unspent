@@ -13,7 +13,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Chemaclass\Unspent\CoinbaseTx;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -22,7 +22,7 @@ echo "Loyalty Points Example\n";
 echo "======================\n\n";
 
 // 1. Earn points from purchases (minting via coinbase)
-$rewards = Ledger::empty();
+$rewards = InMemoryLedger::empty();
 
 $rewards = $rewards->applyCoinbase(CoinbaseTx::create(
     outputs: [Output::ownedBy('alice', 50, 'purchase-001')],

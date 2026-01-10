@@ -13,7 +13,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -60,14 +60,14 @@ LockFactory::register('timelock', static fn ($data): TimeLock => new TimeLock(
 echo "Registered 'timelock' handler\n\n";
 
 // 3. Create outputs with custom locks
-$ledger = Ledger::withGenesis(
+$ledger = InMemoryLedger::withGenesis(
     Output::lockedWith(new TimeLock(strtotime('2020-01-01'), 'alice'), 1000, 'unlocked'),
     Output::lockedWith(new TimeLock(strtotime('+1 year'), 'bob'), 500, 'still-locked'),
 );
 
 // 4. Serialize and restore
 $json = $ledger->toJson();
-$restored = Ledger::fromJson($json);
+$restored = InMemoryLedger::fromJson($json);
 
 $output = $restored->unspent()->get(new OutputId('unlocked'));
 echo 'Restored lock type: ' . $output?->lock::class . "\n\n";
@@ -94,7 +94,7 @@ try {
 
 // 7. Wrong signer blocked
 echo "Eve tries to spend Alice's output... ";
-$ledger2 = Ledger::withGenesis(
+$ledger2 = InMemoryLedger::withGenesis(
     Output::lockedWith(new TimeLock(strtotime('2020-01-01'), 'alice'), 100, 'alice-funds'),
 );
 try {

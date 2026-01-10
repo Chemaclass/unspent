@@ -10,7 +10,7 @@ use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Exception\UnspentException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -40,7 +40,7 @@ final class ExceptionHierarchyTest extends TestCase
 
         // Test DuplicateOutputIdException
         try {
-            Ledger::withGenesis(
+            InMemoryLedger::withGenesis(
                 Output::open(100, 'a'),
                 Output::open(50, 'a'),
             );
@@ -50,7 +50,7 @@ final class ExceptionHierarchyTest extends TestCase
 
         // Test GenesisNotAllowedException
         try {
-            Ledger::empty()
+            InMemoryLedger::empty()
                 ->addGenesis(Output::open(100, 'a'))
                 ->addGenesis(Output::open(50, 'b'));
         } catch (UnspentException $e) {
@@ -59,7 +59,7 @@ final class ExceptionHierarchyTest extends TestCase
 
         // Test OutputAlreadySpentException
         try {
-            Ledger::empty()
+            InMemoryLedger::empty()
                 ->addGenesis(Output::open(100, 'a'))
                 ->apply(new Tx(
                     id: new TxId('tx1'),
@@ -72,7 +72,7 @@ final class ExceptionHierarchyTest extends TestCase
 
         // Test InsufficientSpendsException (outputs exceed spends)
         try {
-            Ledger::empty()
+            InMemoryLedger::empty()
                 ->addGenesis(Output::open(100, 'a'))
                 ->apply(new Tx(
                     id: new TxId('tx1'),

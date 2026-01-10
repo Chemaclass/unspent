@@ -14,7 +14,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\InsufficientSpendsException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -24,7 +24,7 @@ echo "Internal Accounting Example\n";
 echo "===========================\n\n";
 
 // 1. Allocate FY budget
-$company = Ledger::withGenesis(
+$company = InMemoryLedger::withGenesis(
     Output::ownedBy('engineering', 100_000, 'eng-budget'),
     Output::ownedBy('marketing', 50_000, 'mkt-budget'),
     Output::ownedBy('operations', 30_000, 'ops-budget'),

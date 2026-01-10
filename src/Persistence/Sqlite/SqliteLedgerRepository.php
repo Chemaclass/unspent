@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent\Persistence\Sqlite;
 
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Output;
@@ -12,6 +13,7 @@ use Chemaclass\Unspent\Persistence\AbstractLedgerRepository;
 use Chemaclass\Unspent\Persistence\PersistenceException;
 use Chemaclass\Unspent\Persistence\TransactionInfo;
 use Chemaclass\Unspent\TxId;
+use Chemaclass\Unspent\UnspentSet;
 use PDO;
 use PDOException;
 use PDOStatement;
@@ -37,6 +39,8 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     private const string SQL_OUTPUT_INSERT = 'INSERT INTO outputs (id, ledger_id, amount, lock_type, lock_owner, lock_pubkey, lock_custom_data, is_spent, created_by, spent_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     private const string SQL_OUTPUT_SELECT_ALL = 'SELECT *, is_spent FROM outputs WHERE ledger_id = ?';
+    private const string SQL_OUTPUT_SELECT_UNSPENT = 'SELECT * FROM outputs WHERE ledger_id = ? AND is_spent = 0';
+    private const string SQL_LEDGER_TOTALS = 'SELECT total_fees, total_minted FROM ledgers WHERE id = ?';
     private const string SQL_OUTPUT_BY_OWNER = 'SELECT * FROM outputs WHERE ledger_id = ? AND lock_owner = ? AND is_spent = 0';
     private const string SQL_OUTPUT_BY_LOCK_TYPE = 'SELECT * FROM outputs WHERE ledger_id = ? AND lock_type = ? AND is_spent = 0';
     private const string SQL_OUTPUT_BY_CREATED = 'SELECT * FROM outputs WHERE ledger_id = ? AND created_by = ?';
@@ -84,7 +88,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
                 return null;
             }
 
-            return Ledger::fromArray($this->fetchLedgerData($id));
+            return InMemoryLedger::fromArray($this->fetchLedgerData($id));
         } catch (PDOException $e) {
             throw PersistenceException::findFailed($id, $e->getMessage());
         }
@@ -105,6 +109,43 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         $stmt->execute([$id]);
 
         return $stmt->fetch() !== false;
+    }
+
+    /**
+     * Load only the unspent outputs for a ledger (for hybrid mode).
+     *
+     * Returns the UnspentSet and cached totals without loading history.
+     *
+     * @return array{unspentSet: UnspentSet, totalFees: int, totalMinted: int}|null
+     */
+    public function findUnspentOnly(string $id): ?array
+    {
+        try {
+            // Check if ledger exists and get totals
+            $stmt = $this->prepare(self::SQL_LEDGER_TOTALS);
+            $stmt->execute([$id]);
+            $totalsRow = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if ($totalsRow === false) {
+                return null;
+            }
+
+            // Get only unspent outputs
+            $stmt = $this->prepare(self::SQL_OUTPUT_SELECT_UNSPENT);
+            $stmt->execute([$id]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $outputs = $this->rowsToOutputs($rows);
+            $unspentSet = UnspentSet::fromOutputs(...$outputs);
+
+            return [
+                'unspentSet' => $unspentSet,
+                'totalFees' => (int) $totalsRow['total_fees'],
+                'totalMinted' => (int) $totalsRow['total_minted'],
+            ];
+        } catch (PDOException $e) {
+            throw PersistenceException::findFailed($id, $e->getMessage());
+        }
     }
 
     public function findUnspentByOwner(string $ledgerId, string $owner): array

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\UnspentTests\Feature;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -63,7 +63,7 @@ final class CustomLockIntegrationTest extends TestCase
 
     public function test_ledger_round_trip_with_custom_lock(): void
     {
-        $original = Ledger::withGenesis(
+        $original = InMemoryLedger::withGenesis(
             Output::lockedWith(
                 new TimeLock(strtotime('2020-01-01'), 'alice'),
                 1000,
@@ -72,7 +72,7 @@ final class CustomLockIntegrationTest extends TestCase
         );
 
         $json = $original->toJson();
-        $restored = Ledger::fromJson($json);
+        $restored = InMemoryLedger::fromJson($json);
 
         $output = $restored->unspent()->get(new OutputId('locked-funds'));
         self::assertNotNull($output);
@@ -83,7 +83,7 @@ final class CustomLockIntegrationTest extends TestCase
 
     public function test_custom_lock_validation_works_after_deserialization(): void
     {
-        $ledger = Ledger::withGenesis(
+        $ledger = InMemoryLedger::withGenesis(
             Output::lockedWith(
                 new TimeLock(strtotime('2020-01-01'), 'alice'),
                 1000,
@@ -91,7 +91,7 @@ final class CustomLockIntegrationTest extends TestCase
             ),
         );
 
-        $restored = Ledger::fromJson($ledger->toJson());
+        $restored = InMemoryLedger::fromJson($ledger->toJson());
 
         $newLedger = $restored->apply(Tx::create(
             spendIds: ['unlocked'],
@@ -104,7 +104,7 @@ final class CustomLockIntegrationTest extends TestCase
 
     public function test_custom_lock_rejects_wrong_signer(): void
     {
-        $ledger = Ledger::withGenesis(
+        $ledger = InMemoryLedger::withGenesis(
             Output::lockedWith(
                 new TimeLock(strtotime('2020-01-01'), 'alice'),
                 1000,
@@ -112,7 +112,7 @@ final class CustomLockIntegrationTest extends TestCase
             ),
         );
 
-        $restored = Ledger::fromJson($ledger->toJson());
+        $restored = InMemoryLedger::fromJson($ledger->toJson());
 
         $this->expectException(AuthorizationException::class);
 
@@ -125,7 +125,7 @@ final class CustomLockIntegrationTest extends TestCase
 
     public function test_spent_outputs_with_custom_locks_retrievable(): void
     {
-        $ledger = Ledger::withGenesis(
+        $ledger = InMemoryLedger::withGenesis(
             Output::lockedWith(
                 new TimeLock(strtotime('2020-01-01'), 'alice'),
                 1000,
@@ -138,7 +138,7 @@ final class CustomLockIntegrationTest extends TestCase
             id: 'tx-1',
         ));
 
-        $restored = Ledger::fromJson($ledger->toJson());
+        $restored = InMemoryLedger::fromJson($ledger->toJson());
 
         $spentOutput = $restored->getOutput(new OutputId('original'));
 
@@ -164,7 +164,7 @@ final class CustomLockIntegrationTest extends TestCase
             }
         });
 
-        $ledger = Ledger::withGenesis(
+        $ledger = InMemoryLedger::withGenesis(
             Output::lockedWith(new TimeLock(strtotime('2020-01-01'), 'alice'), 500, 'time-locked'),
             Output::lockedWith(
                 new class('abc123') implements OutputLock {
@@ -186,7 +186,7 @@ final class CustomLockIntegrationTest extends TestCase
             ),
         );
 
-        $restored = Ledger::fromJson($ledger->toJson());
+        $restored = InMemoryLedger::fromJson($ledger->toJson());
 
         $timeLocked = $restored->unspent()->get(new OutputId('time-locked'));
         $hashLocked = $restored->unspent()->get(new OutputId('hash-locked'));

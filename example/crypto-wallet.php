@@ -13,7 +13,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -35,7 +35,7 @@ echo '  Alice: ' . substr($alicePub, 0, 16) . "...\n";
 echo '  Bob:   ' . substr($bobPub, 0, 16) . "...\n\n";
 
 // 2. Create wallets locked by public keys
-$wallet = Ledger::withGenesis(
+$wallet = InMemoryLedger::withGenesis(
     Output::signedBy($alicePub, 1000, 'alice-wallet'),
     Output::signedBy($bobPub, 500, 'bob-wallet'),
 );

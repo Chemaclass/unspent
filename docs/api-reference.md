@@ -116,8 +116,8 @@ Immutable state container.
 ### Creation
 
 ```php
-Ledger::empty(): Ledger
-Ledger::withGenesis(Output ...$outputs): Ledger  // Recommended
+InMemoryLedger::empty(): Ledger
+InMemoryLedger::withGenesis(Output ...$outputs): Ledger  // Recommended
 ```
 
 ### Genesis
@@ -191,8 +191,8 @@ $ledger->outputHistory(OutputId $id): ?OutputHistory
 $ledger->toArray(): array
 $ledger->toJson(int $flags = 0): string
 
-Ledger::fromArray(array $data): Ledger
-Ledger::fromJson(string $json): Ledger
+InMemoryLedger::fromArray(array $data): Ledger
+InMemoryLedger::fromJson(string $json): Ledger
 ```
 
 ## UnspentSet
@@ -421,13 +421,13 @@ LockFactory::fromArray(array $data): OutputLock
 **Usage:**
 
 ```php
-// Register before calling Ledger::fromJson()
+// Register before calling InMemoryLedger::fromJson()
 LockFactory::register('timelock', fn(array $data) => new TimeLock(
     $data['unlockTimestamp'],
     $data['owner'],
 ));
 
-$ledger = Ledger::fromJson($json);  // Custom locks restored transparently
+$ledger = InMemoryLedger::fromJson($json);  // Custom locks restored transparently
 ```
 
 ## Persistence
@@ -495,7 +495,7 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
     // Convert rows to Output objects
     protected function rowsToOutputs(array $rows): array;
 
-    // Build ledger data for Ledger::fromArray()
+    // Build ledger data for InMemoryLedger::fromArray()
     protected function buildLedgerDataArray(
         array $unspentRows,
         array $spentRows,

@@ -12,7 +12,7 @@ declare(strict_types=1);
 
 require_once __DIR__ . '/../vendor/autoload.php';
 
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -24,7 +24,7 @@ echo "======================\n\n";
 // Each transition spends old state, creates new state
 
 // 1. Order placed (genesis event)
-$orders = Ledger::withGenesis(
+$orders = InMemoryLedger::withGenesis(
     Output::open(1, 'order-1001_placed'),
 );
 echo "Order #1001: placed\n";
@@ -66,7 +66,7 @@ foreach ($states as $state) {
 
 // 6. Multiple orders at different stages
 echo "\nMultiple orders:\n";
-$multi = Ledger::withGenesis(
+$multi = InMemoryLedger::withGenesis(
     Output::open(1, 'order-2001_placed'),
     Output::open(1, 'order-2002_placed'),
 );

@@ -4,7 +4,7 @@
 
 ```php
 // Start with 1000 units
-$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
+$ledger = InMemoryLedger::withGenesis(Output::open(1000, 'funds'));
 
 // Spend 600, keep 400 as change
 $ledger = $ledger->apply(Tx::create(
@@ -26,6 +26,29 @@ Traditional balance tracking (`balance: 500`) is just a number you mutate. There
 - **Immutable history** - State changes are additive, never mutated
 - **Zero external dependencies** - Pure PHP 8.4+
 
+Inspired by Bitcoin's UTXO model, decoupled as a standalone library.
+
+## When is UTXO right for you?
+
+| Need | Traditional Balance | Unspent |
+|------|---------------------|---------|
+| Simple spending | ✅ Easy | Overkill |
+| "Who authorized this?" | Requires extra logging | ✅ Built-in |
+| "Trace this value's origin" | Requires event sourcing | ✅ Built-in |
+| Concurrent spending safety | Race conditions | ✅ Atomic |
+| Conditional spending rules | Custom logic needed | ✅ Lock system |
+| Regulatory audit trail | Reconstruct from logs | ✅ Native |
+
+**Use Unspent when:**
+- Value moves between parties (not just a single user's balance)
+- You need to prove who authorized what
+- Audit trail is a requirement, not a nice-to-have
+
+**Skip it when:**
+- You just need a simple counter or balance
+- Single-user scenarios with no authorization needs
+- No audit requirements
+
 ## Install
 
 ```bash
@@ -38,7 +61,7 @@ composer require chemaclass/unspent
 
 ```php
 // Initial value
-$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
+$ledger = InMemoryLedger::withGenesis(Output::open(1000, 'funds'));
 
 // Transfer: spend existing outputs, create new ones
 $ledger = $ledger->apply(Tx::create(
@@ -60,7 +83,7 @@ When you need to control who can spend:
 
 ```php
 // Server-side ownership (sessions, JWT, etc.)
-$ledger = Ledger::withGenesis(
+$ledger = InMemoryLedger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
 );
 
@@ -98,7 +121,7 @@ $ledger = $ledger->apply(Tx::create(
 ```php
 // JSON
 $json = $ledger->toJson();
-$ledger = Ledger::fromJson($json);
+$ledger = InMemoryLedger::fromJson($json);
 
 // SQLite (built-in)
 $repo = SqliteRepositoryFactory::createFromFile('ledger.db');
@@ -115,4 +138,5 @@ $ledger = $repo->find('wallet-1');
 | [History](docs/history.md) | Tracing value through transactions |
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees, coinbase transactions |
 | [Persistence](docs/persistence.md) | JSON, SQLite, custom storage |
+| [Scalability](docs/scalability.md) | InMemoryLedger vs ScalableLedger for large datasets |
 | [API Reference](docs/api-reference.md) | Complete method reference |

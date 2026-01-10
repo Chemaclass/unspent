@@ -13,7 +13,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Chemaclass\Unspent\CoinbaseTx;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Tx;
 use Chemaclass\Unspent\TxId;
@@ -22,7 +22,7 @@ echo "Bitcoin Simulation\n";
 echo "==================\n\n";
 
 // Block 0: Genesis (Satoshi mines first block)
-$ledger = Ledger::empty()->applyCoinbase(CoinbaseTx::create(
+$ledger = InMemoryLedger::empty()->applyCoinbase(CoinbaseTx::create(
     [Output::open(50_00000000, 'satoshi-0')], // 50 BTC in sats
     'block-0',
 ));

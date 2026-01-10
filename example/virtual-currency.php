@@ -14,7 +14,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -24,7 +24,7 @@ echo "Virtual Currency Example\n";
 echo "========================\n\n";
 
 // 1. Create game with starting gold
-$game = Ledger::withGenesis(
+$game = InMemoryLedger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-gold'),
     Output::ownedBy('bob', 500, 'bob-gold'),
 );

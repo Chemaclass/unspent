@@ -38,7 +38,7 @@ $history->isGenesis();
 Trace value through multiple transactions:
 
 ```php
-$ledger = Ledger::withGenesis(
+$ledger = InMemoryLedger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-genesis'),
 );
 
@@ -78,7 +78,7 @@ History survives save/restore:
 
 ```php
 $json = $ledger->toJson();
-$restored = Ledger::fromJson($json);
+$restored = InMemoryLedger::fromJson($json);
 
 $restored->outputCreatedBy(new OutputId('bob-funds')); // 'tx-001'
 $restored->getOutput(new OutputId('bob-funds'));       // Output object
