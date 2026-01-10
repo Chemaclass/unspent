@@ -72,7 +72,133 @@ $ledger = Ledger::fromArray($this->cache->get('ledger'));
 ]
 ```
 
-## Database Storage
+## SQLite Persistence (Built-in)
+
+The library includes a built-in SQLite persistence layer with normalized column-based storage for efficient querying.
+
+### Quick Start
+
+```php
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteRepositoryFactory;
+
+// Create repository (file-based)
+$repo = SqliteRepositoryFactory::createFromFile('ledger.db');
+
+// Save ledger
+$repo->save('wallet-1', $ledger);
+
+// Load ledger
+$ledger = $repo->find('wallet-1');
+
+// Check existence
+if ($repo->exists('wallet-1')) {
+    // ...
+}
+
+// Delete
+$repo->delete('wallet-1');
+```
+
+### In-Memory Database (Testing)
+
+```php
+// Perfect for unit tests - no cleanup needed
+$repo = SqliteRepositoryFactory::createInMemory();
+```
+
+### Query Capabilities
+
+The SQLite repository provides efficient database-level queries:
+
+```php
+// Find outputs by owner
+$aliceOutputs = $repo->findUnspentByOwner('wallet-1', 'alice');
+
+// Find by amount range
+$largeOutputs = $repo->findUnspentByAmountRange('wallet-1', min: 1000);
+$mediumOutputs = $repo->findUnspentByAmountRange('wallet-1', min: 100, max: 500);
+
+// Find by lock type
+$ownerLocked = $repo->findUnspentByLockType('wallet-1', 'owner');
+$cryptoLocked = $repo->findUnspentByLockType('wallet-1', 'pubkey');
+
+// Find outputs created by transaction
+$outputs = $repo->findOutputsCreatedBy('wallet-1', 'tx-123');
+
+// Aggregations
+$count = $repo->countUnspent('wallet-1');
+$balance = $repo->sumUnspentByOwner('wallet-1', 'alice');
+
+// Transaction queries
+$coinbases = $repo->findCoinbaseTransactions('wallet-1');
+$highFeeTxs = $repo->findTransactionsByFeeRange('wallet-1', min: 100);
+```
+
+### Normalized Schema
+
+Data is stored in proper columns for efficient indexing (not as JSON blobs):
+
+```sql
+-- Outputs table with indexed columns
+CREATE TABLE outputs (
+    id TEXT NOT NULL,
+    ledger_id TEXT NOT NULL,
+    amount INTEGER NOT NULL,
+    lock_type TEXT NOT NULL,
+    lock_owner TEXT,
+    lock_pubkey TEXT,
+    is_spent INTEGER NOT NULL DEFAULT 0,
+    created_by TEXT NOT NULL,
+    spent_by TEXT,
+    PRIMARY KEY (ledger_id, id)
+);
+
+-- Indexes for common queries
+CREATE INDEX idx_outputs_owner ON outputs(ledger_id, lock_owner);
+CREATE INDEX idx_outputs_amount ON outputs(ledger_id, amount);
+```
+
+### Custom PDO Connection
+
+```php
+$pdo = new PDO('sqlite:/path/to/database.db');
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+$repo = SqliteRepositoryFactory::createFromPdo($pdo);
+```
+
+### Custom Database Implementations
+
+The persistence layer is designed for extensibility. You can implement your own database backend by extending `AbstractLedgerRepository`:
+
+```php
+use Chemaclass\Unspent\Persistence\AbstractLedgerRepository;
+
+class MySQLLedgerRepository extends AbstractLedgerRepository
+{
+    public function save(string $id, Ledger $ledger): void
+    {
+        // Use inherited helpers:
+        // - $this->extractLockData($output) for lock normalization
+        // - self::SCHEMA_VERSION for version constant
+    }
+
+    public function find(string $id): ?Ledger
+    {
+        // Use inherited helpers:
+        // - $this->buildLedgerDataArray($unspent, $spent, $txs)
+        // - $this->rowsToOutputs($rows)
+    }
+
+    // ... implement remaining methods
+}
+```
+
+See [Custom Persistence](custom-persistence.md) for a complete guide.
+
+## Manual Database Storage
+
+For custom database backends or specific requirements:
 
 ### Simple Approach (Store Full State)
 
@@ -86,9 +212,9 @@ $json = $pdo->query('SELECT data FROM ledger WHERE id = 1')->fetchColumn();
 $ledger = Ledger::fromJson($json);
 ```
 
-### Normalized Approach
+### Custom Normalized Approach
 
-For larger systems, store components separately:
+For systems not using the built-in SQLite repository:
 
 ```php
 // Outputs table

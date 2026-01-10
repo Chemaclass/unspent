@@ -25,6 +25,6 @@ final readonly class NoLock implements OutputLock
      */
     public function toArray(): array
     {
-        return ['type' => 'none'];
+        return ['type' => LockType::NONE->value];
     }
 }

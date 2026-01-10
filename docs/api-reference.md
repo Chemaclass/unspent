@@ -365,6 +365,130 @@ LockFactory::register('timelock', fn(array $data) => new TimeLock(
 $ledger = Ledger::fromJson($json);  // Custom locks restored transparently
 ```
 
+## Persistence
+
+### LedgerRepository Interface
+
+```php
+interface LedgerRepository
+{
+    public function save(string $id, Ledger $ledger): void;
+    public function find(string $id): ?Ledger;
+    public function delete(string $id): void;
+    public function exists(string $id): bool;
+}
+```
+
+### QueryableLedgerRepository Interface
+
+Extends `LedgerRepository` with query capabilities:
+
+```php
+interface QueryableLedgerRepository extends LedgerRepository
+{
+    /** @return list<Output> */
+    public function findUnspentByOwner(string $ledgerId, string $owner): array;
+
+    /** @return list<Output> */
+    public function findUnspentByAmountRange(string $ledgerId, int $min, ?int $max = null): array;
+
+    /** @return list<Output> */
+    public function findUnspentByLockType(string $ledgerId, string $lockType): array;
+
+    /** @return list<Output> */
+    public function findOutputsCreatedBy(string $ledgerId, string $txId): array;
+
+    public function countUnspent(string $ledgerId): int;
+
+    public function sumUnspentByOwner(string $ledgerId, string $owner): int;
+
+    /** @return list<string> */
+    public function findCoinbaseTransactions(string $ledgerId): array;
+
+    /** @return list<array{id: string, fee: int}> */
+    public function findTransactionsByFeeRange(string $ledgerId, int $min, ?int $max = null): array;
+}
+```
+
+### AbstractLedgerRepository
+
+Abstract base class for custom repository implementations:
+
+```php
+abstract class AbstractLedgerRepository implements QueryableLedgerRepository
+{
+    // Schema version constant
+    public const SCHEMA_VERSION = 1;
+
+    // Lock normalization (Output -> DB columns)
+    protected function extractLockData(Output $output): array;
+    // Returns: ['type', 'owner', 'pubkey', 'custom']
+
+    // Lock denormalization (DB row -> lock array)
+    protected function rowToLockArray(array $row): array;
+
+    // Convert rows to Output objects
+    protected function rowsToOutputs(array $rows): array;
+
+    // Build ledger data for Ledger::fromArray()
+    protected function buildLedgerDataArray(
+        array $unspentRows,
+        array $spentRows,
+        array $transactionRows,
+    ): array;
+}
+```
+
+### DatabaseSchema Interface
+
+Interface for schema management:
+
+```php
+interface DatabaseSchema
+{
+    public function create(): void;
+    public function exists(): bool;
+    public function drop(): void;
+    public function getVersion(): int;
+}
+```
+
+### SqliteRepositoryFactory
+
+```php
+// In-memory database (ideal for testing)
+SqliteRepositoryFactory::createInMemory(): QueryableLedgerRepository
+
+// File-based database (creates schema if needed)
+SqliteRepositoryFactory::createFromFile(string $path): QueryableLedgerRepository
+
+// From existing PDO connection
+SqliteRepositoryFactory::createFromPdo(PDO $pdo): QueryableLedgerRepository
+```
+
+### SqliteSchema
+
+```php
+// Create schema tables and indexes
+SqliteSchema::create(PDO $pdo): void
+
+// Check if schema exists
+SqliteSchema::exists(PDO $pdo): bool
+
+// Drop all tables (for testing/reset)
+SqliteSchema::drop(PDO $pdo): void
+
+// Current schema version
+SqliteSchema::SCHEMA_VERSION  // 1
+```
+
+### Persistence Exceptions
+
+```php
+PersistenceException::class       // Base persistence error
+LedgerNotFoundException::class    // Requested ledger not found
+```
+
 ## Exceptions
 
 All extend `UnspentException` which extends `RuntimeException`.
@@ -376,6 +500,8 @@ DuplicateOutputIdException::class    // Output ID already exists
 DuplicateTxException::class          // Tx ID already used
 GenesisNotAllowedException::class    // Genesis on non-empty ledger
 AuthorizationException::class        // Lock validation failed
+PersistenceException::class          // Storage layer error
+LedgerNotFoundException::class       // Ledger not found in storage
 ```
 
 ### Catching All Domain Errors

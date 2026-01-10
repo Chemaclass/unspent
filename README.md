@@ -45,6 +45,7 @@ $ledger->unspent()->get(new OutputId('bob-funds'))->amount;  // 600
 | Event sourcing        | [event-sourcing.php](example/event-sourcing.php)           | Order lifecycle as domain events        |
 | Crypto wallets        | [crypto-wallet.php](example/crypto-wallet.php)             | Trustless Ed25519 signatures            |
 | Custom locks          | [custom-locks.php](example/custom-locks.php)               | TimeLock example with LockFactory       |
+| SQLite persistence    | [sqlite-persistence.php](example/sqlite-persistence.php)   | Database storage with query support     |
 | Blockchain simulation | [bitcoin-simulation.php](example/bitcoin-simulation.php)   | Multi-block Bitcoin-style mining        |
 
 ## Documentation
@@ -55,5 +56,5 @@ $ledger->unspent()->get(new OutputId('bob-funds'))->amount;  // 600
 | [Ownership](docs/ownership.md)             | Simple, cryptographic, and custom locks |
 | [History & Provenance](docs/history.md)    | Trace outputs through transactions      |
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees and coinbase transactions |
-| [Persistence](docs/persistence.md)         | JSON/array serialization                |
+| [Persistence](docs/persistence.md)         | JSON, SQLite, and custom storage        |
 | [API Reference](docs/api-reference.md)     | Complete method reference               |

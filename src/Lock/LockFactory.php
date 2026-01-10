@@ -93,12 +93,12 @@ class LockFactory
             return $lock;
         }
 
-        // Built-in types
-        return match ($type) {
-            'none' => new NoLock(),
-            'owner' => new Owner((string) ($data['name'] ?? throw new InvalidArgumentException('Name is required for owner lock'))),
-            'pubkey' => new PublicKey((string) ($data['key'] ?? throw new InvalidArgumentException('Key is required for pubkey lock'))),
-            default => throw new InvalidArgumentException("Unknown lock type: {$type}"),
+        // Built-in types using enum
+        return match (LockType::tryFrom($type)) {
+            LockType::NONE => new NoLock(),
+            LockType::OWNER => new Owner((string) ($data['name'] ?? throw new InvalidArgumentException('Name is required for owner lock'))),
+            LockType::PUBLIC_KEY => new PublicKey((string) ($data['key'] ?? throw new InvalidArgumentException('Key is required for pubkey lock'))),
+            null => throw new InvalidArgumentException("Unknown lock type: {$type}"),
         };
     }
 }

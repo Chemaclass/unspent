@@ -47,7 +47,7 @@ final readonly class PublicKey implements OutputLock
      */
     public function toArray(): array
     {
-        return ['type' => 'pubkey', 'key' => $this->key];
+        return ['type' => LockType::PUBLIC_KEY->value, 'key' => $this->key];
     }
 
     private function verifySignature(string $signature, string $message): bool

@@ -36,6 +36,6 @@ final readonly class Owner implements OutputLock
      */
     public function toArray(): array
     {
-        return ['type' => 'owner', 'name' => $this->name];
+        return ['type' => LockType::OWNER->value, 'name' => $this->name];
     }
 }

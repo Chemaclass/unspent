@@ -10,6 +10,7 @@ use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientInputsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Lock\LockFactory;
+use Chemaclass\Unspent\Validation\DuplicateValidator;
 use JsonException;
 
 final readonly class Ledger
@@ -54,7 +55,7 @@ final readonly class Ledger
             throw GenesisNotAllowedException::ledgerNotEmpty();
         }
 
-        $this->assertNoDuplicateOutputIds(array_values($outputs));
+        DuplicateValidator::assertNoDuplicateOutputIds(array_values($outputs));
 
         // Track provenance for genesis outputs
         $outputCreatedBy = $this->outputCreatedBy;
@@ -405,21 +406,6 @@ final readonly class Ledger
     // ========================================================================
     // Private Helpers
     // ========================================================================
-
-    /**
-     * @param list<Output> $outputs
-     */
-    private function assertNoDuplicateOutputIds(array $outputs): void
-    {
-        $seen = [];
-        foreach ($outputs as $output) {
-            $id = $output->id->value;
-            if (isset($seen[$id])) {
-                throw DuplicateOutputIdException::forId($id);
-            }
-            $seen[$id] = true;
-        }
-    }
 
     private function assertTxNotAlreadyApplied(Tx $tx): void
     {

@@ -37,9 +37,9 @@ final readonly class Output
     public static function ownedBy(string $owner, int $amount, ?string $id = null): self
     {
         return new self(
-            new OutputId($id ?? IdGenerator::forOutput($amount)),
-            $amount,
-            new Owner($owner),
+            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            amount: $amount,
+            lock: new Owner($owner),
         );
     }
 
@@ -50,9 +50,9 @@ final readonly class Output
     public static function signedBy(string $publicKey, int $amount, ?string $id = null): self
     {
         return new self(
-            new OutputId($id ?? IdGenerator::forOutput($amount)),
-            $amount,
-            new PublicKey($publicKey),
+            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            amount: $amount,
+            lock: new PublicKey($publicKey),
         );
     }
 
@@ -63,9 +63,9 @@ final readonly class Output
     public static function open(int $amount, ?string $id = null): self
     {
         return new self(
-            new OutputId($id ?? IdGenerator::forOutput($amount)),
-            $amount,
-            new NoLock(),
+            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            amount: $amount,
+            lock: new NoLock(),
         );
     }
 
@@ -76,9 +76,9 @@ final readonly class Output
     public static function lockedWith(OutputLock $lock, int $amount, ?string $id = null): self
     {
         return new self(
-            new OutputId($id ?? IdGenerator::forOutput($amount)),
-            $amount,
-            $lock,
+            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            amount: $amount,
+            lock: $lock,
         );
     }
 }

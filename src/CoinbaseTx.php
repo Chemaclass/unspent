@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
-use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
+use Chemaclass\Unspent\Validation\DuplicateValidator;
 use InvalidArgumentException;
 
 final readonly class CoinbaseTx
@@ -20,7 +20,7 @@ final readonly class CoinbaseTx
             throw new InvalidArgumentException('CoinbaseTx must have at least one output');
         }
 
-        $this->assertNoDuplicateOutputIds();
+        DuplicateValidator::assertNoDuplicateOutputIds($outputs);
     }
 
     /**
@@ -28,9 +28,10 @@ final readonly class CoinbaseTx
      */
     public static function create(array $outputs, ?string $id = null): self
     {
-        $actualId = $id ?? IdGenerator::forCoinbase($outputs);
-
-        return new self(new TxId($actualId), $outputs);
+        return new self(
+            id: new TxId($id ?? IdGenerator::forCoinbase($outputs)),
+            outputs: $outputs,
+        );
     }
 
     public function totalOutputAmount(): int
@@ -39,17 +40,5 @@ final readonly class CoinbaseTx
             static fn (Output $o): int => $o->amount,
             $this->outputs,
         ));
-    }
-
-    private function assertNoDuplicateOutputIds(): void
-    {
-        $seen = [];
-        foreach ($this->outputs as $output) {
-            $key = $output->id->value;
-            if (isset($seen[$key])) {
-                throw DuplicateOutputIdException::forId($key);
-            }
-            $seen[$key] = true;
-        }
     }
 }
