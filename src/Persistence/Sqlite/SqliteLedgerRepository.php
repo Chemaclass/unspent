@@ -29,24 +29,24 @@ use PDOStatement;
 final class SqliteLedgerRepository extends AbstractLedgerRepository
 {
     // SQL Query Constants
-    private const SQL_LEDGER_EXISTS = 'SELECT 1 FROM ledgers WHERE id = ?';
-    private const SQL_LEDGER_SELECT = 'SELECT id FROM ledgers WHERE id = ?';
-    private const SQL_LEDGER_DELETE = 'DELETE FROM ledgers WHERE id = ?';
-    private const SQL_LEDGER_INSERT = 'INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, ?, ?, ?, ?)';
+    private const string SQL_LEDGER_EXISTS = 'SELECT 1 FROM ledgers WHERE id = ?';
+    private const string SQL_LEDGER_SELECT = 'SELECT id FROM ledgers WHERE id = ?';
+    private const string SQL_LEDGER_DELETE = 'DELETE FROM ledgers WHERE id = ?';
+    private const string SQL_LEDGER_INSERT = 'INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, ?, ?, ?, ?)';
 
-    private const SQL_OUTPUT_INSERT = 'INSERT INTO outputs (id, ledger_id, amount, lock_type, lock_owner, lock_pubkey, lock_custom_data, is_spent, created_by, spent_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    private const SQL_OUTPUT_SELECT_ALL = 'SELECT *, is_spent FROM outputs WHERE ledger_id = ?';
-    private const SQL_OUTPUT_BY_OWNER = 'SELECT * FROM outputs WHERE ledger_id = ? AND lock_owner = ? AND is_spent = 0';
-    private const SQL_OUTPUT_BY_LOCK_TYPE = 'SELECT * FROM outputs WHERE ledger_id = ? AND lock_type = ? AND is_spent = 0';
-    private const SQL_OUTPUT_BY_CREATED = 'SELECT * FROM outputs WHERE ledger_id = ? AND created_by = ?';
-    private const SQL_OUTPUT_COUNT_UNSPENT = 'SELECT COUNT(*) FROM outputs WHERE ledger_id = ? AND is_spent = 0';
-    private const SQL_OUTPUT_SUM_BY_OWNER = 'SELECT COALESCE(SUM(amount), 0) FROM outputs WHERE ledger_id = ? AND lock_owner = ? AND is_spent = 0';
+    private const string SQL_OUTPUT_INSERT = 'INSERT INTO outputs (id, ledger_id, amount, lock_type, lock_owner, lock_pubkey, lock_custom_data, is_spent, created_by, spent_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    private const string SQL_OUTPUT_SELECT_ALL = 'SELECT *, is_spent FROM outputs WHERE ledger_id = ?';
+    private const string SQL_OUTPUT_BY_OWNER = 'SELECT * FROM outputs WHERE ledger_id = ? AND lock_owner = ? AND is_spent = 0';
+    private const string SQL_OUTPUT_BY_LOCK_TYPE = 'SELECT * FROM outputs WHERE ledger_id = ? AND lock_type = ? AND is_spent = 0';
+    private const string SQL_OUTPUT_BY_CREATED = 'SELECT * FROM outputs WHERE ledger_id = ? AND created_by = ?';
+    private const string SQL_OUTPUT_COUNT_UNSPENT = 'SELECT COUNT(*) FROM outputs WHERE ledger_id = ? AND is_spent = 0';
+    private const string SQL_OUTPUT_SUM_BY_OWNER = 'SELECT COALESCE(SUM(amount), 0) FROM outputs WHERE ledger_id = ? AND lock_owner = ? AND is_spent = 0';
 
-    private const SQL_TX_INSERT = 'INSERT INTO transactions (id, ledger_id, is_coinbase, fee, coinbase_amount) VALUES (?, ?, ?, ?, ?)';
-    private const SQL_TX_SELECT_ALL = 'SELECT * FROM transactions WHERE ledger_id = ?';
-    private const SQL_TX_COINBASE = 'SELECT id FROM transactions WHERE ledger_id = ? AND is_coinbase = 1';
+    private const string SQL_TX_INSERT = 'INSERT INTO transactions (id, ledger_id, is_coinbase, fee, coinbase_amount) VALUES (?, ?, ?, ?, ?)';
+    private const string SQL_TX_SELECT_ALL = 'SELECT * FROM transactions WHERE ledger_id = ?';
+    private const string SQL_TX_COINBASE = 'SELECT id FROM transactions WHERE ledger_id = ? AND is_coinbase = 1';
 
-    private const ORIGIN_GENESIS = 'genesis';
+    private const string ORIGIN_GENESIS = 'genesis';
 
     /** @var array<string, PDOStatement> Cached prepared statements */
     private array $stmtCache = [];

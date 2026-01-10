@@ -6,6 +6,7 @@ namespace Chemaclass\Unspent\Persistence\Sqlite;
 
 use Chemaclass\Unspent\Persistence\AbstractLedgerRepository;
 use Chemaclass\Unspent\Persistence\DatabaseSchema;
+use Deprecated;
 use PDO;
 
 /**
@@ -20,10 +21,10 @@ use PDO;
  *
  *     SqliteSchema::createSchema($pdo);
  */
-final class SqliteSchema implements DatabaseSchema
+final readonly class SqliteSchema implements DatabaseSchema
 {
     public function __construct(
-        private readonly PDO $pdo,
+        private PDO $pdo,
     ) {
     }
 
@@ -59,35 +60,31 @@ final class SqliteSchema implements DatabaseSchema
     // =========================================================================
     // Static convenience methods (backward compatibility)
     // =========================================================================
-
     /**
      * Create schema using static method.
-     *
-     * @deprecated Use instance method: (new SqliteSchema($pdo))->create()
      */
+    #[Deprecated(message: 'Use instance method: (new SqliteSchema($pdo))->create()')]
     public static function createSchema(PDO $pdo): void
     {
-        (new self($pdo))->create();
+        new self($pdo)->create();
     }
 
     /**
      * Check schema exists using static method.
-     *
-     * @deprecated Use instance method: (new SqliteSchema($pdo))->exists()
      */
+    #[Deprecated(message: 'Use instance method: (new SqliteSchema($pdo))->exists()')]
     public static function schemaExists(PDO $pdo): bool
     {
-        return (new self($pdo))->exists();
+        return new self($pdo)->exists();
     }
 
     /**
      * Drop schema using static method.
-     *
-     * @deprecated Use instance method: (new SqliteSchema($pdo))->drop()
      */
+    #[Deprecated(message: 'Use instance method: (new SqliteSchema($pdo))->drop()')]
     public static function dropSchema(PDO $pdo): void
     {
-        (new self($pdo))->drop();
+        new self($pdo)->drop();
     }
 
     // =========================================================================

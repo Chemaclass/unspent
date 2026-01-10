@@ -120,7 +120,7 @@ final class LockFactoryTest extends TestCase
 
     public function test_custom_handler_takes_precedence_over_builtin(): void
     {
-        $customLockClass = \get_class(new class() implements OutputLock {
+        $customLockClass = (new class() implements OutputLock {
             public function validate(Tx $tx, int $inputIndex): void
             {
             }
@@ -129,7 +129,7 @@ final class LockFactoryTest extends TestCase
             {
                 return ['type' => 'none', 'custom' => true];
             }
-        });
+        })::class;
 
         LockFactory::register('none', static fn (array $data): OutputLock => new $customLockClass());
 

@@ -186,8 +186,8 @@ final class OwnershipTest extends TestCase
         $ledger = $ledger->apply(Tx::create(
             inputIds: ['secure-funds'],
             outputs: [Output::open(900)],
-            proofs: [$signature],
             id: $spendId,
+            proofs: [$signature],
         ));
 
         self::assertSame(900, $ledger->totalUnspentAmount());
@@ -217,8 +217,8 @@ final class OwnershipTest extends TestCase
         $ledger->apply(Tx::create(
             inputIds: ['secure-funds'],
             outputs: [Output::open(900)],
-            proofs: [$wrongSignature],
             id: $spendId,
+            proofs: [$wrongSignature],
         ));
     }
 
@@ -261,8 +261,8 @@ final class OwnershipTest extends TestCase
         $restored = $restored->apply(Tx::create(
             inputIds: ['secure-funds'],
             outputs: [Output::open(900)],
-            proofs: [$signature],
             id: $spendId,
+            proofs: [$signature],
         ));
 
         self::assertSame(900, $restored->totalUnspentAmount());
@@ -290,8 +290,8 @@ final class OwnershipTest extends TestCase
         $ledger = $ledger->apply(Tx::create(
             inputIds: ['funds-1', 'funds-2'],
             outputs: [Output::open(750)],
-            proofs: [$sig1, $sig2],
             id: $spendId,
+            proofs: [$sig1, $sig2],
         ));
 
         self::assertSame(750, $ledger->totalUnspentAmount());
@@ -343,8 +343,8 @@ final class OwnershipTest extends TestCase
         $ledger->apply(Tx::create(
             inputIds: ['secure-funds'],
             outputs: [Output::open(900)],
-            proofs: [$wrongLengthSig],
             id: 'tx-001',
+            proofs: [$wrongLengthSig],
         ));
     }
 

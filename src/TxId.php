@@ -8,7 +8,7 @@ use InvalidArgumentException;
 
 final readonly class TxId implements Id
 {
-    private const MAX_LENGTH = 64;
+    private const int MAX_LENGTH = 64;
 
     public function __construct(
         public string $value,

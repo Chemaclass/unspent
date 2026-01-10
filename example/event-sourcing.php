@@ -181,7 +181,7 @@ $stateChecks = [
 echo "State existence at each version:\n";
 echo str_repeat(' ', 20) . "v1    v2    v3    v4\n";
 
-foreach ($stateChecks as $stateId => $info) {
+foreach (array_keys($stateChecks) as $stateId) {
     $label = str_pad(substr($stateId, 11), 12); // Extract state name
     $v1Has = $v1_placed->unspent()->contains(new OutputId($stateId)) ? 'YES' : 'no';
     $v2Has = $v2_paid->unspent()->contains(new OutputId($stateId)) ? 'YES' : 'no';

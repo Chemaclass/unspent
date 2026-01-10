@@ -20,7 +20,7 @@ use PDO;
  */
 final class SqliteRepositoryFactory
 {
-    private const PRAGMA_FOREIGN_KEYS = 'PRAGMA foreign_keys = ON';
+    private const string PRAGMA_FOREIGN_KEYS = 'PRAGMA foreign_keys = ON';
 
     /**
      * Create a repository with an in-memory SQLite database.

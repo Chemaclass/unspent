@@ -72,9 +72,9 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
             'type' => $type,
             'owner' => $owner,
             'pubkey' => $pubkey,
-            'custom' => !LockType::isBuiltIn($type)
-                ? json_encode($lockArray, JSON_THROW_ON_ERROR)
-                : null,
+            'custom' => LockType::isBuiltIn($type)
+                ? null
+                : json_encode($lockArray, JSON_THROW_ON_ERROR),
         ];
     }
 

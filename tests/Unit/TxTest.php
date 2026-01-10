@@ -132,8 +132,8 @@ final class TxTest extends TestCase
         $tx = Tx::create(
             inputIds: ['secure-funds'],
             outputs: [Output::open(100)],
-            proofs: ['signature-1', 'signature-2'],
             id: 'tx1',
+            proofs: ['signature-1', 'signature-2'],
         );
 
         self::assertCount(2, $tx->proofs);

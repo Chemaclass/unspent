@@ -15,7 +15,7 @@ final readonly class Output
      * Maximum amount supported. Limited by PHP's signed 64-bit integer.
      * For larger amounts, consider using string-based arbitrary precision.
      */
-    public const MAX_AMOUNT = PHP_INT_MAX;
+    public const int MAX_AMOUNT = PHP_INT_MAX;
 
     /**
      * @param int $amount Positive integer amount (max: PHP_INT_MAX = 9,223,372,036,854,775,807)

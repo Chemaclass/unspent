@@ -43,7 +43,7 @@ final class LedgerTest extends TestCase
         $this->expectException(GenesisNotAllowedException::class);
         $this->expectExceptionMessage('Genesis outputs can only be added to an empty ledger');
 
-        $ledger = Ledger::withGenesis(Output::open(100, 'a'))
+        Ledger::withGenesis(Output::open(100, 'a'))
             ->addGenesis(Output::open(50, 'b'));
     }
 

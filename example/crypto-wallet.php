@@ -87,9 +87,9 @@ $wallet = $wallet->apply(Tx::create(
     outputs: [
         Output::signedBy($bobPublicKey, 300, 'bob-received'),
         Output::signedBy($alicePublicKey, 700, 'alice-change'),
-    ],
-    proofs: [$aliceSignature], // Proof at index 0 for input 0
+    ], // Proof at index 0 for input 0
     id: $txId,
+    proofs: [$aliceSignature],
 ));
 
 echo "  Transaction verified and applied!\n";
@@ -118,8 +118,8 @@ try {
     $wallet->apply(Tx::create(
         inputIds: ['bob-wallet'],
         outputs: [Output::open(500, 'stolen')],
-        proofs: [$fakeSignature],
         id: $fakeTxId,
+        proofs: [$fakeSignature],
     ));
 } catch (AuthorizationException $e) {
     echo "  BLOCKED: {$e->getMessage()}\n";
@@ -131,8 +131,8 @@ try {
     $wallet->apply(Tx::create(
         inputIds: ['bob-wallet'],
         outputs: [Output::open(500, 'stolen-2')],
-        proofs: [],
         id: 'tx-no-sig',
+        proofs: [],
     ));
 } catch (AuthorizationException $e) {
     echo "  BLOCKED: {$e->getMessage()}\n";
@@ -156,9 +156,9 @@ $bobSig2 = base64_encode(sodium_crypto_sign_detached($combineTxId, $bobPrivateKe
 
 $wallet = $wallet->apply(Tx::create(
     inputIds: ['bob-wallet', 'bob-received'], // 500 + 300 = 800
-    outputs: [Output::signedBy($bobPublicKey, 800, 'bob-combined')],
-    proofs: [$bobSig1, $bobSig2], // Signature at each input index
+    outputs: [Output::signedBy($bobPublicKey, 800, 'bob-combined')], // Signature at each input index
     id: $combineTxId,
+    proofs: [$bobSig1, $bobSig2],
 ));
 
 echo "Bob combines his two outputs (500 + 300):\n";
@@ -185,9 +185,9 @@ $wallet = $wallet->apply(Tx::create(
     outputs: [
         Output::signedBy($alicePublicKey, 750, 'alice-final'),
         Output::signedBy($bobPublicKey, 750, 'bob-final'),
-    ],
-    proofs: [$aliceSigJoint, $bobSigJoint], // Index 0 = Alice's sig, Index 1 = Bob's sig
+    ], // Index 0 = Alice's sig, Index 1 = Bob's sig
     id: $jointTxId,
+    proofs: [$aliceSigJoint, $bobSigJoint],
 ));
 
 echo "Alice (700) and Bob (800) create a joint transaction:\n";
@@ -273,10 +273,10 @@ try {
     $restored->apply(Tx::create(
         inputIds: ['alice-final'],
         outputs: [Output::open(750, 'theft')],
-        proofs: [],
         id: 'post-restore-theft',
+        proofs: [],
     ));
-} catch (AuthorizationException $e) {
+} catch (AuthorizationException) {
     echo "  BLOCKED: Signature still required after restore!\n";
 }
 
