@@ -111,13 +111,31 @@ $coinbase->totalOutputAmount(): int  // Sum of output amounts
 
 ## Ledger
 
-Immutable state container.
+Immutable state container. Two implementations available:
 
-### Creation
+- `InMemoryLedger` - Simple, all-in-memory (< 100k outputs)
+- `ScalableLedger` - Production-ready, bounded memory (100k+ outputs)
+
+### InMemoryLedger Creation
 
 ```php
 InMemoryLedger::empty(): Ledger
 InMemoryLedger::withGenesis(Output ...$outputs): Ledger  // Recommended
+```
+
+### ScalableLedger Creation
+
+```php
+// Create new ledger with HistoryStore
+ScalableLedger::create(HistoryStore $store, Output ...$genesis): ScalableLedger
+
+// Load from existing UnspentSet (for persistence)
+ScalableLedger::fromUnspentSet(
+    UnspentSet $unspentSet,
+    HistoryStore $store,
+    int $totalFees = 0,
+    int $totalMinted = 0,
+): ScalableLedger
 ```
 
 ### Genesis
@@ -157,6 +175,8 @@ $ledger->feeForTx(TxId $id): ?int        // Fee for specific tx
 $ledger->totalFeesCollected(): int       // Sum of all fees
 $ledger->allTxFees(): array              // ['id' => fee, ...]
 ```
+
+> **Note:** `allTxFees()` returns an empty array for `ScalableLedger` since individual fees are stored in the `HistoryStore`, not in memory. Use `feeForTx()` to query specific transaction fees, or query the HistoryStore directly for batch operations.
 
 ### Query - Coinbase
 
@@ -431,6 +451,37 @@ $ledger = InMemoryLedger::fromJson($json);  // Custom locks restored transparent
 ```
 
 ## Persistence
+
+### HistoryStore Interface
+
+Used by `ScalableLedger` to delegate history storage to a database. Implement this interface for custom storage backends.
+
+```php
+interface HistoryStore
+{
+    // Query methods
+    public function outputHistory(OutputId $id): ?OutputHistory;
+    public function outputCreatedBy(OutputId $id): ?string;   // 'genesis' or tx ID
+    public function outputSpentBy(OutputId $id): ?string;     // tx ID or null
+    public function getSpentOutput(OutputId $id): ?Output;
+    public function feeForTx(TxId $id): ?int;
+    public function isCoinbase(TxId $id): bool;
+    public function coinbaseAmount(TxId $id): ?int;
+
+    // Recording methods (called by ScalableLedger)
+    public function recordTransaction(Tx $tx, int $fee, array $spentOutputData): void;
+    public function recordCoinbase(CoinbaseTx $coinbase): void;
+    public function recordGenesis(array $outputs): void;
+}
+```
+
+**Built-in implementation:** `SqliteHistoryStore`
+
+```php
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
+
+$store = new SqliteHistoryStore(PDO $pdo, string $ledgerId);
+```
 
 ### LedgerRepository Interface
 

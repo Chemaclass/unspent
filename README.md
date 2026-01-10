@@ -1,5 +1,8 @@
 # Unspent
 
+[![PHP 8.4+](https://img.shields.io/badge/PHP-8.4+-777BB4?logo=php&logoColor=white)](https://www.php.net/)
+[![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+
 **Track value like physical cash in your PHP apps.** Every unit has an origin, can only be spent once, and leaves a complete audit trail.
 
 ```php
@@ -119,18 +122,11 @@ $ledger = $ledger->apply(Tx::create(
 | [Custom locks](example/Console/CustomLocksCommand.php) | Timelocks, custom lock types, serialization |
 | [SQLite persistence](example/Console/SqlitePersistenceCommand.php) | Database storage, querying, ScalableLedger |
 
-## Persistence
-
-```php
-// JSON
-$json = $ledger->toJson();
-$ledger = InMemoryLedger::fromJson($json);
-
-// SQLite (built-in)
-$repo = SqliteRepositoryFactory::createFromFile('ledger.db');
-$repo->save('wallet-1', $ledger);
-$ledger = $repo->find('wallet-1');
+```bash
+php example/run game      # Run any example (loyalty, wallet, btc, etc.)
+composer init-db          # Initialize database for persistence examples
 ```
+See [example/README.md](example/README.md) for details.
 
 ## Documentation
 
@@ -143,3 +139,59 @@ $ledger = $repo->find('wallet-1');
 | [Persistence](docs/persistence.md) | JSON, SQLite, custom storage |
 | [Scalability](docs/scalability.md) | InMemoryLedger vs ScalableLedger for large datasets |
 | [API Reference](docs/api-reference.md) | Complete method reference |
+
+## FAQ
+
+<details>
+<summary><strong>Can two outputs have the same ID?</strong></summary>
+
+No. Output IDs must be unique across the ledger. If you omit the ID parameter, a unique one is auto-generated using 128-bit random entropy. If you provide a custom ID that already exists, the library throws `DuplicateOutputIdException`.
+
+```php
+// Auto-generated IDs (recommended) - always unique
+Output::ownedBy('bob', 100);  // ID: auto-generated
+Output::ownedBy('bob', 200);  // ID: different auto-generated
+
+// Custom IDs - validated for uniqueness
+Output::ownedBy('bob', 100, 'payment-1');  // OK
+Output::ownedBy('bob', 200, 'payment-1');  // Throws DuplicateOutputIdException
+```
+
+This mirrors Bitcoin's UTXO model where each output has a unique `txid:vout` identifier, even when sending to the same address multiple times.
+</details>
+
+<details>
+<summary><strong>When should I use InMemoryLedger vs ScalableLedger?</strong></summary>
+
+| Scenario | Recommendation |
+|-|-|
+| < 100k total outputs | `InMemoryLedger` |
+| > 100k total outputs | `ScalableLedger` |
+| Need full history in memory | `InMemoryLedger` |
+| Memory-constrained environment | `ScalableLedger` |
+
+`ScalableLedger` keeps only unspent outputs in memory and delegates history to a `HistoryStore`. See [Scalability docs](docs/scalability.md).
+</details>
+
+<details>
+<summary><strong>How are fees calculated?</strong></summary>
+
+Fees are implicit, like in Bitcoin. The difference between inputs and outputs is the fee:
+
+```php
+$ledger->apply(Tx::create(
+    spendIds: ['input-100'],      // Spending 100
+    outputs: [Output::open(95)],  // Creating 95
+));
+// Fee = 100 - 95 = 5 (implicit)
+```
+
+See [Fees & Minting docs](docs/fees-and-minting.md).
+</details>
+
+## Development
+
+```bash
+composer install  # Installs dependencies + pre-commit hook
+composer test     # Runs cs-fixer, rector, phpstan, phpunit
+```

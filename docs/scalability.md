@@ -222,3 +222,8 @@ $scalableLedger = ScalableLedger::fromUnspentSet(
     $data['totalMinted'],
 );
 ```
+
+## Next Steps
+
+- [Custom Persistence](custom-persistence.md) - Build custom repository implementations
+- [API Reference](api-reference.md) - Complete method reference for all classes
