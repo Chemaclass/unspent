@@ -173,20 +173,32 @@ Output::lockedWith(
 
 ### Custom Lock Serialization
 
-To restore custom locks from serialized data, extend `LockFactory`:
+Since `LockFactory` is `final`, deserialize custom locks manually before reconstructing the ledger:
 
 ```php
-// In your application bootstrap
-class CustomLockFactory extends LockFactory
+// Your custom lock deserializer
+function deserializeLock(array $data): OutputLock
 {
-    public static function fromArray(array $data): OutputLock
-    {
-        return match ($data['type']) {
-            'timelock' => new TimeLock($data['unlockTimestamp'], $data['owner']),
-            default => parent::fromArray($data),
-        };
-    }
+    return match ($data['type']) {
+        'timelock' => new TimeLock($data['unlockTimestamp'], $data['owner']),
+        'owner' => new Owner($data['name']),
+        'pubkey' => new PublicKey($data['key']),
+        'none' => new NoLock(),
+        default => throw new \InvalidArgumentException("Unknown lock: {$data['type']}"),
+    };
 }
+
+// Manual deserialization with custom locks
+$data = json_decode($json, true);
+$outputs = array_map(
+    fn(array $item) => Output::lockedWith(
+        deserializeLock($item['lock']),
+        $item['amount'],
+        $item['id'],
+    ),
+    $data['unspent'],
+);
+$ledger = Ledger::withGenesis(...$outputs);
 ```
 
 ## Ownership Through Serialization

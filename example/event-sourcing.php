@@ -40,12 +40,12 @@ echo "1. ORDER PLACED - Customer submits order\n";
 echo "-----------------------------------------\n";
 
 $orderSystem = Ledger::withGenesis(
-    Output::open(1, 'order-1001:placed'),
+    Output::open(1, 'order-1001_placed'),
 );
 
 echo "Order #1001 created.\n";
 echo "  State: placed\n";
-echo "  Output ID: order-1001:placed\n\n";
+echo "  Output ID: order-1001_placed\n\n";
 
 // Store the version at this point
 $v1_placed = $orderSystem;
@@ -58,15 +58,15 @@ echo "2. PAYMENT RECEIVED - Order paid\n";
 echo "---------------------------------\n";
 
 $orderSystem = $orderSystem->apply(Tx::create(
-    inputIds: ['order-1001:placed'],
-    outputs: [Output::open(1, 'order-1001:paid')],
-    id: 'event:order-1001:payment-received',
+    inputIds: ['order-1001_placed'],
+    outputs: [Output::open(1, 'order-1001_paid')],
+    id: 'evt_order-1001_payment-received',
 ));
 
 echo "Payment received for Order #1001.\n";
 echo "  Previous state: placed (consumed)\n";
 echo "  New state: paid\n";
-echo "  Event ID: event:order-1001:payment-received\n\n";
+echo "  Event ID: evt_order-1001_payment-received\n\n";
 
 $v2_paid = $orderSystem;
 
@@ -78,15 +78,15 @@ echo "3. ORDER SHIPPED - Fulfillment complete\n";
 echo "----------------------------------------\n";
 
 $orderSystem = $orderSystem->apply(Tx::create(
-    inputIds: ['order-1001:paid'],
-    outputs: [Output::open(1, 'order-1001:shipped')],
-    id: 'event:order-1001:shipped',
+    inputIds: ['order-1001_paid'],
+    outputs: [Output::open(1, 'order-1001_shipped')],
+    id: 'evt_order-1001_shipped',
 ));
 
 echo "Order #1001 shipped.\n";
 echo "  Previous state: paid (consumed)\n";
 echo "  New state: shipped\n";
-echo "  Event ID: event:order-1001:shipped\n\n";
+echo "  Event ID: evt_order-1001_shipped\n\n";
 
 $v3_shipped = $orderSystem;
 
@@ -98,15 +98,15 @@ echo "4. ORDER DELIVERED - Complete\n";
 echo "------------------------------\n";
 
 $orderSystem = $orderSystem->apply(Tx::create(
-    inputIds: ['order-1001:shipped'],
-    outputs: [Output::open(1, 'order-1001:delivered')],
-    id: 'event:order-1001:delivered',
+    inputIds: ['order-1001_shipped'],
+    outputs: [Output::open(1, 'order-1001_delivered')],
+    id: 'evt_order-1001_delivered',
 ));
 
 echo "Order #1001 delivered.\n";
 echo "  Previous state: shipped (consumed)\n";
 echo "  New state: delivered (final)\n";
-echo "  Event ID: event:order-1001:delivered\n\n";
+echo "  Event ID: evt_order-1001_delivered\n\n";
 
 $v4_delivered = $orderSystem;
 
@@ -146,7 +146,7 @@ echo "-----------------------------------------\n";
 echo "Reconstructing order #1001 history from delivered state:\n\n";
 
 // Start from current state and trace back
-$states = ['order-1001:delivered', 'order-1001:shipped', 'order-1001:paid', 'order-1001:placed'];
+$states = ['order-1001_delivered', 'order-1001_shipped', 'order-1001_paid', 'order-1001_placed'];
 
 foreach ($states as $stateId) {
     $id = new OutputId($stateId);
@@ -172,10 +172,10 @@ echo "-----------------------------------------\n";
 echo "What was order #1001's state at each version?\n\n";
 
 $stateChecks = [
-    'order-1001:placed' => ['Check' => 'Was placed?'],
-    'order-1001:paid' => ['Check' => 'Was paid?'],
-    'order-1001:shipped' => ['Check' => 'Was shipped?'],
-    'order-1001:delivered' => ['Check' => 'Was delivered?'],
+    'order-1001_placed' => ['Check' => 'Was placed?'],
+    'order-1001_paid' => ['Check' => 'Was paid?'],
+    'order-1001_shipped' => ['Check' => 'Was shipped?'],
+    'order-1001_delivered' => ['Check' => 'Was delivered?'],
 ];
 
 echo "State existence at each version:\n";
@@ -201,33 +201,36 @@ echo "----------------------------------------\n";
 
 // Add more orders at different states
 $multiOrder = Ledger::withGenesis(
-    Output::open(1, 'order-2001:placed'),
-    Output::open(1, 'order-2002:placed'),
-    Output::open(1, 'order-2003:placed'),
+    Output::open(1, 'order-2001_placed'),
+    Output::open(1, 'order-2002_placed'),
+    Output::open(1, 'order-2003_placed'),
 );
 
 // Progress each order differently
 $multiOrder = $multiOrder->apply(Tx::create(
-    inputIds: ['order-2001:placed'],
-    outputs: [Output::open(1, 'order-2001:paid')],
-    id: 'event:order-2001:payment',
+    inputIds: ['order-2001_placed'],
+    outputs: [Output::open(1, 'order-2001_paid')],
+    id: 'evt_order-2001_payment',
 ));
 
 $multiOrder = $multiOrder->apply(Tx::create(
-    inputIds: ['order-2002:placed'],
-    outputs: [Output::open(1, 'order-2002:paid')],
-    id: 'event:order-2002:payment',
+    inputIds: ['order-2002_placed'],
+    outputs: [Output::open(1, 'order-2002_paid')],
+    id: 'evt_order-2002_payment',
 ));
 
 $multiOrder = $multiOrder->apply(Tx::create(
-    inputIds: ['order-2002:paid'],
-    outputs: [Output::open(1, 'order-2002:shipped')],
-    id: 'event:order-2002:shipped',
+    inputIds: ['order-2002_paid'],
+    outputs: [Output::open(1, 'order-2002_shipped')],
+    id: 'evt_order-2002_shipped',
 ));
 
 echo "Current order states:\n";
 foreach ($multiOrder->unspent() as $id => $output) {
-    [$orderId, $state] = explode(':', $id);
+    // Extract order ID and state from format "order-XXXX_state"
+    $parts = explode('_', $id);
+    $state = array_pop($parts);
+    $orderId = implode('_', $parts);
     echo "  {$orderId}: {$state}\n";
 }
 echo "\n";
@@ -248,8 +251,8 @@ $restored = Ledger::fromJson($eventStore);
 echo "Ledger restored from event store.\n";
 
 // Verify history is intact
-$restoredHistory = $restored->outputCreatedBy(new OutputId('order-1001:shipped'));
-echo "  History preserved: order-1001:shipped created by {$restoredHistory}\n\n";
+$restoredHistory = $restored->outputCreatedBy(new OutputId('order-1001_shipped'));
+echo "  History preserved: order-1001_shipped created by {$restoredHistory}\n\n";
 
 // ============================================================================
 // 10. PROVING STATE TRANSITIONS
@@ -261,9 +264,9 @@ echo "------------------------------\n";
 echo "Proving order #1001 went through all required stages:\n\n";
 
 $requiredTransitions = [
-    'placed -> paid' => ['from' => 'order-1001:placed', 'event' => 'event:order-1001:payment-received'],
-    'paid -> shipped' => ['from' => 'order-1001:paid', 'event' => 'event:order-1001:shipped'],
-    'shipped -> delivered' => ['from' => 'order-1001:shipped', 'event' => 'event:order-1001:delivered'],
+    'placed -> paid' => ['from' => 'order-1001_placed', 'event' => 'evt_order-1001_payment-received'],
+    'paid -> shipped' => ['from' => 'order-1001_paid', 'event' => 'evt_order-1001_shipped'],
+    'shipped -> delivered' => ['from' => 'order-1001_shipped', 'event' => 'evt_order-1001_delivered'],
 ];
 
 $allValid = true;
@@ -290,10 +293,10 @@ echo " Summary\n";
 echo "==========================================================\n\n";
 
 echo "Order #1001 event chain:\n";
-echo "  1. genesis           -> order-1001:placed\n";
-echo "  2. payment-received  -> order-1001:paid\n";
-echo "  3. shipped           -> order-1001:shipped\n";
-echo "  4. delivered         -> order-1001:delivered\n";
+echo "  1. genesis                          -> order-1001_placed\n";
+echo "  2. evt_order-1001_payment-received  -> order-1001_paid\n";
+echo "  3. evt_order-1001_shipped           -> order-1001_shipped\n";
+echo "  4. evt_order-1001_delivered         -> order-1001_delivered\n";
 
 echo "\nFeatures demonstrated:\n";
 echo "  - State as outputs, transitions as spends\n";
