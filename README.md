@@ -44,6 +44,7 @@ $ledger->unspent()->get(new OutputId('bob-funds'))->amount;  // 600
 | Internal accounting   | [internal-accounting.php](example/internal-accounting.php) | Audit-ready, no hidden mutations        |
 | Event sourcing        | [event-sourcing.php](example/event-sourcing.php)           | Order lifecycle as domain events        |
 | Crypto wallets        | [crypto-wallet.php](example/crypto-wallet.php)             | Trustless Ed25519 signatures            |
+| Custom locks          | [custom-locks.php](example/custom-locks.php)               | TimeLock example with LockFactory       |
 | Blockchain simulation | [bitcoin-simulation.php](example/bitcoin-simulation.php)   | Multi-block Bitcoin-style mining        |
 
 ## Documentation
