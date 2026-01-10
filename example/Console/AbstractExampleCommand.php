@@ -94,6 +94,9 @@ abstract class AbstractExampleCommand extends Command
             return InMemoryLedger::withGenesis(...$genesisFactory());
         }
 
+        \assert($this->repo !== null);
+        \assert($this->store !== null);
+
         $existingData = $this->repo->findUnspentOnly($this->getLedgerId());
 
         if ($existingData !== null && $existingData['unspentSet']->count() > 0) {
@@ -113,6 +116,8 @@ abstract class AbstractExampleCommand extends Command
         $this->io->text('<fg=green>[Created new ledger with ' . \count($outputs) . ' genesis outputs]</>');
         $this->io->newLine();
 
+        \assert($this->store !== null);
+
         return ScalableLedger::create($this->store, ...$outputs);
     }
 
@@ -121,6 +126,9 @@ abstract class AbstractExampleCommand extends Command
         if (!$this->isDatabase()) {
             return InMemoryLedger::empty();
         }
+
+        \assert($this->repo !== null);
+        \assert($this->store !== null);
 
         $existingData = $this->repo->findUnspentOnly($this->getLedgerId());
 
@@ -140,6 +148,8 @@ abstract class AbstractExampleCommand extends Command
         $this->io->text('<fg=green>[Created new empty ledger]</>');
         $this->io->newLine();
 
+        \assert($this->store !== null);
+
         return ScalableLedger::create($this->store);
     }
 
@@ -150,6 +160,8 @@ abstract class AbstractExampleCommand extends Command
         }
 
         $this->io->section('Database Stats');
+
+        \assert($this->pdo !== null);
 
         $ledgerId = $this->getLedgerId();
         $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM outputs WHERE ledger_id = ?');
@@ -195,8 +207,10 @@ abstract class AbstractExampleCommand extends Command
 
     private function createLedgerRecord(): void
     {
+        \assert($this->pdo !== null);
+
         $stmt = $this->pdo->prepare(
-            'INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0)',
+            'INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0) ON CONFLICT DO NOTHING',
         );
         $stmt->execute([$this->getLedgerId()]);
     }

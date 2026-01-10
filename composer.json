@@ -46,6 +46,7 @@
         "rector-dry": "vendor/bin/rector --dry-run",
         "test": [
             "@csrun",
+            "@rector-dry",
             "@stan",
             "@phpunit"
         ]

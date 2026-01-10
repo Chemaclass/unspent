@@ -44,7 +44,7 @@ final class InitLedgerDbCommand extends Command
             return Command::SUCCESS;
         }
 
-        if (!$this->ensureDirectoryExists($io, \dirname($dbPath))) {
+        if (!$this->ensureDirectoryExists($io, \dirname((string) $dbPath))) {
             return Command::FAILURE;
         }
 

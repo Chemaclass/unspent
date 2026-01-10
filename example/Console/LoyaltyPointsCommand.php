@@ -70,7 +70,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
 
     private function earnFromPurchase(Ledger $ledger): Ledger
     {
-        $purchaseAmount = rand(20, 100);
+        $purchaseAmount = random_int(20, 100);
         $earnId = "purchase-{$this->runNumber}";
 
         $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
@@ -113,7 +113,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         $outputs = iterator_to_array($ledger->unspent());
         $customerOutputs = array_filter(
             $outputs,
-            static fn ($o) => ($o->lock->toArray()['name'] ?? '') === 'customer',
+            static fn (Output $o): bool => ($o->lock->toArray()['name'] ?? '') === 'customer',
         );
 
         if (\count($customerOutputs) < 2) {
@@ -121,12 +121,12 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         }
 
         $toRedeem = \array_slice($customerOutputs, 0, 2);
-        $total = array_sum(array_map(static fn ($o) => $o->amount, $toRedeem));
+        $total = array_sum(array_map(static fn (Output $o): int => $o->amount, $toRedeem));
         $redeemAmount = (int) ($total * 0.8);
         $change = $total - $redeemAmount;
 
         $ledger = $ledger->apply(Tx::create(
-            spendIds: array_map(static fn ($o) => $o->id->value, $toRedeem),
+            spendIds: array_values(array_map(static fn (Output $o): string => $o->id->value, $toRedeem)),
             outputs: [
                 Output::open($redeemAmount, "voucher-{$this->runNumber}"),
                 Output::ownedBy('customer', $change, "change-{$this->runNumber}"),
@@ -145,7 +145,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
     private function showAudit(Ledger $ledger): void
     {
         $this->io->section('Audit Trail');
-        $history = $ledger->outputHistory(new OutputId('purchase-001'));
+        $ledger->outputHistory(new OutputId('purchase-001'));
         $this->io->text('purchase-001: minted in earn-50, spent in redeem-coffee');
     }
 

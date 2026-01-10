@@ -19,16 +19,23 @@ use Symfony\Component\Console\Command\Command;
 )]
 final class CryptoWalletCommand extends AbstractExampleCommand
 {
+    /** @var non-empty-string */
     private string $alicePub;
+
+    /** @var non-empty-string */
     private string $alicePriv;
+
+    /** @var non-empty-string */
     private string $bobPub;
+
+    /** @var non-empty-string */
     private string $bobPriv;
 
     protected function runMemoryDemo(): int
     {
         $this->generateKeys();
 
-        $ledger = $this->loadOrCreate(fn () => [
+        $ledger = $this->loadOrCreate(fn (): array => [
             Output::signedBy($this->alicePub, 1000, 'alice-wallet'),
             Output::signedBy($this->bobPub, 500, 'bob-wallet'),
         ]);
@@ -48,7 +55,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
     {
         $this->generateKeys();
 
-        $ledger = $this->loadOrCreate(fn () => [
+        $ledger = $this->loadOrCreate(fn (): array => [
             Output::signedBy($this->alicePub, 1000, 'alice-wallet'),
             Output::signedBy($this->bobPub, 500, 'bob-wallet'),
         ]);
@@ -140,7 +147,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
     private function processRandomTransfer(Ledger $ledger): Ledger
     {
         $outputs = iterator_to_array($ledger->unspent());
-        if (empty($outputs)) {
+        if ($outputs === []) {
             $this->io->text('No outputs to spend!');
             return $ledger;
         }
@@ -159,7 +166,8 @@ final class CryptoWalletCommand extends AbstractExampleCommand
 
         $txId = "tx-{$this->runNumber}";
         $lockData = $toSpend->lock->toArray();
-        $pubKey = $lockData['key'] ?? '';
+        /** @var string $pubKey */
+        $pubKey = $lockData['key'] ?? ''; // @phpstan-ignore nullCoalesce.offset
         $isAlice = $pubKey === $this->alicePub;
         $privKey = $isAlice ? $this->alicePriv : $this->bobPriv;
         $recipientPub = $isAlice ? $this->bobPub : $this->alicePub;

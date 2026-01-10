@@ -25,7 +25,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     protected function runMemoryDemo(): int
     {
-        $ledger = $this->loadOrCreate(static fn () => [
+        $ledger = $this->loadOrCreate(static fn (): array => [
             Output::ownedBy('alice', 1000, 'alice-gold'),
             Output::ownedBy('bob', 500, 'bob-gold'),
         ]);
@@ -43,7 +43,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     protected function runDatabaseDemo(): int
     {
-        $ledger = $this->loadOrCreate(static fn () => [
+        $ledger = $this->loadOrCreate(static fn (): array => [
             Output::ownedBy('alice', 1000, 'alice-start'),
             Output::ownedBy('bob', 500, 'bob-start'),
             Output::ownedBy('shop', 5000, 'shop-inventory'),
@@ -123,18 +123,18 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
     private function processRandomAction(Ledger $ledger): Ledger
     {
         $outputs = iterator_to_array($ledger->unspent());
-        $playerOutputs = array_filter($outputs, function ($o) {
+        $playerOutputs = array_filter($outputs, function (Output $o): bool {
             $owner = $o->lock->toArray()['name'] ?? '';
             return \in_array($owner, $this->players) && $owner !== 'shop';
         });
 
-        if (empty($playerOutputs)) {
+        if ($playerOutputs === []) {
             $this->io->text('No player outputs available!');
             return $ledger;
         }
 
         $toSpend = $playerOutputs[array_rand($playerOutputs)];
-        $owner = $toSpend->lock->toArray()['name'];
+        $owner = $toSpend->lock->toArray()['name'] ?? 'unknown';
         $amount = $toSpend->amount;
 
         if ($amount < 50) {
@@ -143,7 +143,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
 
         $fee = max(1, (int) ($amount * 0.05));
-        $action = rand(0, 1);
+        $action = random_int(0, 1);
 
         if ($action === 0) {
             return $this->buyFromShop($ledger, $toSpend, $owner, $amount, $fee);

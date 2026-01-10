@@ -93,7 +93,7 @@ final class SqlitePersistenceCommand extends Command
         $this->io->text('<fg=green>Creating new ledger...</>');
 
         $stmt = $this->pdo->prepare(
-            'INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0)',
+            'INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0) ON CONFLICT DO NOTHING',
         );
         $stmt->execute([self::LEDGER_ID]);
 
@@ -118,7 +118,7 @@ final class SqlitePersistenceCommand extends Command
 
         $aliceOutputs = $this->repo->findUnspentByOwner(self::LEDGER_ID, 'alice');
 
-        if (empty($aliceOutputs)) {
+        if ($aliceOutputs === []) {
             $this->io->text('No outputs owned by alice, skipping transaction.');
             $this->io->newLine();
             return $ledger;

@@ -25,7 +25,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
 
     protected function runMemoryDemo(): int
     {
-        $ledger = $this->loadOrCreate(static fn () => [Output::open(self::BLOCK_REWARD, 'satoshi-0')]);
+        $ledger = $this->loadOrCreate(static fn (): array => [Output::open(self::BLOCK_REWARD, 'satoshi-0')]);
         $this->io->text('Block 0: Satoshi mines 50 BTC');
 
         $ledger = $this->mineBlock($ledger, 1);
@@ -35,7 +35,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         $ledger = $this->applyTransaction($ledger, 'satoshi-0', 'hal-funds', 10 * self::SATOSHIS_PER_BTC);
         $ledger = $this->mineBlock($ledger, 2);
         $this->io->text('Block 2: Satoshi sends 10 BTC to Hal');
-        $this->io->text('  Fee: ' . $this->formatBtc($ledger->feeForTx(new TxId('tx-to-hal'))));
+        $this->io->text('  Fee: ' . $this->formatBtc($ledger->feeForTx(new TxId('tx-to-hal')) ?? 0));
         $this->io->newLine();
 
         $ledger = $this->applyTransaction($ledger, 'hal-funds', 'laszlo-pizza', 5 * self::SATOSHIS_PER_BTC, 'tx-pizza', 'hal-change');
@@ -55,7 +55,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
 
     protected function runDatabaseDemo(): int
     {
-        $ledger = $this->loadOrCreate(static fn () => [Output::open(self::BLOCK_REWARD, 'satoshi-genesis')]);
+        $ledger = $this->loadOrCreate(static fn (): array => [Output::open(self::BLOCK_REWARD, 'satoshi-genesis')]);
 
         $blockNum = $this->runNumber;
         $this->io->section("Mining Block #{$blockNum}");
@@ -116,9 +116,9 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
     private function processTransaction(Ledger $ledger, int $blockNum): Ledger
     {
         $outputs = iterator_to_array($ledger->unspent());
-        usort($outputs, static fn ($a, $b) => $b->amount <=> $a->amount);
+        usort($outputs, static fn ($a, $b): int => $b->amount <=> $a->amount);
 
-        if (empty($outputs) || $outputs[0]->amount < 1 * self::SATOSHIS_PER_BTC) {
+        if ($outputs === [] || $outputs[0]->amount < 1 * self::SATOSHIS_PER_BTC) {
             return $ledger;
         }
 
