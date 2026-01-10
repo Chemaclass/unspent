@@ -13,7 +13,7 @@ Requires PHP 8.4+
 ## Quick Start
 
 ```php
-use Chemaclass\Unspent\{Ledger, Output, Tx};
+use Chemaclass\Unspent\{Ledger, Output, OutputId, Tx};
 
 // Create ledger with initial value
 $ledger = Ledger::withGenesis(

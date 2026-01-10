@@ -237,9 +237,7 @@ echo "==========================================================\n\n";
 
 echo "Final game state:\n";
 foreach ($restoredGame->unspent() as $id => $output) {
-    $lock = $output->lock->toArray();
-    /** @phpstan-ignore isset.offset */
-    $owner = isset($lock['name']) ? (string) $lock['name'] : 'open';
+    $owner = $output->lock->toArray()['name'] ?? 'open';
     echo "  {$id}: {$output->amount} gold (owned by: {$owner})\n";
 }
 

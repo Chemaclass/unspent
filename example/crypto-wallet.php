@@ -314,9 +314,12 @@ echo "==========================================================\n\n";
 
 echo "Final wallet state:\n";
 foreach ($restored->unspent() as $id => $output) {
-    /** @var array{type: string, key?: string, name?: string} $lock */
     $lock = $output->lock->toArray();
-    $owner = $lock['type'] === 'pubkey' ? 'crypto-locked' : ($lock['name'] ?? 'open');
+    $owner = match ($lock['type']) {
+        'pubkey' => 'crypto-locked',
+        'owner' => $lock['name'] ?? 'unknown',
+        default => 'open',
+    };
     echo "  {$id}: {$output->amount} units ({$owner})\n";
 }
 

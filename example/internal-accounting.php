@@ -210,10 +210,8 @@ echo "8. QUERY - Department Budget Status\n";
 echo "------------------------------------\n";
 
 $departmentBudgets = [];
-foreach ($company->unspent() as $id => $output) {
-    $lock = $output->lock->toArray();
-    /** @phpstan-ignore isset.offset */
-    $dept = isset($lock['name']) ? (string) $lock['name'] : 'unassigned';
+foreach ($company->unspent() as $output) {
+    $dept = $output->lock->toArray()['name'] ?? 'unassigned';
     $departmentBudgets[$dept] = ($departmentBudgets[$dept] ?? 0) + $output->amount;
 }
 
@@ -276,9 +274,7 @@ echo "==========================================================\n\n";
 
 echo "Final budget state:\n";
 foreach ($q2Company->unspent() as $id => $output) {
-    $lock = $output->lock->toArray();
-    /** @phpstan-ignore isset.offset */
-    $dept = isset($lock['name']) ? (string) $lock['name'] : 'unassigned';
+    $dept = $output->lock->toArray()['name'] ?? 'unassigned';
     echo "  {$id}: \$" . number_format($output->amount) . " ({$dept})\n";
 }
 

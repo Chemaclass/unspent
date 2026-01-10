@@ -31,19 +31,27 @@ $ledger->outputExists(new OutputId('any-output'));  // true/false
 
 ## Tracing History
 
-Get the complete history of an output:
+Get the complete history of an output with the `OutputHistory` DTO:
 
 ```php
 $history = $ledger->outputHistory(new OutputId('bob-funds'));
-// Returns:
-// [
-//     'id' => 'bob-funds',
-//     'amount' => 600,
-//     'lock' => ['type' => 'owner', 'name' => 'bob'],
-//     'createdBy' => 'tx-001',
-//     'spentBy' => 'tx-002',  // or null if unspent
-//     'status' => 'spent',    // or 'unspent'
-// ]
+
+if ($history !== null) {
+    $history->id;         // OutputId
+    $history->amount;     // 600
+    $history->lock;       // OutputLock object
+    $history->createdBy;  // 'tx-001' or 'genesis'
+    $history->spentBy;    // 'tx-002' or null if unspent
+    $history->status;     // OutputStatus enum (SPENT or UNSPENT)
+
+    // Convenience methods
+    $history->isSpent();    // true
+    $history->isUnspent();  // false
+    $history->isGenesis();  // true if createdBy === 'genesis'
+
+    // Serialize if needed
+    $history->toArray();    // ['id' => ..., 'amount' => ..., ...]
+}
 ```
 
 ## Chain of Custody Example

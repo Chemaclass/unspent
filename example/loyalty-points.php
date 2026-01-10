@@ -83,10 +83,8 @@ echo "  Total points in system: {$rewards->totalUnspentAmount()}\n\n";
 // Show all customers' points
 echo "Points by customer:\n";
 $customerPoints = [];
-foreach ($rewards->unspent() as $id => $output) {
-    $lock = $output->lock->toArray();
-    /** @phpstan-ignore isset.offset */
-    $owner = isset($lock['name']) ? (string) $lock['name'] : 'system';
+foreach ($rewards->unspent() as $output) {
+    $owner = $output->lock->toArray()['name'] ?? 'system';
     $customerPoints[$owner] = ($customerPoints[$owner] ?? 0) + $output->amount;
 }
 foreach ($customerPoints as $customer => $points) {
@@ -255,9 +253,7 @@ echo "==========================================================\n\n";
 
 echo "Current point balances:\n";
 foreach ($restored->unspent() as $id => $output) {
-    $lock = $output->lock->toArray();
-    /** @phpstan-ignore isset.offset */
-    $owner = isset($lock['name']) ? (string) $lock['name'] : 'system';
+    $owner = $output->lock->toArray()['name'] ?? 'system';
     echo "  {$id}: {$output->amount} points ({$owner})\n";
 }
 

@@ -25,7 +25,7 @@ interface OutputLock
     /**
      * Serializes the lock for persistence.
      *
-     * @return array{type: string, ...}
+     * @return array{type: string, name?:string, ...}
      */
     public function toArray(): array;
 }
