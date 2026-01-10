@@ -1,0 +1,44 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Unspent Examples Runner
+ *
+ * Run any example with optional --run-on=db|memory flag.
+ *
+ * Usage:
+ *   php example/run                    # List all examples
+ *   php example/run game               # Run in memory mode
+ *   php example/run game --run-on=db   # Run in database mode
+ */
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+foreach (glob(__DIR__ . '/Console/*.php') as $file) {
+    require_once $file;
+}
+
+use Example\Console\BitcoinSimulationCommand;
+use Example\Console\CryptoWalletCommand;
+use Example\Console\CustomLocksCommand;
+use Example\Console\EventSourcingCommand;
+use Example\Console\InternalAccountingCommand;
+use Example\Console\LoyaltyPointsCommand;
+use Example\Console\SqlitePersistenceCommand;
+use Example\Console\VirtualCurrencyCommand;
+use Symfony\Component\Console\Application;
+
+$app = new Application('Unspent Examples', '0.0.1');
+
+$app->addCommand(new BitcoinSimulationCommand());
+$app->addCommand(new CryptoWalletCommand());
+$app->addCommand(new CustomLocksCommand());
+$app->addCommand(new EventSourcingCommand());
+$app->addCommand(new InternalAccountingCommand());
+$app->addCommand(new LoyaltyPointsCommand());
+$app->addCommand(new SqlitePersistenceCommand());
+$app->addCommand(new VirtualCurrencyCommand());
+
+$app->run();
