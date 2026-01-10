@@ -1,0 +1,178 @@
+#!/usr/bin/env php
+<?php
+
+declare(strict_types=1);
+
+/**
+ * Initialize the ledger database.
+ *
+ * Usage:
+ *   bin/init-ledger-db [--path=<path>] [--ledger-id=<id>] [--force]
+ *
+ * Options:
+ *   --path=<path>        Custom database path (default: data/ledger.db)
+ *   --ledger-id=<id>     Ledger identifier (default: main)
+ *   --force              Recreate database even if it exists
+ *   --help               Show this help message
+ */
+
+// Find autoloader
+$autoloadPaths = [
+    __DIR__ . '/../vendor/autoload.php',
+    __DIR__ . '/../../autoload.php',
+];
+
+$autoloadFound = false;
+foreach ($autoloadPaths as $autoloadPath) {
+    if (file_exists($autoloadPath)) {
+        require $autoloadPath;
+        $autoloadFound = true;
+        break;
+    }
+}
+
+if (!$autoloadFound) {
+    fwrite(STDERR, "Error: Could not find autoloader. Run 'composer install' first.\n");
+    exit(1);
+}
+
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteSchema;
+
+// Terminal colors
+function green(string $text): string
+{
+    return "\033[32m{$text}\033[0m";
+}
+
+function red(string $text): string
+{
+    return "\033[31m{$text}\033[0m";
+}
+
+function yellow(string $text): string
+{
+    return "\033[33m{$text}\033[0m";
+}
+
+function bold(string $text): string
+{
+    return "\033[1m{$text}\033[0m";
+}
+
+// Parse command line arguments
+function parseArgs(array $argv): array
+{
+    $options = [
+        'path' => null,
+        'ledger-id' => 'main',
+        'force' => false,
+        'help' => false,
+    ];
+
+    foreach ($argv as $arg) {
+        if ($arg === '--help' || $arg === '-h') {
+            $options['help'] = true;
+        } elseif ($arg === '--force' || $arg === '-f') {
+            $options['force'] = true;
+        } elseif (str_starts_with($arg, '--path=')) {
+            $options['path'] = substr($arg, 7);
+        } elseif (str_starts_with($arg, '--ledger-id=')) {
+            $options['ledger-id'] = substr($arg, 12);
+        }
+    }
+
+    return $options;
+}
+
+function showHelp(): void
+{
+    echo <<<HELP
+    Initialize the ledger database.
+
+    Usage:
+      bin/init-ledger-db [options]
+
+    Options:
+      --path=<path>        Custom database path (default: data/ledger.db)
+      --ledger-id=<id>     Ledger identifier (default: main)
+      --force, -f          Recreate database even if it exists
+      --help, -h           Show this help message
+
+    Examples:
+      bin/init-ledger-db
+      bin/init-ledger-db --path=/custom/path/ledger.db
+      bin/init-ledger-db --ledger-id=wallet-1
+      bin/init-ledger-db --force
+
+    HELP;
+}
+
+// Main execution
+$options = parseArgs($argv);
+
+if ($options['help']) {
+    showHelp();
+    exit(0);
+}
+
+// Determine project root and default path
+$projectRoot = dirname(__DIR__);
+$dbPath = $options['path'] ?? $projectRoot . '/data/ledger.db';
+$ledgerId = $options['ledger-id'];
+
+echo bold("Ledger Database Initialization\n");
+echo "================================\n\n";
+
+// Check if database exists
+if (file_exists($dbPath)) {
+    if (!$options['force']) {
+        echo yellow("Database already exists at: {$dbPath}\n");
+        echo "Use --force to recreate it.\n";
+        exit(0);
+    }
+
+    echo yellow("Removing existing database...\n");
+    unlink($dbPath);
+}
+
+// Create parent directory if needed
+$parentDir = dirname($dbPath);
+if (!is_dir($parentDir)) {
+    echo "Creating directory: {$parentDir}\n";
+    if (!mkdir($parentDir, 0755, true)) {
+        echo red("Error: Failed to create directory: {$parentDir}\n");
+        exit(1);
+    }
+}
+
+try {
+    // Create PDO connection
+    echo "Creating database: {$dbPath}\n";
+    $pdo = new PDO("sqlite:{$dbPath}");
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $pdo->exec('PRAGMA foreign_keys = ON');
+
+    // Initialize schema
+    echo "Initializing schema...\n";
+    $schema = new SqliteSchema($pdo);
+    $schema->create();
+
+    // Create default ledger record
+    echo "Creating ledger record: {$ledgerId}\n";
+    $stmt = $pdo->prepare(
+        'INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0)'
+    );
+    $stmt->execute([$ledgerId]);
+
+    echo "\n" . green("Success!") . "\n";
+    echo "  Database: {$dbPath}\n";
+    echo "  Ledger ID: {$ledgerId}\n";
+    echo "  Tables: ledgers, outputs, transactions\n";
+    echo "\nYou can now use this database with:\n";
+    echo "  \$pdo = new PDO('sqlite:{$dbPath}');\n";
+    echo "  \$store = new SqliteHistoryStore(\$pdo, '{$ledgerId}');\n";
+    echo "  \$ledger = ScalableLedger::create(\$store, ...genesis);\n";
+} catch (PDOException $e) {
+    echo red("Error: " . $e->getMessage() . "\n");
+    exit(1);
+}
