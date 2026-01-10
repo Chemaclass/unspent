@@ -22,10 +22,9 @@ echo "Bitcoin Simulation\n";
 echo "==================\n\n";
 
 // Block 0: Genesis (Satoshi mines first block)
-$ledger = InMemoryLedger::empty()->applyCoinbase(CoinbaseTx::create(
-    [Output::open(50_00000000, 'satoshi-0')], // 50 BTC in sats
-    'block-0',
-));
+$ledger = InMemoryLedger::withGenesis(
+    Output::open(50_00000000, 'satoshi-0'), // 50 BTC in sats
+);
 echo "Block 0: Satoshi mines 50 BTC\n";
 
 // Block 1: More mining
