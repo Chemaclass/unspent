@@ -58,7 +58,7 @@ echo "2. PAYMENT RECEIVED - Order paid\n";
 echo "---------------------------------\n";
 
 $orderSystem = $orderSystem->apply(Tx::create(
-    inputIds: ['order-1001_placed'],
+    spendIds: ['order-1001_placed'],
     outputs: [Output::open(1, 'order-1001_paid')],
     id: 'evt_order-1001_payment-received',
 ));
@@ -78,7 +78,7 @@ echo "3. ORDER SHIPPED - Fulfillment complete\n";
 echo "----------------------------------------\n";
 
 $orderSystem = $orderSystem->apply(Tx::create(
-    inputIds: ['order-1001_paid'],
+    spendIds: ['order-1001_paid'],
     outputs: [Output::open(1, 'order-1001_shipped')],
     id: 'evt_order-1001_shipped',
 ));
@@ -98,7 +98,7 @@ echo "4. ORDER DELIVERED - Complete\n";
 echo "------------------------------\n";
 
 $orderSystem = $orderSystem->apply(Tx::create(
-    inputIds: ['order-1001_shipped'],
+    spendIds: ['order-1001_shipped'],
     outputs: [Output::open(1, 'order-1001_delivered')],
     id: 'evt_order-1001_delivered',
 ));
@@ -208,19 +208,19 @@ $multiOrder = Ledger::withGenesis(
 
 // Progress each order differently
 $multiOrder = $multiOrder->apply(Tx::create(
-    inputIds: ['order-2001_placed'],
+    spendIds: ['order-2001_placed'],
     outputs: [Output::open(1, 'order-2001_paid')],
     id: 'evt_order-2001_payment',
 ));
 
 $multiOrder = $multiOrder->apply(Tx::create(
-    inputIds: ['order-2002_placed'],
+    spendIds: ['order-2002_placed'],
     outputs: [Output::open(1, 'order-2002_paid')],
     id: 'evt_order-2002_payment',
 ));
 
 $multiOrder = $multiOrder->apply(Tx::create(
-    inputIds: ['order-2002_paid'],
+    spendIds: ['order-2002_paid'],
     outputs: [Output::open(1, 'order-2002_shipped')],
     id: 'evt_order-2002_shipped',
 ));

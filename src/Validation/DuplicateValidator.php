@@ -17,19 +17,19 @@ use InvalidArgumentException;
 final class DuplicateValidator
 {
     /**
-     * Assert that no duplicate input IDs exist.
+     * Assert that no duplicate spend IDs exist.
      *
-     * @param list<OutputId> $inputs
+     * @param list<OutputId> $spends
      *
-     * @throws InvalidArgumentException If duplicate input ID found
+     * @throws InvalidArgumentException If duplicate spend ID found
      */
-    public static function assertNoDuplicateInputIds(array $inputs): void
+    public static function assertNoDuplicateSpendIds(array $spends): void
     {
         $seen = [];
-        foreach ($inputs as $inputId) {
-            $key = $inputId->value;
+        foreach ($spends as $spendId) {
+            $key = $spendId->value;
             if (isset($seen[$key])) {
-                throw new InvalidArgumentException("Duplicate input id: '{$key}'");
+                throw new InvalidArgumentException("Duplicate spend id: '{$key}'");
             }
             $seen[$key] = true;
         }

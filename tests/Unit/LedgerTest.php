@@ -8,7 +8,7 @@ use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
-use Chemaclass\Unspent\Exception\InsufficientInputsException;
+use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
@@ -66,7 +66,7 @@ final class LedgerTest extends TestCase
         )
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [
                     Output::open(60, 'c'),
                     Output::open(40, 'd'),
@@ -88,20 +88,20 @@ final class LedgerTest extends TestCase
         Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('nonexistent')],
+                spends: [new OutputId('nonexistent')],
                 outputs: [Output::open(100, 'b')],
             ));
     }
 
-    public function test_apply_tx_fails_when_outputs_exceed_inputs(): void
+    public function test_apply_tx_fails_when_outputs_exceed_spends(): void
     {
-        $this->expectException(InsufficientInputsException::class);
-        $this->expectExceptionMessage('Insufficient inputs: input amount (100) is less than output amount (150)');
+        $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage('Insufficient spends: spend amount (100) is less than output amount (150)');
 
         Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(150, 'b')],
             ));
     }
@@ -113,13 +113,13 @@ final class LedgerTest extends TestCase
 
         $tx1 = new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('a')],
+            spends: [new OutputId('a')],
             outputs: [Output::open(100, 'b')],
         );
 
         $tx2 = new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('b')],
+            spends: [new OutputId('b')],
             outputs: [Output::open(100, 'c')],
         );
 
@@ -136,13 +136,13 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(100, 'b')],
             ));
 
         $ledger->apply(new Tx(
             id: new TxId('tx2'),
-            inputs: [new OutputId('a')],
+            spends: [new OutputId('a')],
             outputs: [Output::open(100, 'c')],
         ));
     }
@@ -155,7 +155,7 @@ final class LedgerTest extends TestCase
         Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [
                     Output::open(50, 'c'),
                     Output::open(50, 'c'),
@@ -174,7 +174,7 @@ final class LedgerTest extends TestCase
         )
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(100, 'b')],
             ));
     }
@@ -184,7 +184,7 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('genesis')],
+                spends: [new OutputId('genesis')],
                 outputs: [
                     Output::open(600, 'a'),
                     Output::open(400, 'b'),
@@ -192,7 +192,7 @@ final class LedgerTest extends TestCase
             ))
             ->apply(new Tx(
                 id: new TxId('tx2'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [
                     Output::open(300, 'c'),
                     Output::open(300, 'd'),
@@ -214,7 +214,7 @@ final class LedgerTest extends TestCase
         )
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a'), new OutputId('b')],
+                spends: [new OutputId('a'), new OutputId('b')],
                 outputs: [Output::open(150, 'c')],
             ));
 
@@ -231,7 +231,7 @@ final class LedgerTest extends TestCase
 
         $ledger = $ledger->apply(new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('a')],
+            spends: [new OutputId('a')],
             outputs: [Output::open(100, 'b')],
         ));
 
@@ -248,7 +248,7 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(90, 'b')],
             ));
 
@@ -262,7 +262,7 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(100, 'b')],
             ));
 
@@ -276,7 +276,7 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('genesis')],
+                spends: [new OutputId('genesis')],
                 outputs: [
                     Output::open(500, 'a'),
                     Output::open(490, 'b'),
@@ -284,7 +284,7 @@ final class LedgerTest extends TestCase
             ))
             ->apply(new Tx(
                 id: new TxId('tx2'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(495, 'c')],
             ));
 
@@ -324,12 +324,12 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('genesis')],
+                spends: [new OutputId('genesis')],
                 outputs: [Output::open(990, 'a')],
             ))
             ->apply(new Tx(
                 id: new TxId('tx2'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(980, 'b')],
             ));
 
@@ -344,13 +344,13 @@ final class LedgerTest extends TestCase
         $ledger1 = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('a')],
+                spends: [new OutputId('a')],
                 outputs: [Output::open(95, 'b')],
             ));
 
         $ledger2 = $ledger1->apply(new Tx(
             id: new TxId('tx2'),
-            inputs: [new OutputId('b')],
+            spends: [new OutputId('b')],
             outputs: [Output::open(90, 'c')],
         ));
 
@@ -482,7 +482,7 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('genesis')],
+                spends: [new OutputId('genesis')],
                 outputs: [Output::open(900, 'out1')],
             ));
 
@@ -555,7 +555,7 @@ final class LedgerTest extends TestCase
         $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('genesis')],
+                spends: [new OutputId('genesis')],
                 outputs: [Output::open(950, 'out1')],
             ));
 
@@ -606,7 +606,7 @@ final class LedgerTest extends TestCase
         // Apply a new tx to the restored ledger
         $restored = $restored->apply(new Tx(
             id: new TxId('new-tx'),
-            inputs: [new OutputId('genesis')],
+            spends: [new OutputId('genesis')],
             outputs: [Output::open(950, 'new-out')],
         ));
 
@@ -621,7 +621,7 @@ final class LedgerTest extends TestCase
         $original = Ledger::withGenesis(Output::open(1000, 'genesis'))
             ->apply(new Tx(
                 id: new TxId('tx1'),
-                inputs: [new OutputId('genesis')],
+                spends: [new OutputId('genesis')],
                 outputs: [Output::open(1000, 'out')],
             ));
 
@@ -630,7 +630,7 @@ final class LedgerTest extends TestCase
         // Try to apply the same tx ID again
         $restored->apply(new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('out')],
+            spends: [new OutputId('out')],
             outputs: [Output::open(1000, 'out2')],
         ));
     }

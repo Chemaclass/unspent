@@ -16,11 +16,11 @@ interface OutputLock
      * Validates that the transaction is authorized to consume this output.
      *
      * @param Tx  $tx         The transaction attempting to consume the output
-     * @param int $inputIndex Which input in the tx references this output
+     * @param int $spendIndex Which spend in the tx references this output
      *
      * @throws Exception\AuthorizationException If not authorized
      */
-    public function validate(Tx $tx, int $inputIndex): void;
+    public function validate(Tx $tx, int $spendIndex): void;
 
     /**
      * Serializes the lock for persistence.

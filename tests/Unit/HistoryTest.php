@@ -31,7 +31,7 @@ final class HistoryTest extends TestCase
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(Tx::create(
-                inputIds: ['genesis'],
+                spendIds: ['genesis'],
                 outputs: [
                     Output::open(600, 'output-a'),
                     Output::open(400, 'output-b'),
@@ -71,7 +71,7 @@ final class HistoryTest extends TestCase
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
             ->apply(Tx::create(
-                inputIds: ['alice-funds'],
+                spendIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
             ));
@@ -103,7 +103,7 @@ final class HistoryTest extends TestCase
                 Output::open(300, 'bob-funds'),
             )
             ->apply(Tx::create(
-                inputIds: ['alice-funds', 'bob-funds'],
+                spendIds: ['alice-funds', 'bob-funds'],
                 outputs: [Output::open(800, 'combined')],
                 id: 'tx-combine',
             ));
@@ -134,7 +134,7 @@ final class HistoryTest extends TestCase
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
             ->apply(Tx::create(
-                inputIds: ['alice-funds'],
+                spendIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
             ));
@@ -172,7 +172,7 @@ final class HistoryTest extends TestCase
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
             ->apply(Tx::create(
-                inputIds: ['alice-funds'],
+                spendIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
             ));
@@ -213,7 +213,7 @@ final class HistoryTest extends TestCase
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'alice-funds'))
             ->apply(Tx::create(
-                inputIds: ['alice-funds'],
+                spendIds: ['alice-funds'],
                 outputs: [Output::open(1000, 'bob-funds')],
                 id: 'tx-001',
             ));
@@ -256,7 +256,7 @@ final class HistoryTest extends TestCase
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(Tx::create(
-                inputIds: ['genesis'],
+                spendIds: ['genesis'],
                 outputs: [
                     Output::open(600, 'alice'),
                     Output::open(400, 'bob'),
@@ -264,7 +264,7 @@ final class HistoryTest extends TestCase
                 id: 'tx-001',
             ))
             ->apply(Tx::create(
-                inputIds: ['alice'],
+                spendIds: ['alice'],
                 outputs: [Output::open(600, 'charlie')],
                 id: 'tx-002',
             ));
@@ -295,7 +295,7 @@ final class HistoryTest extends TestCase
         $original = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(Tx::create(
-                inputIds: ['genesis'],
+                spendIds: ['genesis'],
                 outputs: [Output::open(1000, 'alice')],
                 id: 'tx-001',
             ));
@@ -318,7 +318,7 @@ final class HistoryTest extends TestCase
         $original = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(Tx::create(
-                inputIds: ['genesis'],
+                spendIds: ['genesis'],
                 outputs: [Output::open(1000, 'alice')],
                 id: 'tx-001',
             ));
@@ -338,7 +338,7 @@ final class HistoryTest extends TestCase
     {
         $v1 = Ledger::withGenesis(Output::open(1000, 'genesis'));
         $v2 = $v1->apply(Tx::create(
-            inputIds: ['genesis'],
+            spendIds: ['genesis'],
             outputs: [Output::open(1000, 'alice')],
             id: 'tx-001',
         ));

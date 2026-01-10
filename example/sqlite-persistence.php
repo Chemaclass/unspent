@@ -80,7 +80,7 @@ echo "---------------------\n";
 
 // Alice sends 600 to charlie, keeps 390 as change (10 fee)
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['alice-initial'],
+    spendIds: ['alice-initial'],
     outputs: [
         Output::ownedBy('charlie', 600, 'charlie-funds'),
         Output::ownedBy('alice', 390, 'alice-change'),

@@ -16,13 +16,13 @@ final class AuthorizationException extends UnspentException
         return new self("Output owned by '{$expected}', but spend signed by '{$actualStr}'");
     }
 
-    public static function missingProof(int $inputIndex): self
+    public static function missingProof(int $spendIndex): self
     {
-        return new self("Missing authorization proof for input {$inputIndex}");
+        return new self("Missing authorization proof for spend {$spendIndex}");
     }
 
-    public static function invalidSignature(int $inputIndex): self
+    public static function invalidSignature(int $spendIndex): self
     {
-        return new self("Invalid signature for input {$inputIndex}");
+        return new self("Invalid signature for spend {$spendIndex}");
     }
 }

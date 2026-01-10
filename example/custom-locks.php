@@ -144,7 +144,7 @@ echo "5. SPEND UNLOCKED OUTPUT\n";
 echo "------------------------\n";
 
 $restored = $restored->apply(Tx::create(
-    inputIds: ['alice-unlocked'],
+    spendIds: ['alice-unlocked'],
     outputs: [Output::ownedBy('charlie', 1000, 'charlie-funds')],
     signedBy: 'alice',
     id: 'tx-alice-spends',
@@ -164,7 +164,7 @@ echo "-----------------------\n";
 
 try {
     $restored->apply(Tx::create(
-        inputIds: ['bob-locked'],
+        spendIds: ['bob-locked'],
         outputs: [Output::open(500)],
         signedBy: 'bob',
     ));
@@ -191,7 +191,7 @@ $ledger2 = Ledger::withGenesis(
 
 try {
     $ledger2->apply(Tx::create(
-        inputIds: ['alice-funds'],
+        spendIds: ['alice-funds'],
         outputs: [Output::open(100)],
         signedBy: 'eve', // Wrong signer!
     ));

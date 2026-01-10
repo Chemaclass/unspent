@@ -261,7 +261,7 @@ $restored = Ledger::fromJson($original->toJson());
 
 // Ownership still enforced!
 $restored->apply(Tx::create(
-    inputIds: ['funds'],
+    spendIds: ['funds'],
     outputs: [Output::open(1000)],
     signedBy: 'bob',  // Throws AuthorizationException
 ));

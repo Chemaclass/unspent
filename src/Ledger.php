@@ -7,7 +7,7 @@ namespace Chemaclass\Unspent;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
-use Chemaclass\Unspent\Exception\InsufficientInputsException;
+use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Validation\DuplicateValidator;
@@ -79,26 +79,26 @@ final readonly class Ledger
     public function apply(Tx $tx): self
     {
         $this->assertTxNotAlreadyApplied($tx);
-        $inputAmount = $this->validateInputsAndGetTotal($tx);
+        $spendAmount = $this->validateSpendsAndGetTotal($tx);
         $outputAmount = $tx->totalOutputAmount();
-        $this->assertSufficientInputs($inputAmount, $outputAmount);
+        $this->assertSufficientSpends($spendAmount, $outputAmount);
         $this->assertNoOutputIdConflicts($tx);
 
-        // Calculate implicit fee (Bitcoin-style: inputs - outputs)
-        $fee = $inputAmount - $outputAmount;
+        // Calculate implicit fee (Bitcoin-style: spends - outputs)
+        $fee = $spendAmount - $outputAmount;
 
         // Track spent outputs before removing them
         $spentOutputs = $this->spentOutputs;
         $outputSpentBy = $this->outputSpentBy;
-        foreach ($tx->inputs as $inputId) {
-            $output = $this->unspentSet->get($inputId);
+        foreach ($tx->spends as $spendId) {
+            $output = $this->unspentSet->get($spendId);
             if ($output !== null) {
-                $spentOutputs[$inputId->value] = [
+                $spentOutputs[$spendId->value] = [
                     'id' => $output->id->value,
                     'amount' => $output->amount,
                     'lock' => $output->lock->toArray(),
                 ];
-                $outputSpentBy[$inputId->value] = $tx->id->value;
+                $outputSpentBy[$spendId->value] = $tx->id->value;
             }
         }
 
@@ -109,7 +109,7 @@ final readonly class Ledger
         }
 
         $unspent = $this->unspentSet
-            ->removeAll(...$tx->inputs)
+            ->removeAll(...$tx->spends)
             ->addAll(...$tx->outputs);
 
         $appliedTxs = $this->appliedTxIds;
@@ -412,41 +412,41 @@ final readonly class Ledger
     }
 
     /**
-     * Validates all inputs exist in unspent set, checks authorization, and returns total input amount.
+     * Validates all spends exist in unspent set, checks authorization, and returns total spend amount.
      */
-    private function validateInputsAndGetTotal(Tx $tx): int
+    private function validateSpendsAndGetTotal(Tx $tx): int
     {
-        $inputAmount = 0;
-        $inputIndex = 0;
+        $spendAmount = 0;
+        $spendIndex = 0;
 
-        foreach ($tx->inputs as $inputId) {
-            $output = $this->unspentSet->get($inputId);
+        foreach ($tx->spends as $spendId) {
+            $output = $this->unspentSet->get($spendId);
             if ($output === null) {
-                throw OutputAlreadySpentException::forId($inputId->value);
+                throw OutputAlreadySpentException::forId($spendId->value);
             }
 
-            $output->lock->validate($tx, $inputIndex);
+            $output->lock->validate($tx, $spendIndex);
 
-            $inputAmount += $output->amount;
-            ++$inputIndex;
+            $spendAmount += $output->amount;
+            ++$spendIndex;
         }
 
-        return $inputAmount;
+        return $spendAmount;
     }
 
-    private function assertSufficientInputs(int $inputAmount, int $outputAmount): void
+    private function assertSufficientSpends(int $spendAmount, int $outputAmount): void
     {
-        if ($inputAmount < $outputAmount) {
-            throw InsufficientInputsException::create($inputAmount, $outputAmount);
+        if ($spendAmount < $outputAmount) {
+            throw InsufficientSpendsException::create($spendAmount, $outputAmount);
         }
     }
 
     private function assertNoOutputIdConflicts(Tx $tx): void
     {
-        // Build set of input IDs being spent (O(n))
-        $inputIds = [];
-        foreach ($tx->inputs as $inputId) {
-            $inputIds[$inputId->value] = true;
+        // Build set of spend IDs (outputs being spent) (O(n))
+        $spendIds = [];
+        foreach ($tx->spends as $spendId) {
+            $spendIds[$spendId->value] = true;
         }
 
         // Check each output ID (O(m))
@@ -454,7 +454,7 @@ final readonly class Ledger
             $id = $output->id->value;
 
             // Skip IDs that are being spent (they will be removed)
-            if (isset($inputIds[$id])) {
+            if (isset($spendIds[$id])) {
                 continue;
             }
 

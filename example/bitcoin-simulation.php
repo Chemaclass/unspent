@@ -128,7 +128,7 @@ echo "       • 0.01 BTC goes to the miner as fee\n\n";
 
 // Transaction: Satoshi -> Hal (10 BTC)
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['satoshi-reward-0'],
+    spendIds: ['satoshi-reward-0'],
     outputs: [
         Output::open(1_000_000_000, 'hal-10btc'),      // 10 BTC to Hal
         Output::open(3_999_000_000, 'satoshi-change-1'), // 39.99 BTC change
@@ -157,7 +157,7 @@ echo "  Hal wants to buy pizza from Laszlo for 5 BTC (a bargain!).\n";
 echo "  He has exactly 10 BTC, so he'll pay and get change.\n\n";
 
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['hal-10btc'],
+    spendIds: ['hal-10btc'],
     outputs: [
         Output::open(500_000_000, 'laszlo-pizza-payment'), // 5 BTC
         Output::open(499_500_000, 'hal-change'),           // 4.995 BTC change
@@ -191,7 +191,7 @@ echo "     • satoshi-reward-2:  50 BTC\n";
 echo "     Total: 139.99 BTC in 3 UTXOs\n\n";
 
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['satoshi-reward-1', 'satoshi-change-1', 'satoshi-reward-2'],
+    spendIds: ['satoshi-reward-1', 'satoshi-change-1', 'satoshi-reward-2'],
     outputs: [
         Output::open(13_998_000_000, 'satoshi-consolidated'), // ~139.98 BTC
     ],
@@ -222,7 +222,7 @@ echo "  Laszlo wants to pay three people at once from his pizza money.\n";
 echo "  Bitcoin allows multiple outputs in a single transaction!\n\n";
 
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['laszlo-pizza-payment'],
+    spendIds: ['laszlo-pizza-payment'],
     outputs: [
         Output::open(150_000_000, 'alice-payment'),  // 1.5 BTC
         Output::open(150_000_000, 'bob-payment'),    // 1.5 BTC

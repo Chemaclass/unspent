@@ -26,7 +26,7 @@ final class OwnershipTest extends TestCase
         );
 
         $ledger = $ledger->apply(Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [Output::open(900, 'bob-payment')],
             signedBy: 'alice',
         ));
@@ -44,7 +44,7 @@ final class OwnershipTest extends TestCase
         $this->expectExceptionMessage("Output owned by 'alice', but spend signed by 'bob'");
 
         $ledger->apply(Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [Output::open(900, 'stolen')],
             signedBy: 'bob',
         ));
@@ -59,7 +59,7 @@ final class OwnershipTest extends TestCase
         $this->expectException(AuthorizationException::class);
 
         $ledger->apply(Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [Output::open(900, 'stolen')],
         ));
     }
@@ -71,7 +71,7 @@ final class OwnershipTest extends TestCase
         );
 
         $ledger = $ledger->apply(Tx::create(
-            inputIds: ['open-funds'],
+            spendIds: ['open-funds'],
             outputs: [Output::open(900, 'taken')],
         ));
 
@@ -86,7 +86,7 @@ final class OwnershipTest extends TestCase
         );
 
         $ledger = $ledger->apply(Tx::create(
-            inputIds: ['alice-1', 'alice-2'],
+            spendIds: ['alice-1', 'alice-2'],
             outputs: [Output::open(750, 'combined')],
             signedBy: 'alice',
         ));
@@ -104,7 +104,7 @@ final class OwnershipTest extends TestCase
         $this->expectException(AuthorizationException::class);
 
         $ledger->apply(Tx::create(
-            inputIds: ['alice-funds', 'bob-funds'],
+            spendIds: ['alice-funds', 'bob-funds'],
             outputs: [Output::open(750, 'combined')],
             signedBy: 'alice',
         ));
@@ -117,7 +117,7 @@ final class OwnershipTest extends TestCase
         );
 
         $ledger = $ledger->apply(Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [Output::ownedBy('bob', 900, 'bob-funds')],
             signedBy: 'alice',
         ));
@@ -125,7 +125,7 @@ final class OwnershipTest extends TestCase
         // Alice can no longer spend
         $this->expectException(AuthorizationException::class);
         $ledger->apply(Tx::create(
-            inputIds: ['bob-funds'],
+            spendIds: ['bob-funds'],
             outputs: [Output::open(800, 'stolen')],
             signedBy: 'alice',
         ));
@@ -141,7 +141,7 @@ final class OwnershipTest extends TestCase
 
         // Owner can still spend after restore
         $restored = $restored->apply(Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [Output::open(900, 'spent')],
             signedBy: 'alice',
         ));
@@ -160,7 +160,7 @@ final class OwnershipTest extends TestCase
         // Non-owner still blocked after restore
         $this->expectException(AuthorizationException::class);
         $restored->apply(Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [Output::open(900, 'stolen')],
             signedBy: 'bob',
         ));
@@ -184,7 +184,7 @@ final class OwnershipTest extends TestCase
         );
 
         $ledger = $ledger->apply(Tx::create(
-            inputIds: ['secure-funds'],
+            spendIds: ['secure-funds'],
             outputs: [Output::open(900)],
             id: $spendId,
             proofs: [$signature],
@@ -212,10 +212,10 @@ final class OwnershipTest extends TestCase
         );
 
         $this->expectException(AuthorizationException::class);
-        $this->expectExceptionMessage('Invalid signature for input 0');
+        $this->expectExceptionMessage('Invalid signature for spend 0');
 
         $ledger->apply(Tx::create(
-            inputIds: ['secure-funds'],
+            spendIds: ['secure-funds'],
             outputs: [Output::open(900)],
             id: $spendId,
             proofs: [$wrongSignature],
@@ -232,10 +232,10 @@ final class OwnershipTest extends TestCase
         );
 
         $this->expectException(AuthorizationException::class);
-        $this->expectExceptionMessage('Missing authorization proof for input 0');
+        $this->expectExceptionMessage('Missing authorization proof for spend 0');
 
         $ledger->apply(Tx::create(
-            inputIds: ['secure-funds'],
+            spendIds: ['secure-funds'],
             outputs: [Output::open(900)],
             id: 'tx-001',
         ));
@@ -259,7 +259,7 @@ final class OwnershipTest extends TestCase
         );
 
         $restored = $restored->apply(Tx::create(
-            inputIds: ['secure-funds'],
+            spendIds: ['secure-funds'],
             outputs: [Output::open(900)],
             id: $spendId,
             proofs: [$signature],
@@ -288,7 +288,7 @@ final class OwnershipTest extends TestCase
         $sig2 = base64_encode(sodium_crypto_sign_detached($spendId, $privateKey2));
 
         $ledger = $ledger->apply(Tx::create(
-            inputIds: ['funds-1', 'funds-2'],
+            spendIds: ['funds-1', 'funds-2'],
             outputs: [Output::open(750)],
             id: $spendId,
             proofs: [$sig1, $sig2],
@@ -335,13 +335,13 @@ final class OwnershipTest extends TestCase
         );
 
         $this->expectException(AuthorizationException::class);
-        $this->expectExceptionMessage('Invalid signature for input 0');
+        $this->expectExceptionMessage('Invalid signature for spend 0');
 
         // Provide a signature that's not 64 bytes
         $wrongLengthSig = base64_encode('short-signature');
 
         $ledger->apply(Tx::create(
-            inputIds: ['secure-funds'],
+            spendIds: ['secure-funds'],
             outputs: [Output::open(900)],
             id: 'tx-001',
             proofs: [$wrongLengthSig],

@@ -122,7 +122,7 @@ echo "----------------------------------------\n";
 
 // Alice redeems 60 points for a reward (combines two batches)
 $rewards = $rewards->apply(Tx::create(
-    inputIds: ['purchase-001-points', 'purchase-002-points'], // 50 + 30 = 80
+    spendIds: ['purchase-001-points', 'purchase-002-points'], // 50 + 30 = 80
     outputs: [
         Output::open(60, 'reward-coffee-voucher'), // Redeemed (burned to system)
         Output::ownedBy('alice', 20, 'alice-remaining'), // Change back
@@ -146,7 +146,7 @@ echo "--------------------------------------------\n";
 
 // Alice uses some of her remaining points
 $rewards = $rewards->apply(Tx::create(
-    inputIds: ['alice-remaining', 'purchase-003-points'], // 20 + 40 = 60
+    spendIds: ['alice-remaining', 'purchase-003-points'], // 20 + 40 = 60
     outputs: [
         Output::open(25, 'reward-discount-code'),
         Output::ownedBy('alice', 35, 'alice-final-balance'),

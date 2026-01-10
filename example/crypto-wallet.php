@@ -83,7 +83,7 @@ echo '  Signature: ' . substr($aliceSignature, 0, 30) . "...\n";
 
 // Apply the signed transaction
 $wallet = $wallet->apply(Tx::create(
-    inputIds: ['alice-wallet'],
+    spendIds: ['alice-wallet'],
     outputs: [
         Output::signedBy($bobPublicKey, 300, 'bob-received'),
         Output::signedBy($alicePublicKey, 700, 'alice-change'),
@@ -116,7 +116,7 @@ $fakeSignature = base64_encode(
 
 try {
     $wallet->apply(Tx::create(
-        inputIds: ['bob-wallet'],
+        spendIds: ['bob-wallet'],
         outputs: [Output::open(500, 'stolen')],
         id: $fakeTxId,
         proofs: [$fakeSignature],
@@ -129,7 +129,7 @@ try {
 echo "\nMallory tries without any signature...\n";
 try {
     $wallet->apply(Tx::create(
-        inputIds: ['bob-wallet'],
+        spendIds: ['bob-wallet'],
         outputs: [Output::open(500, 'stolen-2')],
         id: 'tx-no-sig',
         proofs: [],
@@ -155,7 +155,7 @@ $bobSig1 = base64_encode(sodium_crypto_sign_detached($combineTxId, $bobPrivateKe
 $bobSig2 = base64_encode(sodium_crypto_sign_detached($combineTxId, $bobPrivateKey));
 
 $wallet = $wallet->apply(Tx::create(
-    inputIds: ['bob-wallet', 'bob-received'], // 500 + 300 = 800
+    spendIds: ['bob-wallet', 'bob-received'], // 500 + 300 = 800
     outputs: [Output::signedBy($bobPublicKey, 800, 'bob-combined')], // Signature at each input index
     id: $combineTxId,
     proofs: [$bobSig1, $bobSig2],
@@ -181,7 +181,7 @@ $aliceSigJoint = base64_encode(sodium_crypto_sign_detached($jointTxId, $alicePri
 $bobSigJoint = base64_encode(sodium_crypto_sign_detached($jointTxId, $bobPrivateKey));
 
 $wallet = $wallet->apply(Tx::create(
-    inputIds: ['alice-change', 'bob-combined'], // Alice's 700 + Bob's 800
+    spendIds: ['alice-change', 'bob-combined'], // Alice's 700 + Bob's 800
     outputs: [
         Output::signedBy($alicePublicKey, 750, 'alice-final'),
         Output::signedBy($bobPublicKey, 750, 'bob-final'),
@@ -271,7 +271,7 @@ echo '  Public key preserved: ' . ($keyMatch ? 'YES' : 'NO') . "\n";
 echo "\nAttempting to spend restored output without signature...\n";
 try {
     $restored->apply(Tx::create(
-        inputIds: ['alice-final'],
+        spendIds: ['alice-final'],
         outputs: [Output::open(750, 'theft')],
         id: 'post-restore-theft',
         proofs: [],

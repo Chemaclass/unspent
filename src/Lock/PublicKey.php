@@ -12,7 +12,7 @@ use InvalidArgumentException;
 /**
  * A lock that requires Ed25519 signature verification.
  *
- * The tx must provide a valid signature in `proofs` at the same index as the input.
+ * The tx must provide a valid signature in `proofs` at the same index as the spend.
  * The message to sign is the tx ID.
  */
 final readonly class PublicKey implements OutputLock
@@ -28,17 +28,17 @@ final readonly class PublicKey implements OutputLock
         }
     }
 
-    public function validate(Tx $tx, int $inputIndex): void
+    public function validate(Tx $tx, int $spendIndex): void
     {
-        $signature = $tx->proofs[$inputIndex] ?? null;
+        $signature = $tx->proofs[$spendIndex] ?? null;
         if ($signature === null) {
-            throw AuthorizationException::missingProof($inputIndex);
+            throw AuthorizationException::missingProof($spendIndex);
         }
 
         $message = $tx->id->value;
 
         if (!$this->verifySignature($signature, $message)) {
-            throw AuthorizationException::invalidSignature($inputIndex);
+            throw AuthorizationException::invalidSignature($spendIndex);
         }
     }
 

@@ -7,7 +7,7 @@ Fees work like Bitcoin: the difference between inputs and outputs is the fee.
 ```php
 // Input: 1000, Output: 990 = Fee: 10
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['alice-funds'],  // Worth 1000
+    spendIds: ['alice-funds'],  // Worth 1000
     outputs: [Output::ownedBy('bob', 990)],
     signedBy: 'alice',
 ));
@@ -22,7 +22,7 @@ You don't specify fees explicitly. Just output less than you input:
 ```php
 // 1000 in -> 600 + 350 out = 50 fee
 Tx::create(
-    inputIds: ['funds'],        // 1000
+    spendIds: ['funds'],        // 1000
     outputs: [
         Output::ownedBy('bob', 600),
         Output::ownedBy('alice', 350),  // Change
@@ -38,7 +38,7 @@ Fees can be zero if inputs equal outputs:
 ```php
 // 1000 in -> 1000 out = 0 fee
 Tx::create(
-    inputIds: ['funds'],        // 1000
+    spendIds: ['funds'],        // 1000
     outputs: [
         Output::ownedBy('bob', 600),
         Output::ownedBy('alice', 400),
@@ -119,7 +119,7 @@ $ledger = Ledger::empty()
         Output::ownedBy('miner', 50, 'reward'),
     ], 'block-1'))
     ->apply(Tx::create(
-        inputIds: ['reward'],
+        spendIds: ['reward'],
         outputs: [Output::ownedBy('alice', 45)],
         signedBy: 'miner',
     ));

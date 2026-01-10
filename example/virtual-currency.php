@@ -53,7 +53,7 @@ echo "-----------------------------------------\n";
 
 // Alice can spend her gold
 $game = $game->apply(Tx::create(
-    inputIds: ['alice-starting-gold'],
+    spendIds: ['alice-starting-gold'],
     outputs: [
         Output::ownedBy('shop', 200, 'payment-for-sword'),
         Output::ownedBy('alice', 800, 'alice-after-sword'),
@@ -69,7 +69,7 @@ echo "  Alice now has: 800 gold\n";
 echo "\nMallory tries to steal Bob's gold...\n";
 try {
     $game->apply(Tx::create(
-        inputIds: ['bob-starting-gold'],
+        spendIds: ['bob-starting-gold'],
         outputs: [Output::ownedBy('mallory', 500, 'stolen')],
         signedBy: 'mallory',
         id: 'theft-attempt',
@@ -88,7 +88,7 @@ echo "--------------------------\n";
 
 // Bob pays Alice 100 gold for quest help
 $game = $game->apply(Tx::create(
-    inputIds: ['bob-starting-gold'],
+    spendIds: ['bob-starting-gold'],
     outputs: [
         Output::ownedBy('alice', 100, 'quest-reward'),
         Output::ownedBy('bob', 400, 'bob-after-trade'),
@@ -110,7 +110,7 @@ echo "----------------------------------------------------\n";
 
 // Alice combines her gold piles to buy expensive armor
 $game = $game->apply(Tx::create(
-    inputIds: ['alice-after-sword', 'quest-reward'],
+    spendIds: ['alice-after-sword', 'quest-reward'],
     outputs: [
         Output::ownedBy('shop', 850, 'payment-for-armor'),
         Output::ownedBy('alice', 50, 'alice-after-armor'),
@@ -133,7 +133,7 @@ echo "------------------------------\n";
 // Shop sells item with 5% tax (implicit fee)
 $shopBalance = 5000 + 200 + 850; // Initial + sword + armor
 $game = $game->apply(Tx::create(
-    inputIds: ['shop-inventory', 'payment-for-sword', 'payment-for-armor'],
+    spendIds: ['shop-inventory', 'payment-for-sword', 'payment-for-armor'],
     outputs: [
         Output::ownedBy('bob', 100, 'bob-potion'),
         Output::ownedBy('shop', 5645, 'shop-after-sale'), // 6050 - 100 - 5% tax
@@ -158,7 +158,7 @@ echo "--------------------------\n";
 echo "Alice tries to spend her starting gold again (already spent)...\n";
 try {
     $game->apply(Tx::create(
-        inputIds: ['alice-starting-gold'], // Already spent!
+        spendIds: ['alice-starting-gold'], // Already spent!
         outputs: [Output::ownedBy('alice', 1000, 'double-spend')],
         signedBy: 'alice',
         id: 'cheat-attempt',
@@ -217,7 +217,7 @@ echo "  Total fees: {$restoredGame->totalFeesCollected()}\n";
 echo "\nVerifying ownership survives save/load...\n";
 try {
     $restoredGame->apply(Tx::create(
-        inputIds: ['bob-after-trade'],
+        spendIds: ['bob-after-trade'],
         outputs: [Output::ownedBy('hacker', 400, 'hack')],
         signedBy: 'hacker',
         id: 'post-restore-hack',

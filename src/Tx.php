@@ -10,48 +10,48 @@ use InvalidArgumentException;
 final readonly class Tx
 {
     /**
-     * @param list<OutputId> $inputs
-     * @param list<Output>   $outputs
-     * @param list<string>   $proofs  Authorization proofs (signatures, etc.) indexed by input position
+     * @param list<OutputId> $spends  IDs of outputs being spent (consumed)
+     * @param list<Output>   $outputs New outputs being created
+     * @param list<string>   $proofs  Authorization proofs indexed by spend position
      */
     public function __construct(
         public TxId $id,
-        public array $inputs,
+        public array $spends,
         public array $outputs,
         public ?string $signedBy = null,
         public array $proofs = [],
     ) {
-        if ($inputs === []) {
-            throw new InvalidArgumentException('Tx must have at least one input');
+        if ($spends === []) {
+            throw new InvalidArgumentException('Tx must have at least one spend');
         }
 
         if ($outputs === []) {
             throw new InvalidArgumentException('Tx must have at least one output');
         }
 
-        DuplicateValidator::assertNoDuplicateInputIds($inputs);
+        DuplicateValidator::assertNoDuplicateSpendIds($spends);
         DuplicateValidator::assertNoDuplicateOutputIds($outputs);
     }
 
     /**
-     * @param list<string> $inputIds
-     * @param list<Output> $outputs
+     * @param list<string> $spendIds IDs of outputs to spend (consume)
+     * @param list<Output> $outputs  New outputs to create
      * @param list<string> $proofs   Authorization proofs indexed by input position
      */
     public static function create(
-        array $inputIds,
+        array $spendIds,
         array $outputs,
         ?string $signedBy = null,
         ?string $id = null,
         array $proofs = [],
     ): self {
-        $actualId = $id ?? IdGenerator::forTx($inputIds, $outputs);
+        $actualId = $id ?? IdGenerator::forTx($spendIds, $outputs);
 
         return new self(
             id: new TxId($actualId),
-            inputs: array_map(
-                static fn (string $inputId): OutputId => new OutputId($inputId),
-                $inputIds,
+            spends: array_map(
+                static fn (string $spendId): OutputId => new OutputId($spendId),
+                $spendIds,
             ),
             outputs: $outputs,
             signedBy: $signedBy,

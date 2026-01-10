@@ -66,7 +66,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         )->apply(Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [
                 Output::ownedBy('bob', 600, 'bob-funds'),
                 Output::ownedBy('alice', 390, 'alice-change'),
@@ -142,7 +142,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'genesis-output'),
         )->apply(Tx::create(
-            inputIds: ['genesis-output'],
+            spendIds: ['genesis-output'],
             outputs: [Output::ownedBy('bob', 1000, 'tx-output')],
             signedBy: 'alice',
             id: 'tx-1',
@@ -162,7 +162,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'funds'),
         )->apply(Tx::create(
-            inputIds: ['funds'],
+            spendIds: ['funds'],
             outputs: [Output::ownedBy('bob', 1000, 'bob-funds')],
             signedBy: 'alice',
             id: 'tx-1',
@@ -181,7 +181,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'spent-output'),
         )->apply(Tx::create(
-            inputIds: ['spent-output'],
+            spendIds: ['spent-output'],
             outputs: [Output::ownedBy('bob', 1000, 'new-output')],
             signedBy: 'alice',
         ));
@@ -413,7 +413,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'genesis-output'),
         )->apply(Tx::create(
-            inputIds: ['genesis-output'],
+            spendIds: ['genesis-output'],
             outputs: [
                 Output::ownedBy('bob', 600, 'bob-output'),
                 Output::ownedBy('alice', 400, 'alice-change'),
@@ -479,7 +479,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'funds'),
         )->apply(Tx::create(
-            inputIds: ['funds'],
+            spendIds: ['funds'],
             outputs: [Output::ownedBy('bob', 990, 'bob-funds')], // 10 fee
             signedBy: 'alice',
             id: 'low-fee-tx',
@@ -489,7 +489,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
             [Output::ownedBy('alice', 500, 'more-funds')],
             'cb-1',
         ))->apply(Tx::create(
-            inputIds: ['more-funds'],
+            spendIds: ['more-funds'],
             outputs: [Output::ownedBy('charlie', 450, 'charlie-funds')], // 50 fee
             signedBy: 'alice',
             id: 'high-fee-tx',

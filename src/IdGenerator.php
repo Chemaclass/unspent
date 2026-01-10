@@ -14,15 +14,15 @@ final class IdGenerator
     private const int RANDOM_BYTES = 16;
 
     /**
-     * Generate a deterministic ID from transaction content (inputs + outputs).
+     * Generate a deterministic ID from transaction content (spends + outputs).
      * Same content always produces the same ID.
      *
-     * @param list<string> $inputIds
+     * @param list<string> $spendIds
      * @param list<Output> $outputs
      */
-    public static function forTx(array $inputIds, array $outputs): string
+    public static function forTx(array $spendIds, array $outputs): string
     {
-        $data = implode('|', $inputIds) . '||' . self::serializeOutputs($outputs);
+        $data = implode('|', $spendIds) . '||' . self::serializeOutputs($outputs);
 
         return self::hash($data);
     }

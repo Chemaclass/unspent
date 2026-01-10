@@ -14,7 +14,7 @@ declare(strict_types=1);
 require_once __DIR__ . '/../vendor/autoload.php';
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
-use Chemaclass\Unspent\Exception\InsufficientInputsException;
+use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -55,7 +55,7 @@ echo "-------------------------------------------------\n";
 
 // Engineering allocates to sub-projects
 $company = $company->apply(Tx::create(
-    inputIds: ['eng-fy24-budget'],
+    spendIds: ['eng-fy24-budget'],
     outputs: [
         Output::ownedBy('engineering', 40_000, 'eng-backend-q1'),
         Output::ownedBy('engineering', 35_000, 'eng-frontend-q1'),
@@ -74,7 +74,7 @@ echo "  DevOps:   \$25,000\n";
 echo "\nFinance tries to reallocate engineering funds...\n";
 try {
     $company->apply(Tx::create(
-        inputIds: ['eng-backend-q1'],
+        spendIds: ['eng-backend-q1'],
         outputs: [Output::ownedBy('marketing', 40_000, 'unauthorized')],
         signedBy: 'finance',
         id: 'unauthorized-transfer',
@@ -93,7 +93,7 @@ echo "------------------------------------------\n";
 
 // Engineering transfers $10k to Marketing for a joint campaign
 $company = $company->apply(Tx::create(
-    inputIds: ['eng-backend-q1'],
+    spendIds: ['eng-backend-q1'],
     outputs: [
         Output::ownedBy('marketing', 10_000, 'mkt-joint-campaign'),
         Output::ownedBy('engineering', 30_000, 'eng-backend-q1-remaining'),
@@ -115,7 +115,7 @@ echo "-----------------------------------------------\n";
 
 // Operations transfers with 2% admin fee
 $company = $company->apply(Tx::create(
-    inputIds: ['ops-fy24-budget'],
+    spendIds: ['ops-fy24-budget'],
     outputs: [
         Output::ownedBy('hr', 14_700, 'hr-recruitment-budget'),
         Output::ownedBy('operations', 14_700, 'ops-remaining'),
@@ -139,7 +139,7 @@ echo "------------------------------------------\n";
 
 // Marketing consolidates all their budget lines
 $company = $company->apply(Tx::create(
-    inputIds: ['mkt-fy24-budget', 'mkt-joint-campaign'],
+    spendIds: ['mkt-fy24-budget', 'mkt-joint-campaign'],
     outputs: [
         Output::ownedBy('marketing', 60_000, 'mkt-consolidated'),
     ],
@@ -233,12 +233,12 @@ try {
     // HR has 20,000 + 14,700 = 34,700
     $hrTotal = 20_000 + 14_700;
     $company->apply(Tx::create(
-        inputIds: ['hr-fy24-budget', 'hr-recruitment-budget'],
+        spendIds: ['hr-fy24-budget', 'hr-recruitment-budget'],
         outputs: [Output::ownedBy('vendor', 50_000, 'over-budget')],
         signedBy: 'hr',
         id: 'overspend-attempt',
     ));
-} catch (InsufficientInputsException $e) {
+} catch (InsufficientSpendsException $e) {
     echo "  BLOCKED: {$e->getMessage()}\n";
 }
 echo "\n";

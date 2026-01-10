@@ -15,7 +15,7 @@ use Chemaclass\Unspent\Tx;
  */
 final readonly class NoLock implements OutputLock
 {
-    public function validate(Tx $tx, int $inputIndex): void
+    public function validate(Tx $tx, int $spendIndex): void
     {
         // No restrictions - anyone can spend
     }

@@ -94,7 +94,7 @@ final class CustomLockIntegrationTest extends TestCase
         $restored = Ledger::fromJson($ledger->toJson());
 
         $newLedger = $restored->apply(Tx::create(
-            inputIds: ['unlocked'],
+            spendIds: ['unlocked'],
             outputs: [Output::open(1000, 'spent')],
             signedBy: 'alice',
         ));
@@ -117,7 +117,7 @@ final class CustomLockIntegrationTest extends TestCase
         $this->expectException(AuthorizationException::class);
 
         $restored->apply(Tx::create(
-            inputIds: ['funds'],
+            spendIds: ['funds'],
             outputs: [Output::open(1000)],
             signedBy: 'bob',
         ));
@@ -132,7 +132,7 @@ final class CustomLockIntegrationTest extends TestCase
                 'original',
             ),
         )->apply(Tx::create(
-            inputIds: ['original'],
+            spendIds: ['original'],
             outputs: [Output::open(900, 'new')],
             signedBy: 'alice',
             id: 'tx-1',

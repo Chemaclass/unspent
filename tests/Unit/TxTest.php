@@ -15,11 +15,11 @@ use PHPUnit\Framework\TestCase;
 
 final class TxTest extends TestCase
 {
-    public function test_can_be_created_with_inputs_and_outputs(): void
+    public function test_can_be_created_with_spends_and_outputs(): void
     {
         $tx = new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('a'), new OutputId('b')],
+            spends: [new OutputId('a'), new OutputId('b')],
             outputs: [
                 new Output(new OutputId('c'), 100, new NoLock()),
                 new Output(new OutputId('d'), 50, new NoLock()),
@@ -27,18 +27,18 @@ final class TxTest extends TestCase
         );
 
         self::assertSame('tx1', $tx->id->value);
-        self::assertCount(2, $tx->inputs);
+        self::assertCount(2, $tx->spends);
         self::assertCount(2, $tx->outputs);
     }
 
-    public function test_must_have_at_least_one_input(): void
+    public function test_must_have_at_least_one_spend(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Tx must have at least one input');
+        $this->expectExceptionMessage('Tx must have at least one spend');
 
         new Tx(
             id: new TxId('tx1'),
-            inputs: [],
+            spends: [],
             outputs: [new Output(new OutputId('c'), 100, new NoLock())],
         );
     }
@@ -50,7 +50,7 @@ final class TxTest extends TestCase
 
         new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('a')],
+            spends: [new OutputId('a')],
             outputs: [],
         );
     }
@@ -59,7 +59,7 @@ final class TxTest extends TestCase
     {
         $tx = new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('a')],
+            spends: [new OutputId('a')],
             outputs: [
                 new Output(new OutputId('c'), 100, new NoLock()),
                 new Output(new OutputId('d'), 50, new NoLock()),
@@ -76,7 +76,7 @@ final class TxTest extends TestCase
 
         new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('a')],
+            spends: [new OutputId('a')],
             outputs: [
                 new Output(new OutputId('c'), 50, new NoLock()),
                 new Output(new OutputId('c'), 50, new NoLock()),
@@ -84,14 +84,14 @@ final class TxTest extends TestCase
         );
     }
 
-    public function test_inputs_must_have_unique_ids(): void
+    public function test_spends_must_have_unique_ids(): void
     {
         $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage("Duplicate input id: 'a'");
+        $this->expectExceptionMessage("Duplicate spend id: 'a'");
 
         new Tx(
             id: new TxId('tx1'),
-            inputs: [new OutputId('a'), new OutputId('a')],
+            spends: [new OutputId('a'), new OutputId('a')],
             outputs: [new Output(new OutputId('c'), 100, new NoLock())],
         );
     }
@@ -99,7 +99,7 @@ final class TxTest extends TestCase
     public function test_create_factory_method(): void
     {
         $tx = Tx::create(
-            inputIds: ['a', 'b'],
+            spendIds: ['a', 'b'],
             outputs: [
                 Output::open(100, 'c'),
                 Output::open(50, 'd'),
@@ -108,9 +108,9 @@ final class TxTest extends TestCase
         );
 
         self::assertSame('tx1', $tx->id->value);
-        self::assertCount(2, $tx->inputs);
-        self::assertSame('a', $tx->inputs[0]->value);
-        self::assertSame('b', $tx->inputs[1]->value);
+        self::assertCount(2, $tx->spends);
+        self::assertSame('a', $tx->spends[0]->value);
+        self::assertSame('b', $tx->spends[1]->value);
         self::assertCount(2, $tx->outputs);
         self::assertSame(150, $tx->totalOutputAmount());
     }
@@ -118,7 +118,7 @@ final class TxTest extends TestCase
     public function test_create_with_signed_by(): void
     {
         $tx = Tx::create(
-            inputIds: ['alice-funds'],
+            spendIds: ['alice-funds'],
             outputs: [Output::ownedBy('bob', 100)],
             signedBy: 'alice',
             id: 'tx1',
@@ -130,7 +130,7 @@ final class TxTest extends TestCase
     public function test_create_with_proofs(): void
     {
         $tx = Tx::create(
-            inputIds: ['secure-funds'],
+            spendIds: ['secure-funds'],
             outputs: [Output::open(100)],
             id: 'tx1',
             proofs: ['signature-1', 'signature-2'],
@@ -144,7 +144,7 @@ final class TxTest extends TestCase
     public function test_create_with_auto_generated_id(): void
     {
         $tx = Tx::create(
-            inputIds: ['a', 'b'],
+            spendIds: ['a', 'b'],
             outputs: [
                 Output::open(100, 'c'),
                 Output::open(50, 'd'),
@@ -158,7 +158,7 @@ final class TxTest extends TestCase
     public function test_same_content_generates_same_id(): void
     {
         $tx1 = Tx::create(
-            inputIds: ['a', 'b'],
+            spendIds: ['a', 'b'],
             outputs: [
                 Output::open(100, 'c'),
                 Output::open(50, 'd'),
@@ -166,7 +166,7 @@ final class TxTest extends TestCase
         );
 
         $tx2 = Tx::create(
-            inputIds: ['a', 'b'],
+            spendIds: ['a', 'b'],
             outputs: [
                 Output::open(100, 'c'),
                 Output::open(50, 'd'),
@@ -179,12 +179,12 @@ final class TxTest extends TestCase
     public function test_different_content_generates_different_id(): void
     {
         $tx1 = Tx::create(
-            inputIds: ['a'],
+            spendIds: ['a'],
             outputs: [Output::open(100, 'c')],
         );
 
         $tx2 = Tx::create(
-            inputIds: ['b'],
+            spendIds: ['b'],
             outputs: [Output::open(100, 'c')],
         );
 
@@ -194,13 +194,13 @@ final class TxTest extends TestCase
     public function test_signed_by_does_not_affect_id_generation(): void
     {
         $tx1 = Tx::create(
-            inputIds: ['a'],
+            spendIds: ['a'],
             outputs: [Output::open(100, 'c')],
             signedBy: 'alice',
         );
 
         $tx2 = Tx::create(
-            inputIds: ['a'],
+            spendIds: ['a'],
             outputs: [Output::open(100, 'c')],
             signedBy: 'bob',
         );

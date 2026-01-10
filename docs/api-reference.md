@@ -59,7 +59,7 @@ A transaction that consumes outputs and creates new ones.
 
 ```php
 Tx::create(
-    array $inputIds,       // list<string> - IDs of outputs to consume
+    array $spendIds,       // list<string> - IDs of outputs to spend
     array $outputs,        // list<Output> - New outputs to create
     ?string $signedBy = null,  // Authorization identity
     ?string $id = null,    // Transaction ID (auto-generated if null)
@@ -71,7 +71,7 @@ Tx::create(
 
 ```php
 $tx->id;        // TxId
-$tx->inputs;    // list<OutputId>
+$tx->spends;    // list<OutputId> - IDs of outputs being spent
 $tx->outputs;   // list<Output>
 $tx->signedBy;  // ?string
 $tx->proofs;    // list<string>
@@ -560,7 +560,7 @@ All extend `UnspentException` which extends `RuntimeException`.
 
 ```php
 OutputAlreadySpentException::class   // Input not in unspent set
-InsufficientInputsException::class   // Outputs exceed inputs
+InsufficientSpendsException::class   // Outputs exceed spends
 DuplicateOutputIdException::class    // Output ID already exists
 DuplicateTxException::class          // Tx ID already used
 GenesisNotAllowedException::class    // Genesis on non-empty ledger

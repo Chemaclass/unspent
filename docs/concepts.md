@@ -58,7 +58,7 @@ A **Tx** (transaction) consumes existing outputs and creates new ones.
 
 ```php
 Tx::create(
-    inputIds: ['alice-funds'],           // Outputs to consume
+    spendIds: ['alice-funds'],           // Outputs to consume
     outputs: [                            // New outputs to create
         Output::ownedBy('bob', 600),
         Output::ownedBy('alice', 400),
@@ -81,7 +81,7 @@ Combine multiple outputs in a single spend:
 
 ```php
 Tx::create(
-    inputIds: ['alice-funds-1', 'alice-funds-2'],  // Combine
+    spendIds: ['alice-funds-1', 'alice-funds-2'],  // Combine
     outputs: [Output::ownedBy('alice', 1500)],     // Into one
     signedBy: 'alice',
 );
@@ -93,7 +93,7 @@ Split value to multiple recipients:
 
 ```php
 Tx::create(
-    inputIds: ['alice-funds'],
+    spendIds: ['alice-funds'],
     outputs: [
         Output::ownedBy('bob', 300),
         Output::ownedBy('charlie', 300),
@@ -151,7 +151,7 @@ The library enforces invariants and throws specific exceptions:
 | Exception | Cause |
 |-----------|-------|
 | `OutputAlreadySpentException` | Input doesn't exist or was already spent |
-| `InsufficientInputsException` | Outputs exceed inputs |
+| `InsufficientSpendsException` | Outputs exceed spends |
 | `DuplicateOutputIdException` | Output ID already exists |
 | `DuplicateTxException` | Tx ID already used |
 | `GenesisNotAllowedException` | Adding genesis to non-empty ledger |

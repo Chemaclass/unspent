@@ -7,7 +7,7 @@ namespace Chemaclass\UnspentTests\Unit;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
-use Chemaclass\Unspent\Exception\InsufficientInputsException;
+use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Exception\UnspentException;
 use Chemaclass\Unspent\Ledger;
@@ -26,7 +26,7 @@ final class ExceptionHierarchyTest extends TestCase
         self::assertTrue(is_a(DuplicateTxException::class, UnspentException::class, true));
         self::assertTrue(is_a(GenesisNotAllowedException::class, UnspentException::class, true));
         self::assertTrue(is_a(OutputAlreadySpentException::class, UnspentException::class, true));
-        self::assertTrue(is_a(InsufficientInputsException::class, UnspentException::class, true));
+        self::assertTrue(is_a(InsufficientSpendsException::class, UnspentException::class, true));
     }
 
     public function test_unspent_exception_extends_runtime_exception(): void
@@ -63,20 +63,20 @@ final class ExceptionHierarchyTest extends TestCase
                 ->addGenesis(Output::open(100, 'a'))
                 ->apply(new Tx(
                     id: new TxId('tx1'),
-                    inputs: [new OutputId('nonexistent')],
+                    spends: [new OutputId('nonexistent')],
                     outputs: [Output::open(100, 'b')],
                 ));
         } catch (UnspentException $e) {
             $caughtExceptions[] = $e::class;
         }
 
-        // Test InsufficientInputsException (outputs exceed inputs)
+        // Test InsufficientSpendsException (outputs exceed spends)
         try {
             Ledger::empty()
                 ->addGenesis(Output::open(100, 'a'))
                 ->apply(new Tx(
                     id: new TxId('tx1'),
-                    inputs: [new OutputId('a')],
+                    spends: [new OutputId('a')],
                     outputs: [Output::open(150, 'b')],
                 ));
         } catch (UnspentException $e) {
@@ -87,6 +87,6 @@ final class ExceptionHierarchyTest extends TestCase
         self::assertContains(DuplicateOutputIdException::class, $caughtExceptions);
         self::assertContains(GenesisNotAllowedException::class, $caughtExceptions);
         self::assertContains(OutputAlreadySpentException::class, $caughtExceptions);
-        self::assertContains(InsufficientInputsException::class, $caughtExceptions);
+        self::assertContains(InsufficientSpendsException::class, $caughtExceptions);
     }
 }

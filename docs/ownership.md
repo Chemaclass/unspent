@@ -25,7 +25,7 @@ $ledger = Ledger::withGenesis(
 
 // Alice spends her output
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['alice-funds'],
+    spendIds: ['alice-funds'],
     outputs: [
         Output::ownedBy('bob', 600),
         Output::ownedBy('alice', 400),
@@ -35,7 +35,7 @@ $ledger = $ledger->apply(Tx::create(
 
 // Wrong signer throws AuthorizationException
 $ledger->apply(Tx::create(
-    inputIds: ['bob-funds'],
+    spendIds: ['bob-funds'],
     outputs: [Output::open(500)],
     signedBy: 'alice',  // Bob owns this!
 )); // Throws: "Output owned by 'bob', but spend signed by 'alice'"
@@ -71,7 +71,7 @@ $signature = base64_encode(
 );
 
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['secure-funds'],
+    spendIds: ['secure-funds'],
     outputs: [Output::signedBy($publicKey, 900)],
     proofs: [$signature],  // Signature at index 0 for input 0
     id: $spendId,
@@ -93,7 +93,7 @@ $aliceSig = base64_encode(sodium_crypto_sign_detached($spendId, $alicePrivKey));
 $bobSig = base64_encode(sodium_crypto_sign_detached($spendId, $bobPrivKey));
 
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['alice-funds', 'bob-funds'],
+    spendIds: ['alice-funds', 'bob-funds'],
     outputs: [Output::open(800)],
     proofs: [$aliceSig, $bobSig],  // Index matches input order
     id: $spendId,
@@ -116,7 +116,7 @@ Output::open(1000, 'public-pool')
 
 // Spending requires no authorization
 $ledger->apply(Tx::create(
-    inputIds: ['public-pool'],
+    spendIds: ['public-pool'],
     outputs: [Output::ownedBy('finder', 1000)],
     // No signedBy needed
 ));
@@ -238,7 +238,7 @@ $restored = Ledger::fromJson(file_get_contents('ledger.json'));
 
 // Ownership still enforced
 $restored->apply(Tx::create(
-    inputIds: ['alice-funds'],
+    spendIds: ['alice-funds'],
     outputs: [Output::open(1000)],
     signedBy: 'bob',  // Still throws!
 ));

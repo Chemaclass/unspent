@@ -26,7 +26,7 @@ final class LedgerIntegrationTest extends TestCase
 
         // Apply a spend with implicit fee (1000 -> 600 + 390 = 990, fee = 10)
         $ledger = $ledger->apply(Tx::create(
-            inputIds: ['genesis-1'],
+            spendIds: ['genesis-1'],
             outputs: [
                 Output::open(600, 'alice'),
                 Output::open(390, 'bob'),
@@ -69,17 +69,17 @@ final class LedgerIntegrationTest extends TestCase
         $ledger = Ledger::empty()
             ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(Tx::create(
-                inputIds: ['genesis'],
+                spendIds: ['genesis'],
                 outputs: [Output::open(990, 'a')],
                 id: 'tx-1',
             ))
             ->apply(Tx::create(
-                inputIds: ['a'],
+                spendIds: ['a'],
                 outputs: [Output::open(980, 'b')],
                 id: 'tx-2',
             ))
             ->apply(Tx::create(
-                inputIds: ['b'],
+                spendIds: ['b'],
                 outputs: [Output::open(970, 'c')],
                 id: 'tx-3',
             ));
@@ -108,7 +108,7 @@ final class LedgerIntegrationTest extends TestCase
                 Output::open(300, 'c'),
             )
             ->apply(Tx::create(
-                inputIds: ['a', 'b', 'c'],
+                spendIds: ['a', 'b', 'c'],
                 outputs: [Output::open(600, 'combined')],
                 id: 'combine',
             ));

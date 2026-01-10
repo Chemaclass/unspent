@@ -22,7 +22,7 @@ $ledger = Ledger::withGenesis(
 
 // Transfer value (alice -> bob, with change back to alice)
 $ledger = $ledger->apply(Tx::create(
-    inputIds: ['alice-funds'],
+    spendIds: ['alice-funds'],
     outputs: [
         Output::ownedBy('bob', 600, 'bob-funds'),
         Output::ownedBy('alice', 390, 'alice-change'),  // 10 goes to fees
