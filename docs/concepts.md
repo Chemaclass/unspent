@@ -1,103 +1,96 @@
 # Core Concepts
 
-This document explains the fundamental concepts behind the Unspent library.
+## The Cash Register Model
 
-## The UTXO Model
+Imagine tracking money in your app. The typical approach:
 
-UTXO stands for **Unspent Transaction Output**. It's how Bitcoin tracks ownership of value.
+```php
+$balances = ['alice' => 500, 'bob' => 300];
+$balances['alice'] -= 100;
+$balances['bob'] += 100;
+```
 
-Instead of maintaining account balances like a bank (`alice: 500`), the UTXO model tracks individual "chunks" of value. Each chunk:
+Simple, but problematic. Where did Alice's 500 come from? Can you prove she had it? What if two processes update simultaneously?
 
-- Has a specific amount
-- Has an owner (via a lock)
-- Can only be spent once
-- When spent, creates new chunks
+**Unspent** takes a different approach. Instead of tracking balances, it tracks individual "chunks" of value - like physical bills in a cash register.
 
-Think of it like physical cash: you can't split a $20 bill, you spend it and get change back as new bills.
+```php
+// Alice has a 500-unit "bill"
+$ledger = Ledger::withGenesis(Output::ownedBy('alice', 500, 'alice-bill'));
 
-### Why UTXO?
+// She "spends" it and gets "change" back
+$ledger = $ledger->apply(Tx::create(
+    spendIds: ['alice-bill'],     // This bill is now gone
+    outputs: [
+        Output::ownedBy('bob', 100),   // Bob gets 100
+        Output::ownedBy('alice', 400), // Alice gets change
+    ],
+    signedBy: 'alice',
+));
+```
 
-| Traditional Balance | UTXO Model |
-|---------------------|------------|
-| Mutable state | Immutable history |
-| "Trust me, it's 500" | Provable chain of ownership |
-| Race conditions possible | Double-spend impossible |
-| Audit = reconstruct from logs | Audit = verify the chain |
+The original 500-unit "bill" no longer exists. It's been spent. Alice now has a new 400-unit "bill", and Bob has a 100-unit "bill".
 
 ## Outputs
 
-An **Output** is a chunk of value with ownership. It's the fundamental unit in the system.
+An **Output** is a chunk of value. It has:
+
+- **Amount** - How much it's worth
+- **Lock** - Who can spend it
+- **ID** - Unique identifier
 
 ```php
-// Three ways to create outputs
-Output::ownedBy('alice', 1000)           // Named owner (server-side auth)
-Output::signedBy($publicKey, 1000)       // Crypto lock (trustless)
-Output::open(1000)                        // No lock (anyone can spend)
+Output::ownedBy('alice', 1000)              // Alice owns it
+Output::ownedBy('alice', 1000, 'my-id')     // With custom ID
+Output::signedBy($publicKey, 1000)          // Crypto-locked
+Output::open(1000)                           // Anyone can spend
 ```
 
-Every output has:
-
-- **ID** - Unique identifier (auto-generated or explicit)
-- **Amount** - Positive integer value
-- **Lock** - Determines who can spend it
-
-### Output IDs
-
-IDs can be explicit or auto-generated:
-
-```php
-Output::ownedBy('alice', 1000, 'my-custom-id')  // Explicit
-Output::ownedBy('alice', 1000)                   // Auto-generated (32-char hex)
-```
-
-Auto-generated IDs are deterministic based on content, so identical outputs created separately will have different IDs (randomness is included).
+Think of each output as a banknote with the owner's name written on it.
 
 ## Transactions
 
-A **Tx** (transaction) consumes existing outputs and creates new ones.
+A **Tx** spends existing outputs and creates new ones.
 
 ```php
 Tx::create(
-    spendIds: ['alice-funds'],           // Outputs to consume
-    outputs: [                            // New outputs to create
+    spendIds: ['alice-funds'],    // What to spend
+    outputs: [                     // What to create
         Output::ownedBy('bob', 600),
         Output::ownedBy('alice', 400),
     ],
-    signedBy: 'alice',                   // Authorization
-    id: 'tx-001',                        // Optional transaction ID
+    signedBy: 'alice',            // Who's authorizing
 );
 ```
 
-### Rules
+**Rules:**
 
-1. **Inputs must exist** - You can only spend unspent outputs
-2. **Inputs must be authorized** - The signer must match the lock
-3. **Outputs <= Inputs** - Can't create value (the gap is the fee)
-4. **No duplicate IDs** - Output IDs must be unique
+1. You can only spend outputs that exist and haven't been spent
+2. You must be authorized to spend them (signer matches lock)
+3. You can't create more value than you spend
+4. Any difference becomes a fee (value removed from circulation)
 
-### Multiple Inputs
+### Combining and Splitting
 
-Combine multiple outputs in a single spend:
+Combine multiple outputs:
 
 ```php
 Tx::create(
-    spendIds: ['alice-funds-1', 'alice-funds-2'],  // Combine
-    outputs: [Output::ownedBy('alice', 1500)],     // Into one
+    spendIds: ['alice-100', 'alice-200'], // 300 total
+    outputs: [Output::ownedBy('alice', 300, 'alice-combined')],
     signedBy: 'alice',
 );
 ```
 
-### Multiple Outputs
-
-Split value to multiple recipients:
+Split to multiple recipients:
 
 ```php
 Tx::create(
     spendIds: ['alice-funds'],
     outputs: [
-        Output::ownedBy('bob', 300),
-        Output::ownedBy('charlie', 300),
-        Output::ownedBy('alice', 400),  // Change
+        Output::ownedBy('bob', 100),
+        Output::ownedBy('charlie', 100),
+        Output::ownedBy('alice', 800), // change
     ],
     signedBy: 'alice',
 );
@@ -105,19 +98,18 @@ Tx::create(
 
 ## Ledger
 
-The **Ledger** is the immutable state container. Every operation returns a new ledger.
+The **Ledger** holds all state. It's immutable - every operation returns a new ledger.
 
 ```php
 $v1 = Ledger::empty();
 $v2 = $v1->addGenesis(Output::ownedBy('alice', 1000));
-$v3 = $v2->apply($spend);
-
-// $v1, $v2, $v3 are all different, immutable states
+$v3 = $v2->apply($tx);
+// $v1, $v2, $v3 are separate, immutable snapshots
 ```
 
 ### Genesis
 
-Genesis outputs are the initial value in the system. They can only be added to an empty ledger:
+Initial value enters via genesis:
 
 ```php
 $ledger = Ledger::withGenesis(
@@ -126,67 +118,49 @@ $ledger = Ledger::withGenesis(
 );
 ```
 
-### Querying State
+### Querying
 
 ```php
-$ledger->totalUnspentAmount();           // Total value in circulation
-$ledger->unspent()->count();             // Number of UTXOs
-$ledger->isTxApplied($txId);             // Check if tx exists
+$ledger->totalUnspentAmount();           // Total value
+$ledger->unspent()->count();             // Number of outputs
+$ledger->unspent()->get(new OutputId('x')); // Get specific output
 
-// Access specific outputs
-$unspent = $ledger->unspent();
-$unspent->contains(new OutputId('x'));   // Check existence
-$unspent->get(new OutputId('x'));        // Get output or null
-
-// Iterate
 foreach ($ledger->unspent() as $id => $output) {
     echo "{$id}: {$output->amount}\n";
 }
 ```
 
-## Validation & Errors
+## Errors
 
-The library enforces invariants and throws specific exceptions:
+The library prevents invalid operations:
 
-| Exception | Cause |
-|-----------|-------|
-| `OutputAlreadySpentException` | Input doesn't exist or was already spent |
-| `InsufficientSpendsException` | Outputs exceed spends |
+| Error | Cause |
+|-|-|
+| `OutputAlreadySpentException` | Trying to spend something that doesn't exist or is already spent |
+| `InsufficientSpendsException` | Creating more value than you're spending |
 | `DuplicateOutputIdException` | Output ID already exists |
-| `DuplicateTxException` | Tx ID already used |
-| `GenesisNotAllowedException` | Adding genesis to non-empty ledger |
-| `AuthorizationException` | Signer doesn't match lock |
-
-All exceptions extend `UnspentException` for easy catching:
+| `AuthorizationException` | Signer doesn't match the lock |
 
 ```php
 try {
-    $ledger = $ledger->apply($spend);
+    $ledger = $ledger->apply($tx);
 } catch (UnspentException $e) {
     // Handle any domain error
 }
 ```
 
-## History & Provenance
+## History
 
-The ledger tracks where every output came from and where it went:
+Every output knows where it came from:
 
 ```php
-// Where did this output come from?
-$ledger->outputCreatedBy(new OutputId('bob-funds'));  // 'tx-001' or 'genesis'
-
-// Where did it go?
-$ledger->outputSpentBy(new OutputId('alice-funds'));  // 'tx-001' or null
-
-// Get output even if spent
-$ledger->getOutput(new OutputId('spent-output'));     // Output or null
+$ledger->outputCreatedBy(new OutputId('x')); // 'tx-001' or 'genesis'
+$ledger->outputSpentBy(new OutputId('x'));   // 'tx-002' or null
+$ledger->getOutput(new OutputId('x'));       // Output data (even if spent)
 ```
-
-See [History & Provenance](history.md) for full details.
 
 ## Next Steps
 
-- [Ownership](ownership.md) - Learn about locks and authorization
-- [History & Provenance](history.md) - Trace outputs through transactions
-- [Fees & Minting](fees-and-minting.md) - Implicit fees and creating new value
-- [API Reference](api-reference.md) - Complete method reference
+- [Ownership](ownership.md) - How locks and authorization work
+- [History](history.md) - Full provenance tracking
+- [Fees & Minting](fees-and-minting.md) - Fees and creating new value

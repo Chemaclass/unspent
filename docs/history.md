@@ -1,70 +1,48 @@
 # History & Provenance
 
-The library tracks the complete history of every output, allowing you to trace where value came from and where it went.
+Every output tracks where it came from and where it went.
 
-## Output Provenance
-
-Every output has provenance information:
-
-- **Created by** - Which transaction (or genesis) created it
-- **Spent by** - Which transaction consumed it (if spent)
+## Query Provenance
 
 ```php
-// Query provenance
-$ledger->outputCreatedBy(new OutputId('bob-funds'));  // 'tx-001' or 'genesis'
-$ledger->outputSpentBy(new OutputId('alice-funds'));  // 'tx-001' or null if unspent
+// Who created this output?
+$ledger->outputCreatedBy(new OutputId('x')); // 'tx-001' or 'genesis'
+
+// Who spent it?
+$ledger->outputSpentBy(new OutputId('x'));   // 'tx-002' or null
+
+// Get output data (even if spent)
+$ledger->getOutput(new OutputId('x'));       // Output or null
 ```
 
-## Accessing Spent Outputs
-
-Even after an output is spent, you can still retrieve its details:
-
-```php
-// Get output data even if spent
-$output = $ledger->getOutput(new OutputId('spent-output'));
-$output->amount;  // Still accessible
-$output->lock;    // Still accessible
-
-// Check if output exists (spent or unspent)
-$ledger->outputExists(new OutputId('any-output'));  // true/false
-```
-
-## Tracing History
-
-Get the complete history of an output with the `OutputHistory` DTO:
+## Full History DTO
 
 ```php
 $history = $ledger->outputHistory(new OutputId('bob-funds'));
 
-if ($history !== null) {
-    $history->id;         // OutputId
-    $history->amount;     // 600
-    $history->lock;       // OutputLock object
-    $history->createdBy;  // 'tx-001' or 'genesis'
-    $history->spentBy;    // 'tx-002' or null if unspent
-    $history->status;     // OutputStatus enum (SPENT or UNSPENT)
+$history->id;         // OutputId
+$history->amount;     // 600
+$history->lock;       // OutputLock
+$history->createdBy;  // 'tx-001' or 'genesis'
+$history->spentBy;    // 'tx-002' or null
+$history->status;     // OutputStatus::SPENT or UNSPENT
 
-    // Convenience methods
-    $history->isSpent();    // true
-    $history->isUnspent();  // false
-    $history->isGenesis();  // true if createdBy === 'genesis'
-
-    // Serialize if needed
-    $history->toArray();    // ['id' => ..., 'amount' => ..., ...]
-}
+// Convenience methods
+$history->isSpent();
+$history->isUnspent();
+$history->isGenesis();
 ```
 
-## Chain of Custody Example
+## Chain of Custody
 
-Track value through multiple transactions:
+Trace value through multiple transactions:
 
 ```php
-// Genesis: Alice gets 1000
 $ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-genesis'),
 );
 
-// TX1: Alice sends 600 to Bob
+// TX1: Alice -> Bob
 $ledger = $ledger->apply(Tx::create(
     spendIds: ['alice-genesis'],
     outputs: [
@@ -75,84 +53,38 @@ $ledger = $ledger->apply(Tx::create(
     id: 'tx-001',
 ));
 
-// TX2: Bob sends 500 to Charlie
+// TX2: Bob -> Charlie
 $ledger = $ledger->apply(Tx::create(
     spendIds: ['bob-funds'],
-    outputs: [
-        Output::ownedBy('charlie', 500, 'charlie-funds'),
-        Output::ownedBy('bob', 100, 'bob-change'),
-    ],
+    outputs: [Output::ownedBy('charlie', 600, 'charlie-funds')],
     signedBy: 'bob',
     id: 'tx-002',
 ));
 
-// Trace the history
-$ledger->outputCreatedBy(new OutputId('alice-genesis'));  // 'genesis'
-$ledger->outputSpentBy(new OutputId('alice-genesis'));    // 'tx-001'
+// Trace the chain
+$ledger->outputCreatedBy(new OutputId('alice-genesis')); // 'genesis'
+$ledger->outputSpentBy(new OutputId('alice-genesis'));   // 'tx-001'
 
-$ledger->outputCreatedBy(new OutputId('bob-funds'));      // 'tx-001'
-$ledger->outputSpentBy(new OutputId('bob-funds'));        // 'tx-002'
+$ledger->outputCreatedBy(new OutputId('bob-funds'));     // 'tx-001'
+$ledger->outputSpentBy(new OutputId('bob-funds'));       // 'tx-002'
 
-$ledger->outputCreatedBy(new OutputId('charlie-funds'));  // 'tx-002'
-$ledger->outputSpentBy(new OutputId('charlie-funds'));    // null (unspent)
-```
-
-## Audit Trail
-
-The provenance system enables complete audit trails:
-
-```php
-// "Prove that charlie-funds came from alice-genesis"
-function traceOrigin(Ledger $ledger, OutputId $outputId): array
-{
-    $chain = [];
-    $current = $outputId;
-
-    while ($current !== null) {
-        $createdBy = $ledger->outputCreatedBy($current);
-        $chain[] = [
-            'output' => $current->value,
-            'createdBy' => $createdBy,
-        ];
-
-        if ($createdBy === 'genesis') {
-            break;
-        }
-
-        // Find the input that led to this transaction
-        // (requires knowing the spend's inputs)
-        break; // Simplified - full implementation would traverse back
-    }
-
-    return $chain;
-}
+$ledger->outputCreatedBy(new OutputId('charlie-funds')); // 'tx-002'
+$ledger->outputSpentBy(new OutputId('charlie-funds'));   // null (unspent)
 ```
 
 ## Serialization
 
-History is preserved through serialization:
+History survives save/restore:
 
 ```php
 $json = $ledger->toJson();
 $restored = Ledger::fromJson($json);
 
-// History still available
-$restored->outputCreatedBy(new OutputId('bob-funds'));  // 'tx-001'
-$restored->outputSpentBy(new OutputId('bob-funds'));    // 'tx-002'
-$restored->getOutput(new OutputId('bob-funds'));        // Output object
+$restored->outputCreatedBy(new OutputId('bob-funds')); // 'tx-001'
+$restored->getOutput(new OutputId('bob-funds'));       // Output object
 ```
-
-## Storage Considerations
-
-The history tracking adds storage for:
-
-- `outputCreatedBy` - Map of outputId → spendId (or 'genesis')
-- `outputSpentBy` - Map of outputId → spendId
-- `spentOutputs` - Map of outputId → output data
-
-This grows with the total number of outputs ever created, not just current UTXOs.
 
 ## Next Steps
 
-- [Core Concepts](concepts.md) - Understanding the UTXO model
+- [Core Concepts](concepts.md) - The UTXO model explained
 - [API Reference](api-reference.md) - Complete method reference

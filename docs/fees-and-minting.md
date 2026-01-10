@@ -2,167 +2,96 @@
 
 ## Implicit Fees
 
-Fees work like Bitcoin: the difference between inputs and outputs is the fee.
+Fees are the difference between inputs and outputs:
 
 ```php
 // Input: 1000, Output: 990 = Fee: 10
 $ledger = $ledger->apply(Tx::create(
-    spendIds: ['alice-funds'],  // Worth 1000
+    spendIds: ['alice-funds'],     // Worth 1000
     outputs: [Output::ownedBy('bob', 990)],
     signedBy: 'alice',
 ));
 
-$ledger->feeForTx(new TxId('tx-id'));  // 10
+$ledger->feeForTx(new TxId('...')); // 10
 ```
 
-### No Explicit Fee Field
+No explicit fee field. Just output less than you input.
 
-You don't specify fees explicitly. Just output less than you input:
-
-```php
-// 1000 in -> 600 + 350 out = 50 fee
-Tx::create(
-    spendIds: ['funds'],        // 1000
-    outputs: [
-        Output::ownedBy('bob', 600),
-        Output::ownedBy('alice', 350),  // Change
-    ],
-    signedBy: 'alice',
-);
-```
-
-### Zero Fees
-
-Fees can be zero if inputs equal outputs:
+### Query Fees
 
 ```php
-// 1000 in -> 1000 out = 0 fee
-Tx::create(
-    spendIds: ['funds'],        // 1000
-    outputs: [
-        Output::ownedBy('bob', 600),
-        Output::ownedBy('alice', 400),
-    ],
-    signedBy: 'alice',
-);
-```
-
-### Querying Fees
-
-```php
-// Fee for specific spend
-$ledger->feeForTx(new TxId('tx-001'));  // int or null if not found
-
-// Total fees collected
-$ledger->totalFeesCollected();  // Sum of all fees
-
-// All fees as map
-$ledger->allTxFees();  // ['tx-001' => 10, 'tx-002' => 5, ...]
+$ledger->feeForTx(new TxId('tx-001')); // Fee for specific tx
+$ledger->totalFeesCollected();          // Sum of all fees
+$ledger->allTxFees();                   // ['tx-001' => 10, ...]
 ```
 
 ### What Happens to Fees?
 
-Fees are "burned" - removed from circulation. The library tracks them but doesn't assign them anywhere. In a real system, you might:
+Fees are removed from circulation. Your app can:
 
-- Redistribute to miners/validators via coinbase
-- Burn them permanently (deflationary)
-- Collect them in a treasury
+- Burn them (deflationary)
+- Redistribute via coinbase (like miners)
+- Collect in a treasury
 
-## Coinbase Transactions (Minting)
+## Minting (Coinbase)
 
-Coinbase transactions create new value out of nothing. Like Bitcoin miner rewards.
+Create new value out of nothing:
 
 ```php
-// Mint 50 units (no inputs required)
-$ledger = Ledger::empty()->applyCoinbase(CoinbaseTx::create([
-    Output::ownedBy('miner', 50, 'block-reward'),
-], 'block-1'));
+$ledger = Ledger::empty()->applyCoinbase(CoinbaseTx::create(
+    outputs: [Output::ownedBy('miner', 50, 'block-reward')],
+    id: 'block-1',
+));
 
-$ledger->totalMinted();  // 50
+$ledger->totalMinted(); // 50
 ```
 
-### Coinbase vs Regular Spends
+### Coinbase vs Regular Transactions
 
-| Aspect | Regular Spend | Coinbase |
-|--------|---------------|----------|
+| | Regular Tx | Coinbase |
+|-|-|-|
 | Inputs | Required | None |
-| Value source | Existing outputs | Created |
-| Fees | Can have fees | No fees |
+| Value | From existing outputs | Created |
 | Method | `apply()` | `applyCoinbase()` |
 
-### Multiple Outputs
-
-Coinbase can create multiple outputs:
+### Query Coinbase
 
 ```php
-$ledger->applyCoinbase(CoinbaseTx::create([
-    Output::ownedBy('miner', 45, 'block-reward'),
-    Output::ownedBy('treasury', 5, 'dev-fund'),
-], 'block-1'));
+$ledger->isCoinbase(new TxId('block-1'));     // true
+$ledger->coinbaseAmount(new TxId('block-1')); // 50
+$ledger->totalMinted();                       // All coinbases
 ```
 
-### Querying Coinbase Info
+## Economic Models
+
+### Deflationary (burn fees)
 
 ```php
-$ledger->isCoinbase(new TxId('block-1'));       // true
-$ledger->coinbaseAmount(new TxId('block-1'));   // 50 (total minted)
-$ledger->totalMinted();                             // Sum of all coinbases
-```
-
-### Spending Minted Coins
-
-Coinbase outputs work like any other output:
-
-```php
-$ledger = Ledger::empty()
-    ->applyCoinbase(CoinbaseTx::create([
-        Output::ownedBy('miner', 50, 'reward'),
-    ], 'block-1'))
-    ->apply(Tx::create(
-        spendIds: ['reward'],
-        outputs: [Output::ownedBy('alice', 45)],
-        signedBy: 'miner',
-    ));
-
-$ledger->totalMinted();        // 50
-$ledger->totalFeesCollected(); // 5
-$ledger->totalUnspentAmount(); // 45
-```
-
-## Economic Model Examples
-
-### Deflationary (Burn Fees)
-
-```php
-// Fees disappear, reducing supply over time
-$ledger->totalMinted();        // 1000 (initial supply)
+$ledger->totalMinted();        // 1000
 $ledger->totalFeesCollected(); // 50 (burned)
-$ledger->totalUnspentAmount(); // 950 (circulating)
+$ledger->totalUnspentAmount(); // 950
 ```
 
-### Inflationary (Block Rewards)
+### Inflationary (block rewards)
 
 ```php
-// New value enters via coinbase
 foreach ($blocks as $block) {
     $ledger = $ledger->applyCoinbase(CoinbaseTx::create([
         Output::ownedBy($block->miner, 50),
     ], $block->id));
 }
-$ledger->totalMinted();  // Grows with each block
 ```
 
-### Fixed Supply
+### Fixed supply
 
 ```php
-// All value created at genesis, no coinbase
 $ledger = Ledger::withGenesis(
     Output::ownedBy('treasury', 21_000_000, 'total-supply'),
 );
-// Never call applyCoinbase() - supply is fixed
+// Never call applyCoinbase()
 ```
 
 ## Next Steps
 
-- [Persistence](persistence.md) - Save and restore ledger state
+- [Persistence](persistence.md) - Save and restore state
 - [API Reference](api-reference.md) - Complete method reference

@@ -1,152 +1,107 @@
-# Ownership & Authorization
+# Ownership
 
-Every output has a **lock** that determines who can spend it. The library provides three built-in locks and supports custom implementations.
+Every output has a **lock** that determines who can spend it.
 
 ## Built-in Locks
 
-| Lock | Factory | Verification | Use Case |
-|------|---------|--------------|----------|
-| `Owner` | `Output::ownedBy()` | `signedBy` matches name | Server-side apps |
-| `PublicKey` | `Output::signedBy()` | Ed25519 signature | Trustless systems |
-| `NoLock` | `Output::open()` | None (anyone) | Burn addresses, public pools |
+| Lock | Create with | Spend with | Best for |
+|-|-|-|-|
+| Owner | `Output::ownedBy()` | `signedBy: 'name'` | Server-side apps |
+| PublicKey | `Output::signedBy()` | Ed25519 signature | Trustless systems |
+| NoLock | `Output::open()` | Anyone | Burn addresses, public pools |
 
-## Simple Ownership (Owner Lock)
+## Owner Lock
 
-For applications where the server controls authentication. The server verifies identity (via session, JWT, etc.) before calling spend.
-
-**Validation:** Owner names cannot be empty or whitespace-only. Invalid names throw `InvalidArgumentException`.
+For apps where you control authentication (sessions, JWT, API keys).
 
 ```php
-// Create owned outputs
 $ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
-    Output::ownedBy('bob', 500, 'bob-funds'),
 );
 
-// Alice spends her output
+// Alice spends her funds
 $ledger = $ledger->apply(Tx::create(
     spendIds: ['alice-funds'],
-    outputs: [
-        Output::ownedBy('bob', 600),
-        Output::ownedBy('alice', 400),
-    ],
-    signedBy: 'alice',  // Must match 'alice'
+    outputs: [Output::ownedBy('bob', 1000)],
+    signedBy: 'alice', // Must match
 ));
 
-// Wrong signer throws AuthorizationException
+// Wrong signer = error
 $ledger->apply(Tx::create(
-    spendIds: ['bob-funds'],
-    outputs: [Output::open(500)],
-    signedBy: 'alice',  // Bob owns this!
-)); // Throws: "Output owned by 'bob', but spend signed by 'alice'"
+    spendIds: ['alice-funds'],
+    outputs: [Output::open(1000)],
+    signedBy: 'mallory', // AuthorizationException
+));
 ```
 
-### When to Use
+## PublicKey Lock
 
-- Web apps with user sessions
-- APIs with JWT/OAuth
-- Any system where you trust server-side auth
-
-## Cryptographic Ownership (PublicKey Lock)
-
-For trustless systems where you can't trust the server. Uses Ed25519 signatures.
-
-**Validation:** The public key must be a valid base64-encoded 32-byte Ed25519 key. Invalid keys throw `InvalidArgumentException` at construction time.
+For trustless systems. Uses Ed25519 cryptography.
 
 ```php
-// Generate keypair (client-side, keep private key secret)
+// Generate keys (keep private key secret)
 $keypair = sodium_crypto_sign_keypair();
 $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
 $privateKey = sodium_crypto_sign_secretkey($keypair);
 
-// Lock output to public key
+// Lock to public key
 $ledger = Ledger::withGenesis(
     Output::signedBy($publicKey, 1000, 'secure-funds'),
 );
 
-// To spend, sign the spend ID with private key
-$spendId = 'tx-001';
-$signature = base64_encode(
-    sodium_crypto_sign_detached($spendId, $privateKey)
-);
+// To spend: sign the transaction ID
+$txId = 'tx-001';
+$signature = base64_encode(sodium_crypto_sign_detached($txId, $privateKey));
 
 $ledger = $ledger->apply(Tx::create(
     spendIds: ['secure-funds'],
     outputs: [Output::signedBy($publicKey, 900)],
-    proofs: [$signature],  // Signature at index 0 for input 0
-    id: $spendId,
+    proofs: [$signature], // Signature at matching index
+    id: $txId,
 ));
 ```
 
-### Multiple Inputs, Multiple Signatures
-
-Each input needs its own signature at the matching index:
+**Multiple inputs** = multiple signatures (one per input, matching order):
 
 ```php
-$ledger = Ledger::withGenesis(
-    Output::signedBy($alicePubKey, 500, 'alice-funds'),
-    Output::signedBy($bobPubKey, 300, 'bob-funds'),
-);
-
-$spendId = 'multi-sig-tx';
-$aliceSig = base64_encode(sodium_crypto_sign_detached($spendId, $alicePrivKey));
-$bobSig = base64_encode(sodium_crypto_sign_detached($spendId, $bobPrivKey));
-
 $ledger = $ledger->apply(Tx::create(
     spendIds: ['alice-funds', 'bob-funds'],
     outputs: [Output::open(800)],
-    proofs: [$aliceSig, $bobSig],  // Index matches input order
-    id: $spendId,
+    proofs: [$aliceSig, $bobSig], // Index 0 for alice, index 1 for bob
+    id: $txId,
 ));
 ```
 
-### When to Use
+## Open Outputs
 
-- Decentralized applications
-- Client-controlled wallets
-- Systems requiring cryptographic proof of authorization
-
-## Open Outputs (NoLock)
-
-For outputs that anyone can spend. Use with caution.
+Anyone can spend. Use for burn addresses or public pools.
 
 ```php
-// Anyone can claim this
 Output::open(1000, 'public-pool')
 
-// Spending requires no authorization
+// No authorization needed
 $ledger->apply(Tx::create(
     spendIds: ['public-pool'],
     outputs: [Output::ownedBy('finder', 1000)],
-    // No signedBy needed
 ));
 ```
 
-### When to Use
-
-- Burn addresses (provably unspendable when combined with validation)
-- Public reward pools
-- Testing and development
-
 ## Custom Locks
 
-Implement `OutputLock` for advanced scenarios:
+Implement `OutputLock` for advanced scenarios (time locks, multi-sig, etc.).
 
 ```php
-use Chemaclass\Unspent\OutputLock;
-use Chemaclass\Unspent\Tx;
-
 final readonly class TimeLock implements OutputLock
 {
     public function __construct(
-        public int $unlockTimestamp,
+        public int $unlockTime,
         public string $owner,
     ) {}
 
     public function validate(Tx $tx, int $inputIndex): void
     {
-        if (time() < $this->unlockTimestamp) {
-            throw new \RuntimeException('Output is time-locked');
+        if (time() < $this->unlockTime) {
+            throw new RuntimeException('Still locked');
         }
         if ($tx->signedBy !== $this->owner) {
             throw AuthorizationException::notOwner($this->owner, $tx->signedBy);
@@ -157,95 +112,30 @@ final readonly class TimeLock implements OutputLock
     {
         return [
             'type' => 'timelock',
-            'unlockTimestamp' => $this->unlockTimestamp,
+            'unlockTime' => $this->unlockTime,
             'owner' => $this->owner,
         ];
     }
 }
 
 // Usage
-Output::lockedWith(
-    new TimeLock(strtotime('+1 week'), 'alice'),
-    1000,
-    'locked-funds'
-)
+Output::lockedWith(new TimeLock(strtotime('+1 week'), 'alice'), 1000)
 ```
 
-### Custom Lock Serialization
+### Serializing Custom Locks
 
-Register your custom lock handler with `LockFactory` before deserializing:
+Register your lock type before deserializing:
 
 ```php
-use Chemaclass\Unspent\Lock\LockFactory;
-
-// Register BEFORE calling Ledger::fromJson()
 LockFactory::register('timelock', fn(array $data) => new TimeLock(
-    $data['unlockTimestamp'],
+    $data['unlockTime'],
     $data['owner'],
 ));
 
-// Now deserialization works transparently
-$ledger = Ledger::fromJson($json);
-
-// Custom locks are fully restored
-$output = $ledger->unspent()->get(new OutputId('locked-funds'));
-assert($output->lock instanceof TimeLock);
-```
-
-**Important**: Register handlers at application bootstrap, before any deserialization.
-
-#### Available Helper Methods
-
-```php
-// Check if a handler is registered
-LockFactory::hasHandler('timelock');  // true
-
-// List all registered custom types
-LockFactory::registeredTypes();  // ['timelock']
-
-// Reset handlers (useful in tests)
-LockFactory::reset();
-```
-
-#### Handler Signature
-
-Handlers receive the full serialized lock data:
-
-```php
-LockFactory::register('mylock', function (array $data): OutputLock {
-    // $data contains: ['type' => 'mylock', 'field1' => ..., 'field2' => ...]
-    return new MyLock($data['field1'], $data['field2']);
-});
-```
-
-Custom handlers take precedence over built-in types, allowing you to override `none`, `owner`, or `pubkey` if needed.
-
-## Ownership Through Serialization
-
-Locks are preserved when serializing/deserializing the ledger:
-
-```php
-$ledger = Ledger::withGenesis(
-    Output::ownedBy('alice', 1000, 'alice-funds'),
-);
-
-// Save
-$json = $ledger->toJson();
-file_put_contents('ledger.json', $json);
-
-// Restore
-$restored = Ledger::fromJson(file_get_contents('ledger.json'));
-
-// Ownership still enforced
-$restored->apply(Tx::create(
-    spendIds: ['alice-funds'],
-    outputs: [Output::open(1000)],
-    signedBy: 'bob',  // Still throws!
-));
+$ledger = Ledger::fromJson($json); // Custom locks restored
 ```
 
 ## Next Steps
 
-- [Fees & Minting](fees-and-minting.md) - Implicit fees and coinbase transactions
-- [Persistence](persistence.md) - Serialization patterns
-- [API Reference](api-reference.md) - Complete method reference
+- [Fees & Minting](fees-and-minting.md) - Implicit fees and creating value
+- [Persistence](persistence.md) - Save and restore state

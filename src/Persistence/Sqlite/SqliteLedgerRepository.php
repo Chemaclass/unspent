@@ -190,7 +190,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $stmt->execute($params);
 
             return array_values(array_map(
-                static fn (array $row): TransactionInfo => TransactionInfo::fromRow($row),
+                TransactionInfo::fromRow(...),
                 $stmt->fetchAll(PDO::FETCH_ASSOC),
             ));
         } catch (PDOException $e) {

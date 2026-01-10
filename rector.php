@@ -14,6 +14,7 @@ use Rector\Php83\Rector\ClassMethod\AddOverrideAttributeToOverriddenMethodsRecto
 use Rector\TypeDeclaration\Rector\StmtsAwareInterface\DeclareStrictTypesRector;
 
 return RectorConfig::configure()
+    ->withCache(__DIR__ . '/.rector-cache')
     ->withPaths([
         __DIR__ . '/src',
         __DIR__ . '/tests',
