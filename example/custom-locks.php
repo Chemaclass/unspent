@@ -53,7 +53,7 @@ final readonly class TimeLock implements OutputLock
 }
 
 // 2. Register handler for deserialization
-LockFactory::register('timelock', static fn ($data) => new TimeLock(
+LockFactory::register('timelock', static fn ($data): TimeLock => new TimeLock(
     $data['unlockTime'],
     $data['owner'],
 ));
@@ -70,7 +70,7 @@ $json = $ledger->toJson();
 $restored = Ledger::fromJson($json);
 
 $output = $restored->unspent()->get(new OutputId('unlocked'));
-echo 'Restored lock type: ' . $output->lock::class . "\n\n";
+echo 'Restored lock type: ' . $output?->lock::class . "\n\n";
 
 // 5. Spend unlocked output
 $restored = $restored->apply(Tx::create(

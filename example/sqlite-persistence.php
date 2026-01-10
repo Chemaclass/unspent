@@ -58,8 +58,8 @@ echo 'Outputs >= 500: ' . \count($large) . "\n";
 // 6. History preserved after load
 $loaded = $repo->find('wallet-1');
 echo "\nHistory after reload:\n";
-echo '  alice-funds created by: ' . $loaded->outputCreatedBy(new OutputId('alice-funds')) . "\n";
-echo '  alice-funds spent by: ' . $loaded->outputSpentBy(new OutputId('alice-funds')) . "\n";
+echo '  alice-funds created by: ' . $loaded?->outputCreatedBy(new OutputId('alice-funds')) . "\n";
+echo '  alice-funds spent by: ' . $loaded?->outputSpentBy(new OutputId('alice-funds')) . "\n";
 
 // 7. Multiple ledgers
 echo "\nMultiple ledgers:\n";

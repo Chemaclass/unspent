@@ -167,7 +167,7 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     /**
      * Creates an UnspentSet from a serialized array.
      *
-     * @param array<string, array{amount: int, lock: array<string, mixed>}> $data
+     * @param array<string, array{amount: int, lock?: array<string, mixed>}> $data
      */
     public static function fromArray(array $data): self
     {

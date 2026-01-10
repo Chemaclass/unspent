@@ -300,7 +300,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         // Insert spent outputs
         foreach ($ledger->toArray()['spentOutputs'] as $outputId => $outputData) {
             $output = new Output(
-                new OutputId($outputData['id']),
+                new OutputId($outputId),
                 $outputData['amount'],
                 LockFactory::fromArray($outputData['lock']),
             );
@@ -355,13 +355,13 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
      *
      * @return array{
      *     version: int,
-     *     unspent: list<array{id: string, amount: int, lock: array<string, mixed>}>,
+     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
      *     appliedTxs: list<string>,
      *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
      *     outputCreatedBy: array<string, string>,
      *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{id: string, amount: int, lock: array<string, mixed>}>
+     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
      * }
      */
     private function fetchLedgerData(string $id): array

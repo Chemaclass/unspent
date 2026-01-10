@@ -120,13 +120,13 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
      *
      * @return array{
      *     version: int,
-     *     unspent: list<array{id: string, amount: int, lock: array<string, mixed>}>,
+     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
      *     appliedTxs: list<string>,
      *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
      *     outputCreatedBy: array<string, string>,
      *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{id: string, amount: int, lock: array<string, mixed>}>
+     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
      * }
      */
     protected function buildLedgerDataArray(
@@ -140,8 +140,7 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
         $spentOutputs = [];
 
         foreach ($unspentRows as $row) {
-            $unspent[] = [
-                'id' => $row['id'],
+            $unspent[$row['id']] = [
                 'amount' => (int) $row['amount'],
                 'lock' => $this->rowToLockArray($row),
             ];
@@ -150,7 +149,6 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
 
         foreach ($spentRows as $row) {
             $spentOutputs[$row['id']] = [
-                'id' => $row['id'],
                 'amount' => (int) $row['amount'],
                 'lock' => $this->rowToLockArray($row),
             ];

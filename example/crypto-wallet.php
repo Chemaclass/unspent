@@ -51,8 +51,8 @@ $wallet = $wallet->apply(Tx::create(
         Output::signedBy($bobPub, 300, 'bob-received'),
         Output::signedBy($alicePub, 700, 'alice-change'),
     ],
-    proofs: [$sig],
     id: $txId,
+    proofs: [$sig],
 ));
 echo "Alice -> Bob: 300 (signed)\n";
 
@@ -66,8 +66,8 @@ try {
     $wallet->apply(Tx::create(
         spendIds: ['bob-wallet'],
         outputs: [Output::open(500)],
-        proofs: [$fakeSig],
         id: 'tx-steal',
+        proofs: [$fakeSig],
     ));
 } catch (AuthorizationException) {
     echo "BLOCKED\n";
@@ -80,16 +80,16 @@ $bobSig2 = base64_encode(sodium_crypto_sign_detached($txId2, $bobPriv));
 
 $wallet = $wallet->apply(Tx::create(
     spendIds: ['bob-wallet', 'bob-received'], // 500 + 300
-    outputs: [Output::signedBy($bobPub, 800, 'bob-combined')],
-    proofs: [$bobSig1, $bobSig2], // one per input
+    outputs: [Output::signedBy($bobPub, 800, 'bob-combined')], // one per input
     id: $txId2,
+    proofs: [$bobSig1, $bobSig2],
 ));
 echo "\nBob combined 500+300 = 800 (multi-sig)\n";
 
 // 6. History preserved
 echo "\nHistory:\n";
 $history = $wallet->outputHistory(new OutputId('bob-combined'));
-echo "  bob-combined: created by {$history->createdBy}\n";
+echo "  bob-combined: created by {$history?->createdBy}\n";
 
 // 7. Final state
 echo "\nFinal balances:\n";
