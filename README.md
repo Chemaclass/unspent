@@ -108,13 +108,16 @@ $ledger = $ledger->apply(Tx::create(
 
 ## Use Cases
 
-| What you're building | Example |
+| What you're building | Topics |
 |-|-|
-| In-game currency | [virtual-currency.php](example/virtual-currency.php) |
-| Loyalty points | [loyalty-points.php](example/loyalty-points.php) |
-| Internal accounting | [internal-accounting.php](example/internal-accounting.php) |
-| Crypto wallets | [crypto-wallet.php](example/crypto-wallet.php) |
-| Event sourcing | [event-sourcing.php](example/event-sourcing.php) |
+| [In-game currency](example/Console/VirtualCurrencyCommand.php) | Ownership, double-spend prevention, implicit fees |
+| [Loyalty points](example/Console/LoyaltyPointsCommand.php) | Minting new value, redemption, audit trails |
+| [Internal accounting](example/Console/InternalAccountingCommand.php) | Multi-party authorization, reconciliation |
+| [Crypto wallet](example/Console/CryptoWalletCommand.php) | Ed25519 signatures, trustless verification |
+| [Event sourcing](example/Console/EventSourcingCommand.php) | State machines, immutable history tracing |
+| [Bitcoin simulation](example/Console/BitcoinSimulationCommand.php) | Coinbase mining, fees, UTXO consolidation |
+| [Custom locks](example/Console/CustomLocksCommand.php) | Timelocks, custom lock types, serialization |
+| [SQLite persistence](example/Console/SqlitePersistenceCommand.php) | Database storage, querying, ScalableLedger |
 
 ## Persistence
 
