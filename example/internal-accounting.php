@@ -94,7 +94,7 @@ $remaining = $company->totalUnspentAmount();
 echo "  Initial: \${$initial}\n";
 echo "  Fees: \${$fees}\n";
 echo "  Remaining: \${$remaining}\n";
-echo "  Check: " . ($fees + $remaining === $initial ? "BALANCED" : "DISCREPANCY") . "\n";
+echo '  Check: ' . ($fees + $remaining === $initial ? 'BALANCED' : 'DISCREPANCY') . "\n";
 
 // 8. Current state
 echo "\nBudget by department:\n";

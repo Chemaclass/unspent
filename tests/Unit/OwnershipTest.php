@@ -394,7 +394,7 @@ final class OwnershipTest extends TestCase
         $this->expectExceptionMessage("Output 'test-id' missing lock data");
 
         UnspentSet::fromArray([
-            ['id' => 'test-id', 'amount' => 100],
+            'test-id' => ['amount' => 100],
         ]);
     }
 }

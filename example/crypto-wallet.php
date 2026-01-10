@@ -31,8 +31,8 @@ $bobPub = base64_encode(sodium_crypto_sign_publickey($bobKp));
 $bobPriv = sodium_crypto_sign_secretkey($bobKp);
 
 echo "Keys generated:\n";
-echo "  Alice: " . substr($alicePub, 0, 16) . "...\n";
-echo "  Bob:   " . substr($bobPub, 0, 16) . "...\n\n";
+echo '  Alice: ' . substr($alicePub, 0, 16) . "...\n";
+echo '  Bob:   ' . substr($bobPub, 0, 16) . "...\n\n";
 
 // 2. Create wallets locked by public keys
 $wallet = Ledger::withGenesis(

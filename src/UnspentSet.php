@@ -149,43 +149,42 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
     /**
      * Serializes the unspent set to an array format.
      *
-     * @return list<array{id: string, amount: int, lock: array{type: string, ...}}>
+     * @return array<string, array{amount: int, lock: array{type: string, ...}}>
      */
     public function toArray(): array
     {
-        return array_map(
-            static fn (Output $o): array => [
-                'id' => $o->id->value,
-                'amount' => $o->amount,
-                'lock' => $o->lock->toArray(),
-            ],
-            array_values($this->outputs),
-        );
+        $result = [];
+        foreach ($this->outputs as $output) {
+            $result[$output->id->value] = [
+                'amount' => $output->amount,
+                'lock' => $output->lock->toArray(),
+            ];
+        }
+
+        return $result;
     }
 
     /**
      * Creates an UnspentSet from a serialized array.
      *
-     * @param list<array{id: string, amount: int, lock?: array<string, mixed>}> $data
+     * @param array<string, array{amount: int, lock: array<string, mixed>}> $data
      */
     public static function fromArray(array $data): self
     {
-        $outputs = array_map(
-            static function (array $item): Output {
-                if (!isset($item['lock'])) {
-                    throw new InvalidArgumentException(
-                        "Output '{$item['id']}' missing lock data - cannot deserialize safely",
-                    );
-                }
-
-                return new Output(
-                    new OutputId($item['id']),
-                    $item['amount'],
-                    LockFactory::fromArray($item['lock']),
+        $outputs = [];
+        foreach ($data as $id => $item) {
+            if (!isset($item['lock'])) {
+                throw new InvalidArgumentException(
+                    "Output '{$id}' missing lock data - cannot deserialize safely",
                 );
-            },
-            $data,
-        );
+            }
+
+            $outputs[] = new Output(
+                new OutputId((string) $id),
+                $item['amount'],
+                LockFactory::fromArray($item['lock']),
+            );
+        }
 
         return self::fromOutputs(...$outputs);
     }

@@ -60,7 +60,7 @@ foreach ($states as $state) {
     $id = new OutputId($state);
     $created = $orders->outputCreatedBy($id);
     $spent = $orders->outputSpentBy($id);
-    $status = $spent ? "-> {$spent}" : "(current)";
+    $status = $spent ? "-> {$spent}" : '(current)';
     echo "  {$state}: {$created} {$status}\n";
 }
 

@@ -55,7 +55,7 @@ try {
 }
 
 // 4. Double-spend blocked
-echo "Alice tries to spend already-spent gold... ";
+echo 'Alice tries to spend already-spent gold... ';
 try {
     $game->apply(Tx::create(
         spendIds: ['alice-gold'], // already spent!

@@ -19,12 +19,12 @@ final readonly class Ledger
     private const int SERIALIZATION_VERSION = 1;
 
     /**
-     * @param array<string, true>                                                       $appliedTxIds
-     * @param array<string, int>                                                        $txFees          Map of TxId value to fee amount
-     * @param array<string, int>                                                        $coinbaseAmounts Map of coinbase TxId to minted amount
-     * @param array<string, string>                                                     $outputCreatedBy Map of OutputId → TxId|'genesis'
-     * @param array<string, string>                                                     $outputSpentBy   Map of OutputId → TxId
-     * @param array<string, array{id: string, amount: int, lock: array<string, mixed>}> $spentOutputs
+     * @param array<string, true>                                           $appliedTxIds
+     * @param array<string, int>                                            $txFees          Map of TxId value to fee amount
+     * @param array<string, int>                                            $coinbaseAmounts Map of coinbase TxId to minted amount
+     * @param array<string, string>                                         $outputCreatedBy Map of OutputId → TxId|'genesis'
+     * @param array<string, string>                                         $outputSpentBy   Map of OutputId → TxId
+     * @param array<string, array{amount: int, lock: array<string, mixed>}> $spentOutputs
      */
     private function __construct(
         private UnspentSet $unspentSet,
@@ -94,7 +94,6 @@ final readonly class Ledger
             $output = $this->unspentSet->get($spendId);
             if ($output !== null) {
                 $spentOutputs[$spendId->value] = [
-                    'id' => $output->id->value,
                     'amount' => $output->amount,
                     'lock' => $output->lock->toArray(),
                 ];
@@ -273,7 +272,7 @@ final readonly class Ledger
         $spentData = $this->spentOutputs[$id->value] ?? null;
         if ($spentData !== null) {
             return new Output(
-                new OutputId($spentData['id']),
+                $id,
                 $spentData['amount'],
                 LockFactory::fromArray($spentData['lock']),
             );
@@ -317,13 +316,13 @@ final readonly class Ledger
      *
      * @return array{
      *     version: int,
-     *     unspent: list<array{id: string, amount: int, lock: array<string, mixed>}>,
+     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
      *     appliedTxs: list<string>,
      *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
      *     outputCreatedBy: array<string, string>,
      *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{id: string, amount: int, lock: array<string, mixed>}>
+     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
      * }
      */
     public function toArray(): array
@@ -345,13 +344,13 @@ final readonly class Ledger
      *
      * @param array{
      *     version: int,
-     *     unspent: list<array{id: string, amount: int, lock: array<string, mixed>}>,
+     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
      *     appliedTxs: list<string>,
      *     txFees: array<string, int>,
      *     coinbaseAmounts: array<string, int>,
      *     outputCreatedBy?: array<string, string>,
      *     outputSpentBy?: array<string, string>,
-     *     spentOutputs?: array<string, array{id: string, amount: int, lock: array<string, mixed>}>
+     *     spentOutputs?: array<string, array{amount: int, lock: array<string, mixed>}>
      * } $data
      */
     public static function fromArray(array $data): self

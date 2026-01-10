@@ -503,7 +503,7 @@ final class LedgerTest extends TestCase
         $data = [
             'version' => 1,
             'unspent' => [
-                ['id' => 'out1', 'amount' => 900, 'lock' => ['type' => 'none']],
+                'out1' => ['amount' => 900, 'lock' => ['type' => 'none']],
             ],
             'appliedTxs' => ['tx1'],
             'txFees' => ['tx1' => 100],

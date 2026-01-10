@@ -50,7 +50,7 @@ $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
     'block-2',
 ));
 echo "Block 2: Satoshi sends 10 BTC to Hal\n";
-echo "  Fee: " . ($ledger->feeForTx(new TxId('tx-to-hal')) / 100000000) . " BTC\n\n";
+echo '  Fee: ' . ($ledger->feeForTx(new TxId('tx-to-hal')) / 100000000) . " BTC\n\n";
 
 // Block 3: Hal buys pizza
 $ledger = $ledger->apply(Tx::create(
@@ -84,10 +84,10 @@ echo "Block 4: Satoshi consolidates 3 UTXOs into 1\n\n";
 // Final state
 echo "Final State:\n";
 echo "  Blocks mined: 5\n";
-echo "  Total minted: " . ($ledger->totalMinted() / 100000000) . " BTC\n";
-echo "  Total fees: " . ($ledger->totalFeesCollected() / 100000000) . " BTC\n";
-echo "  In circulation: " . ($ledger->totalUnspentAmount() / 100000000) . " BTC\n";
-echo "  UTXOs: " . $ledger->unspent()->count() . "\n\n";
+echo '  Total minted: ' . ($ledger->totalMinted() / 100000000) . " BTC\n";
+echo '  Total fees: ' . ($ledger->totalFeesCollected() / 100000000) . " BTC\n";
+echo '  In circulation: ' . ($ledger->totalUnspentAmount() / 100000000) . " BTC\n";
+echo '  UTXOs: ' . $ledger->unspent()->count() . "\n\n";
 
 echo "UTXOs:\n";
 foreach ($ledger->unspent() as $id => $output) {

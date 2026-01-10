@@ -150,15 +150,17 @@ final class UnspentSetTest extends TestCase
         $array = $set->toArray();
 
         self::assertCount(2, $array);
-        self::assertContains(['id' => 'a', 'amount' => 100, 'lock' => ['type' => 'none']], $array);
-        self::assertContains(['id' => 'b', 'amount' => 50, 'lock' => ['type' => 'none']], $array);
+        self::assertArrayHasKey('a', $array);
+        self::assertArrayHasKey('b', $array);
+        self::assertSame(['amount' => 100, 'lock' => ['type' => 'none']], $array['a']);
+        self::assertSame(['amount' => 50, 'lock' => ['type' => 'none']], $array['b']);
     }
 
     public function test_can_deserialize_from_array(): void
     {
         $data = [
-            ['id' => 'a', 'amount' => 100, 'lock' => ['type' => 'none']],
-            ['id' => 'b', 'amount' => 50, 'lock' => ['type' => 'owner', 'name' => 'alice']],
+            'a' => ['amount' => 100, 'lock' => ['type' => 'none']],
+            'b' => ['amount' => 50, 'lock' => ['type' => 'owner', 'name' => 'alice']],
         ];
 
         $set = UnspentSet::fromArray($data);
