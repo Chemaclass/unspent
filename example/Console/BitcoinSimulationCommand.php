@@ -25,7 +25,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
 
     protected function runMemoryDemo(): int
     {
-        $ledger = $this->loadOrCreate(fn() => [Output::open(self::BLOCK_REWARD, 'satoshi-0')]);
+        $ledger = $this->loadOrCreate(static fn () => [Output::open(self::BLOCK_REWARD, 'satoshi-0')]);
         $this->io->text('Block 0: Satoshi mines 50 BTC');
 
         $ledger = $this->mineBlock($ledger, 1);
@@ -55,7 +55,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
 
     protected function runDatabaseDemo(): int
     {
-        $ledger = $this->loadOrCreate(fn() => [Output::open(self::BLOCK_REWARD, 'satoshi-genesis')]);
+        $ledger = $this->loadOrCreate(static fn () => [Output::open(self::BLOCK_REWARD, 'satoshi-genesis')]);
 
         $blockNum = $this->runNumber;
         $this->io->section("Mining Block #{$blockNum}");
@@ -116,7 +116,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
     private function processTransaction(Ledger $ledger, int $blockNum): Ledger
     {
         $outputs = iterator_to_array($ledger->unspent());
-        usort($outputs, fn($a, $b) => $b->amount <=> $a->amount);
+        usort($outputs, static fn ($a, $b) => $b->amount <=> $a->amount);
 
         if (empty($outputs) || $outputs[0]->amount < 1 * self::SATOSHIS_PER_BTC) {
             return $ledger;

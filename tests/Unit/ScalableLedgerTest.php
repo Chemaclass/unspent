@@ -17,27 +17,6 @@ use PHPUnit\Framework\TestCase;
 
 final class ScalableLedgerTest extends TestCase
 {
-    /**
-     * Create a ScalableLedger with in-memory SQLite for testing.
-     *
-     * @param Output[] $genesis
-     */
-    private function createScalableLedger(string $ledgerId, array $genesis = []): ScalableLedger
-    {
-        $pdo = new PDO('sqlite::memory:');
-        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-
-        $schema = new SqliteSchema($pdo);
-        $schema->create();
-
-        // Initialize ledger record
-        $pdo->exec("INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES ('{$ledgerId}', 1, 0, 0, 0)");
-
-        $store = new SqliteHistoryStore($pdo, $ledgerId);
-
-        return ScalableLedger::create($store, ...$genesis);
-    }
-
     public function test_implements_ledger_interface(): void
     {
         $ledger = $this->createScalableLedger('test-wallet', [Output::open(1000, 'genesis')]);
@@ -216,5 +195,25 @@ final class ScalableLedgerTest extends TestCase
         $store = $ledger->historyStore();
 
         self::assertInstanceOf(SqliteHistoryStore::class, $store);
+    }
+    /**
+     * Create a ScalableLedger with in-memory SQLite for testing.
+     *
+     * @param Output[] $genesis
+     */
+    private function createScalableLedger(string $ledgerId, array $genesis = []): ScalableLedger
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $schema = new SqliteSchema($pdo);
+        $schema->create();
+
+        // Initialize ledger record
+        $pdo->exec("INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES ('{$ledgerId}', 1, 0, 0, 0)");
+
+        $store = new SqliteHistoryStore($pdo, $ledgerId);
+
+        return ScalableLedger::create($store, ...$genesis);
     }
 }

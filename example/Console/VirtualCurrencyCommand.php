@@ -25,7 +25,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     protected function runMemoryDemo(): int
     {
-        $ledger = $this->loadOrCreate(fn() => [
+        $ledger = $this->loadOrCreate(static fn () => [
             Output::ownedBy('alice', 1000, 'alice-gold'),
             Output::ownedBy('bob', 500, 'bob-gold'),
         ]);
@@ -43,7 +43,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     protected function runDatabaseDemo(): int
     {
-        $ledger = $this->loadOrCreate(fn() => [
+        $ledger = $this->loadOrCreate(static fn () => [
             Output::ownedBy('alice', 1000, 'alice-start'),
             Output::ownedBy('bob', 500, 'bob-start'),
             Output::ownedBy('shop', 5000, 'shop-inventory'),
@@ -125,7 +125,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         $outputs = iterator_to_array($ledger->unspent());
         $playerOutputs = array_filter($outputs, function ($o) {
             $owner = $o->lock->toArray()['name'] ?? '';
-            return in_array($owner, $this->players) && $owner !== 'shop';
+            return \in_array($owner, $this->players) && $owner !== 'shop';
         });
 
         if (empty($playerOutputs)) {

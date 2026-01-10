@@ -93,7 +93,7 @@ final class SqlitePersistenceCommand extends Command
         $this->io->text('<fg=green>Creating new ledger...</>');
 
         $stmt = $this->pdo->prepare(
-            "INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0)",
+            'INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0)',
         );
         $stmt->execute([self::LEDGER_ID]);
 
@@ -174,10 +174,10 @@ final class SqlitePersistenceCommand extends Command
         ]);
 
         $largeOutputs = $this->repo->findUnspentByAmountRange(self::LEDGER_ID, 100);
-        $this->io->text('Outputs >= 100: ' . count($largeOutputs));
+        $this->io->text('Outputs >= 100: ' . \count($largeOutputs));
 
         $ownerLocked = $this->repo->findUnspentByLockType(self::LEDGER_ID, 'owner');
-        $this->io->text('Owner-locked outputs: ' . count($ownerLocked));
+        $this->io->text('Owner-locked outputs: ' . \count($ownerLocked));
     }
 
     private function showHistoryTracking(Ledger $ledger): void

@@ -44,7 +44,7 @@ final class InitLedgerDbCommand extends Command
             return Command::SUCCESS;
         }
 
-        if (!$this->ensureDirectoryExists($io, dirname($dbPath))) {
+        if (!$this->ensureDirectoryExists($io, \dirname($dbPath))) {
             return Command::FAILURE;
         }
 
@@ -145,7 +145,7 @@ final class InitLedgerDbCommand extends Command
         $io->text([
             "\$pdo = new PDO('sqlite:{$dbPath}');",
             "\$store = new SqliteHistoryStore(\$pdo, '{$ledgerId}');",
-            "\$ledger = ScalableLedger::create(\$store, ...genesis);",
+            '$ledger = ScalableLedger::create($store, ...genesis);',
         ]);
     }
 }

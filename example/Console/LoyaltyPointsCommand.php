@@ -113,20 +113,20 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         $outputs = iterator_to_array($ledger->unspent());
         $customerOutputs = array_filter(
             $outputs,
-            fn($o) => ($o->lock->toArray()['name'] ?? '') === 'customer',
+            static fn ($o) => ($o->lock->toArray()['name'] ?? '') === 'customer',
         );
 
-        if (count($customerOutputs) < 2) {
+        if (\count($customerOutputs) < 2) {
             return $ledger;
         }
 
-        $toRedeem = array_slice($customerOutputs, 0, 2);
-        $total = array_sum(array_map(fn($o) => $o->amount, $toRedeem));
+        $toRedeem = \array_slice($customerOutputs, 0, 2);
+        $total = array_sum(array_map(static fn ($o) => $o->amount, $toRedeem));
         $redeemAmount = (int) ($total * 0.8);
         $change = $total - $redeemAmount;
 
         $ledger = $ledger->apply(Tx::create(
-            spendIds: array_map(fn($o) => $o->id->value, $toRedeem),
+            spendIds: array_map(static fn ($o) => $o->id->value, $toRedeem),
             outputs: [
                 Output::open($redeemAmount, "voucher-{$this->runNumber}"),
                 Output::ownedBy('customer', $change, "change-{$this->runNumber}"),

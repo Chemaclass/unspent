@@ -28,7 +28,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
     {
         $this->generateKeys();
 
-        $ledger = $this->loadOrCreate(fn() => [
+        $ledger = $this->loadOrCreate(fn () => [
             Output::signedBy($this->alicePub, 1000, 'alice-wallet'),
             Output::signedBy($this->bobPub, 500, 'bob-wallet'),
         ]);
@@ -48,7 +48,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
     {
         $this->generateKeys();
 
-        $ledger = $this->loadOrCreate(fn() => [
+        $ledger = $this->loadOrCreate(fn () => [
             Output::signedBy($this->alicePub, 1000, 'alice-wallet'),
             Output::signedBy($this->bobPub, 500, 'bob-wallet'),
         ]);

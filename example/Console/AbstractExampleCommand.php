@@ -110,7 +110,7 @@ abstract class AbstractExampleCommand extends Command
 
         $this->createLedgerRecord();
         $outputs = $genesisFactory();
-        $this->io->text('<fg=green>[Created new ledger with ' . count($outputs) . ' genesis outputs]</>');
+        $this->io->text('<fg=green>[Created new ledger with ' . \count($outputs) . ' genesis outputs]</>');
         $this->io->newLine();
 
         return ScalableLedger::create($this->store, ...$outputs);
@@ -196,7 +196,7 @@ abstract class AbstractExampleCommand extends Command
     private function createLedgerRecord(): void
     {
         $stmt = $this->pdo->prepare(
-            "INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0)",
+            'INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0)',
         );
         $stmt->execute([$this->getLedgerId()]);
     }

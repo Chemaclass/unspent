@@ -44,7 +44,7 @@ final class CustomLocksCommand extends Command
 
     private function registerTimeLockHandler(SymfonyStyle $io): void
     {
-        LockFactory::register('timelock', static fn($data): TimeLock => new TimeLock(
+        LockFactory::register('timelock', static fn ($data): TimeLock => new TimeLock(
             $data['unlockTime'],
             $data['owner'],
         ));
