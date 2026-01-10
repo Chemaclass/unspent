@@ -1,5 +1,6 @@
 .claude/
 .idea/
 vendor/
+lib/bashunit
 *cache
 data/*.db

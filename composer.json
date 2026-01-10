@@ -47,6 +47,7 @@
         "csrun": "vendor/bin/php-cs-fixer fix --dry-run --diff",
         "rector": "vendor/bin/rector",
         "rector-dry": "vendor/bin/rector --dry-run",
+        "bashunit": "lib/bashunit tests/bash",
         "test": [
             "@csrun",
             "@rector-dry",
