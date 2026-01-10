@@ -201,11 +201,11 @@ final class HistoryTest extends TestCase
         $history = $ledger->outputHistory(new OutputId('alice-funds'));
 
         self::assertNotNull($history);
-        self::assertSame('alice-funds', $history['id']);
-        self::assertSame(1000, $history['amount']);
-        self::assertSame('genesis', $history['createdBy']);
-        self::assertNull($history['spentBy']);
-        self::assertSame('unspent', $history['status']);
+        self::assertSame('alice-funds', $history->id->value);
+        self::assertSame(1000, $history->amount);
+        self::assertSame('genesis', $history->createdBy);
+        self::assertNull($history->spentBy);
+        self::assertTrue($history->isUnspent());
     }
 
     public function test_output_history_for_spent_output(): void
@@ -221,11 +221,11 @@ final class HistoryTest extends TestCase
         $history = $ledger->outputHistory(new OutputId('alice-funds'));
 
         self::assertNotNull($history);
-        self::assertSame('alice-funds', $history['id']);
-        self::assertSame(1000, $history['amount']);
-        self::assertSame('genesis', $history['createdBy']);
-        self::assertSame('tx-001', $history['spentBy']);
-        self::assertSame('spent', $history['status']);
+        self::assertSame('alice-funds', $history->id->value);
+        self::assertSame(1000, $history->amount);
+        self::assertSame('genesis', $history->createdBy);
+        self::assertSame('tx-001', $history->spentBy);
+        self::assertTrue($history->isSpent());
     }
 
     public function test_output_history_includes_lock_info(): void
@@ -237,7 +237,7 @@ final class HistoryTest extends TestCase
         $history = $ledger->outputHistory(new OutputId('alice-funds'));
 
         self::assertNotNull($history);
-        self::assertSame(['type' => 'owner', 'name' => 'alice'], $history['lock']);
+        self::assertSame(['type' => 'owner', 'name' => 'alice'], $history->lock->toArray());
     }
 
     public function test_output_history_returns_null_for_unknown(): void

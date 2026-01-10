@@ -181,9 +181,8 @@ $ledger->getOutput(OutputId $id): ?Output
 // Check if output ever existed (spent or unspent)
 $ledger->outputExists(OutputId $id): bool
 
-// Get complete history of an output
-$ledger->outputHistory(OutputId $id): ?array
-// Returns: ['id', 'amount', 'lock', 'createdBy' (nullable), 'spentBy', 'status']
+// Get complete history of an output (returns DTO)
+$ledger->outputHistory(OutputId $id): ?OutputHistory
 ```
 
 ### Serialization
@@ -274,6 +273,72 @@ $id->equals(TxId $other): bool
 - Cannot be empty or whitespace-only
 - Maximum 64 characters
 - Only alphanumeric characters, dashes (`-`), and underscores (`_`) allowed
+
+## Data Transfer Objects (DTOs)
+
+### OutputHistory
+
+Represents the complete history of an output with type-safe access.
+
+```php
+final readonly class OutputHistory
+{
+    public OutputId $id;
+    public int $amount;
+    public OutputLock $lock;
+    public ?string $createdBy;   // 'genesis' or transaction ID
+    public ?string $spentBy;     // null if unspent
+    public OutputStatus $status;
+}
+
+// Factory method
+OutputHistory::fromOutput(Output $output, ?string $createdBy, ?string $spentBy): OutputHistory
+
+// Convenience methods
+$history->isSpent(): bool
+$history->isUnspent(): bool
+$history->isGenesis(): bool
+
+// Serialization
+$history->toArray(): array
+```
+
+### OutputStatus
+
+Enum representing the spending status of an output.
+
+```php
+enum OutputStatus: string
+{
+    case UNSPENT = 'unspent';
+    case SPENT = 'spent';
+}
+
+// Factory method
+OutputStatus::fromSpentBy(?string $spentBy): OutputStatus
+
+// Convenience methods
+$status->isSpent(): bool
+$status->isUnspent(): bool
+```
+
+### TransactionInfo
+
+Represents transaction fee information from repository queries.
+
+```php
+final readonly class TransactionInfo
+{
+    public string $id;
+    public int $fee;
+}
+
+// Factory method
+TransactionInfo::fromRow(array $row): TransactionInfo
+
+// Serialization
+$info->toArray(): array  // ['id' => ..., 'fee' => ...]
+```
 
 ## Lock Classes
 
@@ -405,7 +470,7 @@ interface QueryableLedgerRepository extends LedgerRepository
     /** @return list<string> */
     public function findCoinbaseTransactions(string $ledgerId): array;
 
-    /** @return list<array{id: string, fee: int}> */
+    /** @return list<TransactionInfo> */
     public function findTransactionsByFeeRange(string $ledgerId, int $min, ?int $max = null): array;
 }
 ```

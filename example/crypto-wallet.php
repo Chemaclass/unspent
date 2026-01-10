@@ -228,8 +228,8 @@ echo "------------------------\n";
 echo "Tracing bob-final back to genesis:\n";
 $history = $wallet->outputHistory(new OutputId('bob-final'));
 \assert($history !== null);
-echo "  Current: bob-final ({$history['amount']} units)\n";
-echo "  Created by: {$history['createdBy']}\n";
+echo "  Current: bob-final ({$history->amount} units)\n";
+echo "  Created by: {$history->createdBy}\n";
 
 // Chain of custody
 $bobInputs = ['bob-wallet', 'bob-received', 'bob-combined', 'bob-final'];

@@ -293,27 +293,19 @@ final readonly class Ledger
 
     /**
      * Returns complete history of an output.
-     *
-     * @return array{id: string, amount: int, lock: array<string, mixed>, createdBy: string|null, spentBy: string|null, status: string}|null
      */
-    public function outputHistory(OutputId $id): ?array
+    public function outputHistory(OutputId $id): ?OutputHistory
     {
         $output = $this->getOutput($id);
         if ($output === null) {
             return null;
         }
 
-        $createdBy = $this->outputCreatedBy[$id->value] ?? null;
-        $spentBy = $this->outputSpentBy[$id->value] ?? null;
-
-        return [
-            'id' => $output->id->value,
-            'amount' => $output->amount,
-            'lock' => $output->lock->toArray(),
-            'createdBy' => $createdBy,
-            'spentBy' => $spentBy,
-            'status' => $spentBy !== null ? 'spent' : 'unspent',
-        ];
+        return OutputHistory::fromOutput(
+            output: $output,
+            createdBy: $this->outputCreatedBy[$id->value] ?? null,
+            spentBy: $this->outputSpentBy[$id->value] ?? null,
+        );
     }
 
     // ========================================================================

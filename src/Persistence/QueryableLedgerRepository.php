@@ -10,6 +10,7 @@ use Chemaclass\Unspent\Output;
  * Extended repository interface with query capabilities.
  *
  * Provides efficient database-level queries without loading the entire ledger.
+ * Returns structured DTOs instead of arrays for type safety.
  */
 interface QueryableLedgerRepository extends LedgerRepository
 {
@@ -69,7 +70,7 @@ interface QueryableLedgerRepository extends LedgerRepository
      * @param int      $min Minimum fee (inclusive)
      * @param int|null $max Maximum fee (inclusive), null for no upper limit
      *
-     * @return list<array{id: string, fee: int}>
+     * @return list<TransactionInfo>
      */
     public function findTransactionsByFeeRange(string $ledgerId, int $min, ?int $max = null): array;
 }

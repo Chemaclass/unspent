@@ -499,12 +499,12 @@ final class SqliteLedgerRepositoryTest extends TestCase
 
         $lowFees = $repo->findTransactionsByFeeRange('test', 0, 20);
         self::assertCount(1, $lowFees);
-        self::assertSame('low-fee-tx', $lowFees[0]['id']);
-        self::assertSame(10, $lowFees[0]['fee']);
+        self::assertSame('low-fee-tx', $lowFees[0]->id);
+        self::assertSame(10, $lowFees[0]->fee);
 
         $highFees = $repo->findTransactionsByFeeRange('test', 30);
         self::assertCount(1, $highFees);
-        self::assertSame('high-fee-tx', $highFees[0]['id']);
+        self::assertSame('high-fee-tx', $highFees[0]->id);
     }
 
     // ========================================================================

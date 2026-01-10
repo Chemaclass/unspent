@@ -49,33 +49,10 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
      * - owner: For owner locks, the owner name
      * - pubkey: For pubkey locks, the base64 key
      * - custom: For custom locks, JSON-encoded lock data
-     *
-     * @return array{type: string, owner: string|null, pubkey: string|null, custom: string|null}
      */
-    protected function extractLockData(Output $output): array
+    protected function extractLockData(Output $output): LockData
     {
-        /** @var array<string, mixed> $lockArray */
-        $lockArray = $output->lock->toArray();
-        $type = (string) $lockArray['type'];
-
-        $owner = null;
-        $pubkey = null;
-
-        if ($type === LockType::OWNER->value && \array_key_exists('name', $lockArray)) {
-            $owner = (string) $lockArray['name'];
-        }
-        if ($type === LockType::PUBLIC_KEY->value && \array_key_exists('key', $lockArray)) {
-            $pubkey = (string) $lockArray['key'];
-        }
-
-        return [
-            'type' => $type,
-            'owner' => $owner,
-            'pubkey' => $pubkey,
-            'custom' => LockType::isBuiltIn($type)
-                ? null
-                : json_encode($lockArray, JSON_THROW_ON_ERROR),
-        ];
+        return LockData::fromOutput($output);
     }
 
     /**

@@ -10,6 +10,7 @@ use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Persistence\AbstractLedgerRepository;
 use Chemaclass\Unspent\Persistence\PersistenceException;
+use Chemaclass\Unspent\Persistence\TransactionInfo;
 use Chemaclass\Unspent\TxId;
 use PDO;
 use PDOException;
@@ -188,12 +189,8 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
-            /** @var list<array{id: string, fee: int}> */
             return array_values(array_map(
-                static fn (array $row): array => [
-                    'id' => (string) $row['id'],
-                    'fee' => (int) $row['fee'],
-                ],
+                static fn (array $row): TransactionInfo => TransactionInfo::fromRow($row),
                 $stmt->fetchAll(PDO::FETCH_ASSOC),
             ));
         } catch (PDOException $e) {
@@ -324,10 +321,10 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $outputId,
             $ledgerId,
             $output->amount,
-            $lockData['type'],
-            $lockData['owner'],
-            $lockData['pubkey'],
-            $lockData['custom'],
+            $lockData->type,
+            $lockData->owner,
+            $lockData->pubkey,
+            $lockData->custom,
             $isSpent ? 1 : 0,
             $ledger->outputCreatedBy(new OutputId($outputId)) ?? self::ORIGIN_GENESIS,
             $isSpent ? $ledger->outputSpentBy(new OutputId($outputId)) : null,

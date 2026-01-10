@@ -155,7 +155,7 @@ echo 'Coinbase transactions: ' . implode(', ', $coinbases) . "\n";
 $feeTxs = $repo->findTransactionsByFeeRange('wallet-1', 1);
 echo "Transactions with fees:\n";
 foreach ($feeTxs as $tx) {
-    echo '  ' . $tx['id'] . ': fee=' . $tx['fee'] . "\n";
+    echo '  ' . $tx->id . ': fee=' . $tx->fee . "\n";
 }
 echo "\n";
 

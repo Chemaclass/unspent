@@ -182,8 +182,8 @@ $outputId = new OutputId('bob-potion');
 $history = $game->outputHistory($outputId);
 \assert($history !== null);
 echo "  Output: bob-potion (100 gold)\n";
-echo "  Created by: {$history['createdBy']}\n";
-echo "  Status: {$history['status']}\n";
+echo "  Created by: {$history->createdBy}\n";
+echo "  Status: {$history->status->value}\n";
 
 // Trace the chain
 echo "\nFull chain of custody for Alice's gold:\n";

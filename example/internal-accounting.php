@@ -197,9 +197,9 @@ echo "  -> Proving marketing's \$10k came from engineering\n";
 echo "\nHR recruitment budget history:\n";
 $history = $company->outputHistory(new OutputId('hr-recruitment-budget'));
 \assert($history !== null);
-echo "  Amount: \${$history['amount']}\n";
-echo "  Created by: {$history['createdBy']}\n";
-echo "  Status: {$history['status']}\n";
+echo "  Amount: \${$history->amount}\n";
+echo "  Created by: {$history->createdBy}\n";
+echo "  Status: {$history->status->value}\n";
 echo "  -> Originated from Operations (ops-fy24-budget via ops-to-hr-transfer)\n\n";
 
 // ============================================================================

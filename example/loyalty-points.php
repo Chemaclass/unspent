@@ -106,10 +106,10 @@ $aliceOutputs = ['purchase-001-points', 'purchase-002-points', 'purchase-003-poi
 foreach ($aliceOutputs as $outputId) {
     $history = $rewards->outputHistory(new OutputId($outputId));
     \assert($history !== null);
-    $coinbaseId = $history['createdBy'] ?? 'unknown';
+    $coinbaseId = $history->createdBy ?? 'unknown';
     $isCoinbase = $rewards->isCoinbase(new TxId($coinbaseId)) ? 'Yes' : 'No';
     echo "  {$outputId}:\n";
-    echo "    Amount: {$history['amount']} points\n";
+    echo "    Amount: {$history->amount} points\n";
     echo "    From purchase: {$coinbaseId}\n";
     echo "    Is minted (coinbase): {$isCoinbase}\n";
 }
