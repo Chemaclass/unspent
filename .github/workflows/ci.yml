@@ -6,13 +6,18 @@ on:
   pull_request:
     branches: [main]
 
-jobs:
-  tests:
-    runs-on: ubuntu-latest
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
-    strategy:
-      matrix:
-        php: ['8.4']
+env:
+  PHP_VERSION: '8.4'
+  COMPOSER_CACHE_DIR: ${{ github.workspace }}/.composer-cache
+
+jobs:
+  lint:
+    name: PHP-CS-Fixer
+    runs-on: ubuntu-latest
 
     steps:
       - uses: actions/checkout@v4
@@ -20,14 +25,120 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: ${{ matrix.php }}
-          coverage: pcov
+          php-version: ${{ env.PHP_VERSION }}
+          tools: php-cs-fixer
+          coverage: none
+
+      - name: Cache PHP-CS-Fixer
+        uses: actions/cache@v4
+        with:
+          path: .php-cs-fixer.cache
+          key: php-cs-fixer-${{ hashFiles('**/*.php') }}
+          restore-keys: php-cs-fixer-
+
+      - name: Run PHP-CS-Fixer
+        run: php-cs-fixer fix --dry-run --diff
+
+  rector:
+    name: Rector
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
 
       - name: Install dependencies
-        run: composer install --prefer-dist --no-progress
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Cache Rector
+        uses: actions/cache@v4
+        with:
+          path: .rector-cache
+          key: rector-${{ hashFiles('**/*.php') }}
+          restore-keys: rector-
+
+      - name: Run Rector
+        run: vendor/bin/rector --dry-run
+
+  phpstan:
+    name: PHPStan
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: none
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
+
+      - name: Cache PHPStan
+        uses: actions/cache@v4
+        with:
+          path: .phpstan-cache
+          key: phpstan-${{ hashFiles('**/*.php') }}
+          restore-keys: phpstan-
 
       - name: Run PHPStan
         run: vendor/bin/phpstan analyse --memory-limit=512M
+
+  tests:
+    name: PHPUnit
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          coverage: pcov
+
+      - name: Get Composer cache directory
+        id: composer-cache
+        run: echo "dir=$(composer config cache-files-dir)" >> $GITHUB_OUTPUT
+
+      - name: Cache Composer dependencies
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.composer-cache.outputs.dir }}
+          key: composer-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-
+
+      - name: Install dependencies
+        run: composer install --prefer-dist --no-progress --no-interaction
 
       - name: Run tests with coverage
         run: vendor/bin/phpunit --coverage-text --coverage-clover=coverage.xml
