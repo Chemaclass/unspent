@@ -37,6 +37,9 @@
         }
     },
     "scripts": {
+        "post-install-cmd": "@install-hooks",
+        "post-update-cmd": "@install-hooks",
+        "install-hooks": "[ ! -d .git ] || ln -sf ../../bin/pre-commit .git/hooks/pre-commit",
         "init-db": "bin/init-ledger-db",
         "phpunit": "vendor/bin/phpunit",
         "stan": "vendor/bin/phpstan analyse --memory-limit=512M",

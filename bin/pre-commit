@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+#
+# Pre-commit hook that runs composer test (csrun, rector-dry, stan, phpunit)
+# to ensure code quality before committing.
+#
+# Install by running:
+#   ln -sf ../../bin/pre-commit .git/hooks/pre-commit
+#
+# Or run manually:
+#   bin/pre-commit
+#
+
+set -e
+
+# Resolve the real path of the script (follows symlinks)
+SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
+
+cd "$PROJECT_ROOT"
+
+echo "Running pre-commit checks..."
+echo ""
+
+if ! composer test; then
+    echo ""
+    echo "Pre-commit checks failed. Please fix the issues above before committing."
+    exit 1
+fi
+
+echo ""
+echo "All checks passed!"
