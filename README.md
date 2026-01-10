@@ -3,28 +3,21 @@
 **Track value like physical cash in your PHP apps.** Every unit has an origin, can only be spent once, and leaves a complete audit trail.
 
 ```php
-// Alice has 1000 units
-$ledger = Ledger::withGenesis(
-    Output::ownedBy('alice', 1000, 'alice-funds'),
-);
+// Start with 1000 units
+$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
 
-// She sends 600 to Bob
+// Spend 600, keep 400 as change
 $ledger = $ledger->apply(Tx::create(
-    spendIds: ['alice-funds'],
-    outputs: [
-        Output::ownedBy('bob', 600),
-        Output::ownedBy('alice', 400), // change
-    ],
-    signedBy: 'alice',
+    spendIds: ['funds'],
+    outputs: [Output::open(600), Output::open(400)],
 ));
 
-// Done. Bob has 600. Alice has 400.
 // The original 1000 is gone forever - can't be double-spent.
 ```
 
 ## Why?
 
-Traditional balance tracking (`alice: 500`) is just a number you mutate. There's no history, no proof of where it came from, and race conditions can corrupt it.
+Traditional balance tracking (`balance: 500`) is just a number you mutate. There's no history, no proof of where it came from, and race conditions can corrupt it.
 
 **Unspent** tracks value like physical cash. You can't photocopy a $20 bill - you spend it and get change back. This gives you:
 
@@ -39,55 +32,68 @@ Traditional balance tracking (`alice: 500`) is just a number you mutate. There's
 composer require chemaclass/unspent
 ```
 
-## Use Cases
+## Quick Start
 
-| What you're building | Example | Key features used |
-|-|-|-|
-| In-game currency | [virtual-currency.php](example/virtual-currency.php) | Genesis, ownership, fees |
-| Loyalty points | [loyalty-points.php](example/loyalty-points.php) | Minting, redemption, audit |
-| Internal accounting | [internal-accounting.php](example/internal-accounting.php) | History, provenance |
-| Crypto wallets | [crypto-wallet.php](example/crypto-wallet.php) | Ed25519 signatures |
-| Event sourcing | [event-sourcing.php](example/event-sourcing.php) | State as transactions |
-
-## Quick Reference
-
-### Create value
+### Create and transfer value
 
 ```php
-// Genesis - initial value
+// Initial value
+$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
+
+// Transfer: spend existing outputs, create new ones
+$ledger = $ledger->apply(Tx::create(
+    spendIds: ['funds'],
+    outputs: [
+        Output::open(600, 'payment'),
+        Output::open(400, 'change'),
+    ],
+));
+
+// Query state
+$ledger->totalUnspentAmount();  // 1000
+$ledger->unspent()->count();    // 2 outputs
+```
+
+### Add authorization
+
+When you need to control who can spend:
+
+```php
+// Server-side ownership (sessions, JWT, etc.)
 $ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
 );
 
-// Minting - create new value anytime
-$ledger = $ledger->applyCoinbase(CoinbaseTx::create([
-    Output::ownedBy('miner', 50, 'reward'),
-]));
-```
-
-### Transfer value
-
-```php
 $ledger = $ledger->apply(Tx::create(
     spendIds: ['alice-funds'],
     outputs: [
         Output::ownedBy('bob', 600),
-        Output::ownedBy('alice', 390), // 10 goes to fees
+        Output::ownedBy('alice', 400),
     ],
-    signedBy: 'alice',
+    signedBy: 'alice',  // Must match the owner
 ));
 ```
 
-### Query state
+### Output types
 
-```php
-$ledger->totalUnspentAmount();    // 990
-$ledger->unspent()->count();      // 2 outputs
-$ledger->feeForTx(new TxId('x')); // 10
-$ledger->outputHistory(new OutputId('bob-funds')); // full provenance
-```
+| Method | Use case |
+|-|-|
+| `Output::open(100)` | No lock - pure bookkeeping |
+| `Output::ownedBy('alice', 100)` | Server-side auth (sessions, JWT) |
+| `Output::signedBy($pubKey, 100)` | Ed25519 crypto (trustless) |
+| `Output::lockedWith($lock, 100)` | Custom locks (multisig, timelock) |
 
-### Save & restore
+## Use Cases
+
+| What you're building | Example |
+|-|-|
+| In-game currency | [virtual-currency.php](example/virtual-currency.php) |
+| Loyalty points | [loyalty-points.php](example/loyalty-points.php) |
+| Internal accounting | [internal-accounting.php](example/internal-accounting.php) |
+| Crypto wallets | [crypto-wallet.php](example/crypto-wallet.php) |
+| Event sourcing | [event-sourcing.php](example/event-sourcing.php) |
+
+## Persistence
 
 ```php
 // JSON
@@ -98,16 +104,6 @@ $ledger = Ledger::fromJson($json);
 $repo = SqliteRepositoryFactory::createFromFile('ledger.db');
 $repo->save('wallet-1', $ledger);
 $ledger = $repo->find('wallet-1');
-```
-
-## Ownership
-
-Three ways to lock value:
-
-```php
-Output::ownedBy('alice', 100)       // Server-side auth (sessions, JWT)
-Output::signedBy($publicKey, 100)   // Ed25519 crypto (trustless)
-Output::open(100)                    // Anyone can spend
 ```
 
 ## Documentation

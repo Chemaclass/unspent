@@ -10,63 +10,72 @@ $balances['alice'] -= 100;
 $balances['bob'] += 100;
 ```
 
-Simple, but problematic. Where did Alice's 500 come from? Can you prove she had it? What if two processes update simultaneously?
+Simple, but problematic. Where did the 500 come from? Can you prove it existed? What if two processes update simultaneously?
 
 **Unspent** takes a different approach. Instead of tracking balances, it tracks individual "chunks" of value - like physical bills in a cash register.
 
 ```php
-// Alice has a 500-unit "bill"
-$ledger = Ledger::withGenesis(Output::ownedBy('alice', 500, 'alice-bill'));
+// A 500-unit "bill"
+$ledger = Ledger::withGenesis(Output::open(500, 'bill'));
 
-// She "spends" it and gets "change" back
+// Spend it and get change back
 $ledger = $ledger->apply(Tx::create(
-    spendIds: ['alice-bill'],     // This bill is now gone
+    spendIds: ['bill'],
     outputs: [
-        Output::ownedBy('bob', 100),   // Bob gets 100
-        Output::ownedBy('alice', 400), // Alice gets change
+        Output::open(100, 'payment'),
+        Output::open(400, 'change'),
     ],
-    signedBy: 'alice',
 ));
 ```
 
-The original 500-unit "bill" no longer exists. It's been spent. Alice now has a new 400-unit "bill", and Bob has a 100-unit "bill".
+The original 500-unit "bill" no longer exists. It's been spent. Now there's a 100-unit output and a 400-unit output.
 
 ## Outputs
 
 An **Output** is a chunk of value. It has:
 
 - **Amount** - How much it's worth
-- **Lock** - Who can spend it
 - **ID** - Unique identifier
+- **Lock** - Who can spend it (optional)
 
 ```php
-Output::ownedBy('alice', 1000)              // Alice owns it
-Output::ownedBy('alice', 1000, 'my-id')     // With custom ID
-Output::signedBy($publicKey, 1000)          // Crypto-locked
-Output::open(1000)                           // Anyone can spend
+Output::open(1000)                           // No lock - anyone can spend
+Output::open(1000, 'my-id')                  // With custom ID
+Output::ownedBy('alice', 1000)               // Owned by alice
+Output::signedBy($publicKey, 1000)           // Crypto-locked
 ```
 
-Think of each output as a banknote with the owner's name written on it.
+Think of each output as a banknote. Without a lock, it's bearer cash. With a lock, it has a name on it.
 
 ## Transactions
 
 A **Tx** spends existing outputs and creates new ones.
 
 ```php
+// Simple transfer (no authorization)
 Tx::create(
-    spendIds: ['alice-funds'],    // What to spend
-    outputs: [                     // What to create
+    spendIds: ['funds'],
+    outputs: [
+        Output::open(600),
+        Output::open(400),
+    ],
+);
+
+// With ownership (requires authorization)
+Tx::create(
+    spendIds: ['alice-funds'],
+    outputs: [
         Output::ownedBy('bob', 600),
         Output::ownedBy('alice', 400),
     ],
-    signedBy: 'alice',            // Who's authorizing
+    signedBy: 'alice',
 );
 ```
 
 **Rules:**
 
 1. You can only spend outputs that exist and haven't been spent
-2. You must be authorized to spend them (signer matches lock)
+2. If the output has a lock, you must be authorized to spend it
 3. You can't create more value than you spend
 4. Any difference becomes a fee (value removed from circulation)
 
@@ -76,9 +85,8 @@ Combine multiple outputs:
 
 ```php
 Tx::create(
-    spendIds: ['alice-100', 'alice-200'], // 300 total
-    outputs: [Output::ownedBy('alice', 300, 'alice-combined')],
-    signedBy: 'alice',
+    spendIds: ['out-100', 'out-200'], // 300 total
+    outputs: [Output::open(300, 'combined')],
 );
 ```
 
@@ -86,13 +94,12 @@ Split to multiple recipients:
 
 ```php
 Tx::create(
-    spendIds: ['alice-funds'],
+    spendIds: ['funds'],
     outputs: [
-        Output::ownedBy('bob', 100),
-        Output::ownedBy('charlie', 100),
-        Output::ownedBy('alice', 800), // change
+        Output::open(100, 'part-1'),
+        Output::open(100, 'part-2'),
+        Output::open(800, 'part-3'),
     ],
-    signedBy: 'alice',
 );
 ```
 
@@ -102,7 +109,7 @@ The **Ledger** holds all state. It's immutable - every operation returns a new l
 
 ```php
 $v1 = Ledger::empty();
-$v2 = $v1->addGenesis(Output::ownedBy('alice', 1000));
+$v2 = $v1->addGenesis(Output::open(1000, 'initial'));
 $v3 = $v2->apply($tx);
 // $v1, $v2, $v3 are separate, immutable snapshots
 ```
@@ -113,8 +120,8 @@ Initial value enters via genesis:
 
 ```php
 $ledger = Ledger::withGenesis(
-    Output::ownedBy('alice', 1000),
-    Output::ownedBy('bob', 500),
+    Output::open(1000, 'fund-a'),
+    Output::open(500, 'fund-b'),
 );
 ```
 
