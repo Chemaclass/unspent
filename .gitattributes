@@ -1,0 +1,25 @@
+# Auto-detect text files and normalize line endings
+* text=auto
+
+# Exclude from distribution archives (composer install)
+# These files are not needed by library consumers
+
+# Development directories
+/.claude            export-ignore
+/.github            export-ignore
+/.idea              export-ignore
+/bin                export-ignore
+/data               export-ignore
+/docs               export-ignore
+/example            export-ignore
+/local              export-ignore
+/tests              export-ignore
+
+# Development configuration files
+/.gitattributes     export-ignore
+/.gitignore         export-ignore
+/.php-cs-fixer.dist.php export-ignore
+/phpstan.neon       export-ignore
+/phpunit.xml        export-ignore
+/rector.php         export-ignore
+/composer.lock      export-ignore
