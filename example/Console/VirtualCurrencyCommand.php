@@ -4,18 +4,22 @@ declare(strict_types=1);
 
 namespace Example\Console;
 
+use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
+use Chemaclass\Unspent\OutputId;
+use Chemaclass\Unspent\OutputLock;
 use Chemaclass\Unspent\Tx;
 use Chemaclass\Unspent\TxId;
+use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 
 #[AsCommand(
     name: 'sample:virtual-currency',
-    description: 'Virtual Currency - In-Game Economy',
+    description: 'Virtual Currency - In-Game Economy (Flagship Demo)',
     aliases: ['game'],
 )]
 final class VirtualCurrencyCommand extends AbstractExampleCommand
@@ -32,10 +36,27 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         $this->io->text('Game started: Alice=1000g, Bob=500g');
         $this->io->newLine();
 
+        // Minting demo
+        $ledger = $this->mintDailyBonus($ledger);
+
+        // Purchase demo
         $ledger = $this->aliceBuysSword($ledger);
+
+        // Security demos
         $this->demonstrateTheftBlocked($ledger);
         $this->demonstrateDoubleSpendBlocked($ledger);
+
+        // Quest reward with timelock
+        $ledger = $this->grantQuestReward($ledger);
+        $this->demonstrateTimelockBlocked($ledger);
+
+        // Trade with fee
         $ledger = $this->bobPaysAlice($ledger);
+
+        // History tracing
+        $this->demonstrateHistoryTracing($ledger);
+
+        // Final state
         $this->showFinalBalances($ledger);
 
         return Command::SUCCESS;
@@ -56,8 +77,25 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         return Command::SUCCESS;
     }
 
+    private function mintDailyBonus(Ledger $ledger): Ledger
+    {
+        $this->io->section('Minting');
+
+        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
+            outputs: [Output::ownedBy('alice', 100, 'daily-bonus')],
+            id: 'mint-daily-bonus',
+        ));
+
+        $this->io->text('Admin minted 100g daily bonus for Alice');
+        $this->io->text("Total minted so far: {$ledger->totalMinted()}g");
+
+        return $ledger;
+    }
+
     private function aliceBuysSword(Ledger $ledger): Ledger
     {
+        $this->io->section('Purchase');
+
         $ledger = $ledger->apply(Tx::create(
             spendIds: ['alice-gold'],
             outputs: [
@@ -68,14 +106,14 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
             id: 'buy-sword',
         ));
 
-        $this->io->text('Alice bought sword (-200g), now has 800g');
+        $this->io->text('Alice bought sword (-200g), now has 900g total');
 
         return $ledger;
     }
 
     private function demonstrateTheftBlocked(Ledger $ledger): void
     {
-        $this->io->newLine();
+        $this->io->section('Security');
         $this->io->text("Mallory tries to steal Bob's gold... ");
 
         try {
@@ -104,20 +142,72 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
     }
 
+    private function grantQuestReward(Ledger $ledger): Ledger
+    {
+        $this->io->section('Quest Reward');
+
+        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
+            outputs: [
+                Output::lockedWith(
+                    new GameTimeLock(time() + 3600, 'alice'),
+                    500,
+                    'quest-reward',
+                ),
+            ],
+            id: 'quest-complete',
+        ));
+
+        $this->io->text('Alice completed quest! Reward: 500g (locked for 1 hour)');
+
+        return $ledger;
+    }
+
+    private function demonstrateTimelockBlocked(Ledger $ledger): void
+    {
+        $this->io->text('Alice tries to spend locked reward... ');
+
+        try {
+            $ledger->apply(Tx::create(
+                spendIds: ['quest-reward'],
+                outputs: [Output::ownedBy('alice', 500)],
+                signedBy: 'alice',
+            ));
+        } catch (RuntimeException) {
+            $this->io->text('<fg=green>BLOCKED</> (cooldown active)');
+        }
+    }
+
     private function bobPaysAlice(Ledger $ledger): Ledger
     {
+        $this->io->section('Trade');
+
         $ledger = $ledger->apply(Tx::create(
             spendIds: ['bob-gold'],
-            outputs: [Output::ownedBy('alice', 450)],
+            outputs: [Output::ownedBy('alice', 450, 'alice-from-bob')],
             signedBy: 'bob',
             id: 'bob-pays-alice',
         ));
 
-        $this->io->newLine();
+        $fee = $ledger->feeForTx(new TxId('bob-pays-alice')) ?? 0;
         $this->io->text('Bob paid Alice 450g (50g fee/tax)');
-        $this->io->text("Fee collected: {$ledger->feeForTx(new TxId('bob-pays-alice'))}g");
+        $this->io->text("Fee collected: {$fee}g");
 
         return $ledger;
+    }
+
+    private function demonstrateHistoryTracing(Ledger $ledger): void
+    {
+        $this->io->section('History Tracing');
+
+        $history = $ledger->outputHistory(new OutputId('alice-change'));
+        if ($history !== null) {
+            $this->io->text("alice-change: created by '{$history->createdBy}'");
+        }
+
+        $history2 = $ledger->outputHistory(new OutputId('daily-bonus'));
+        if ($history2 !== null) {
+            $this->io->text("daily-bonus: created by '{$history2->createdBy}' (minted)");
+        }
     }
 
     private function processRandomAction(Ledger $ledger): Ledger
@@ -125,11 +215,13 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         $outputs = iterator_to_array($ledger->unspent());
         $playerOutputs = array_filter($outputs, function (Output $o): bool {
             $owner = $o->lock->toArray()['name'] ?? '';
+
             return \in_array($owner, $this->players) && $owner !== 'shop';
         });
 
         if ($playerOutputs === []) {
             $this->io->text('No player outputs available!');
+
             return $ledger;
         }
 
@@ -139,6 +231,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
         if ($amount < 50) {
             $this->io->text("{$owner} doesn't have enough gold.");
+
             return $ledger;
         }
 
@@ -154,7 +247,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     private function buyFromShop(
         Ledger $ledger,
-        mixed $toSpend,
+        Output $toSpend,
         string $owner,
         int $amount,
         int $fee,
@@ -179,7 +272,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     private function tradeWithPlayer(
         Ledger $ledger,
-        mixed $toSpend,
+        Output $toSpend,
         string $owner,
         int $amount,
         int $fee,
@@ -221,15 +314,57 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     private function showFinalBalances(Ledger $ledger): void
     {
-        $this->io->section('Audit Trail');
-        $this->io->text('alice-gold: created at genesis, spent in buy-sword');
+        $this->io->section('Final State');
 
-        $this->io->section('Final Balances');
-        foreach ($ledger->unspent() as $id => $output) {
-            $owner = $output->lock->toArray()['name'] ?? 'open';
-            $this->io->text("  {$owner}: {$output->amount}g ({$id})");
+        // Calculate balances by owner
+        $balances = [];
+        foreach ($ledger->unspent() as $output) {
+            $lockData = $output->lock->toArray();
+            /** @var string $owner */
+            $owner = $lockData['name'] ?? $lockData['owner'] ?? 'unknown'; // @phpstan-ignore nullCoalesce.offset
+            $balances[$owner] = ($balances[$owner] ?? 0) + $output->amount;
         }
+
+        foreach ($balances as $player => $balance) {
+            $this->io->text("  {$player}: {$balance}g");
+        }
+
+        $this->io->newLine();
         $this->io->text("Total in circulation: {$ledger->totalUnspentAmount()}g");
         $this->io->text("Total fees (burned): {$ledger->totalFeesCollected()}g");
+        $this->io->text("Total minted: {$ledger->totalMinted()}g");
+        $this->io->text("UTXOs: {$ledger->unspent()->count()}");
+    }
+}
+
+/**
+ * Time-locked output for quest rewards with cooldown periods.
+ */
+final readonly class GameTimeLock implements OutputLock
+{
+    public function __construct(
+        public int $unlockTime,
+        public string $owner,
+    ) {
+    }
+
+    public function validate(Tx $tx, int $inputIndex): void
+    {
+        if (time() < $this->unlockTime) {
+            $remaining = $this->unlockTime - time();
+            throw new RuntimeException("Locked for {$remaining} more seconds");
+        }
+        if ($tx->signedBy !== $this->owner) {
+            throw AuthorizationException::notOwner($this->owner, $tx->signedBy);
+        }
+    }
+
+    public function toArray(): array
+    {
+        return [
+            'type' => 'timelock',
+            'unlockTime' => $this->unlockTime,
+            'owner' => $this->owner,
+        ];
     }
 }
