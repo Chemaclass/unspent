@@ -49,6 +49,13 @@ interface HistoryStore
     public function feeForTx(TxId $id): ?int;
 
     /**
+     * Returns all transaction IDs with their associated fees.
+     *
+     * @return array<string, int> Map of TxId value to fee
+     */
+    public function allTxFees(): array;
+
+    /**
      * Returns true if the given ID was a coinbase transaction.
      */
     public function isCoinbase(TxId $id): bool;

@@ -16,7 +16,7 @@ Simple, but problematic. Where did the 500 come from? Can you prove it existed? 
 
 ```php
 // A 500-unit "bill"
-$ledger = InMemoryLedger::withGenesis(Output::open(500, 'bill'));
+$ledger = Ledger::withGenesis(Output::open(500, 'bill'));
 
 // Spend it and get change back
 $ledger = $ledger->apply(Tx::create(
@@ -108,7 +108,7 @@ Tx::create(
 The **Ledger** holds all state. It's immutable - every operation returns a new ledger.
 
 ```php
-$v1 = InMemoryLedger::empty();
+$v1 = Ledger::inMemory();
 $v2 = $v1->addGenesis(Output::open(1000, 'initial'));
 $v3 = $v2->apply($tx);
 // $v1, $v2, $v3 are separate, immutable snapshots
@@ -119,7 +119,7 @@ $v3 = $v2->apply($tx);
 Initial value enters via genesis:
 
 ```php
-$ledger = InMemoryLedger::withGenesis(
+$ledger = Ledger::withGenesis(
     Output::open(1000, 'fund-a'),
     Output::open(500, 'fund-b'),
 );

@@ -1,13 +1,13 @@
 # Scalability
 
-Unspent provides two ledger implementations for different scale requirements.
+The `Ledger` class supports two modes for different scale requirements.
 
-## InMemoryLedger (Simple)
+## In-memory Mode (Simple)
 
-The default implementation stores everything in memory:
+The default mode stores everything in memory:
 
 ```php
-$ledger = InMemoryLedger::withGenesis(Output::open(1000));
+$ledger = Ledger::withGenesis(Output::open(1000));
 $ledger = $ledger->apply($tx);
 ```
 
@@ -29,12 +29,12 @@ $ledger = $ledger->apply($tx);
 | 100k | ~100 MB |
 | 1M | ~700 MB |
 
-## ScalableLedger (Production)
+## Store-backed Mode (Production)
 
-For large-scale applications, ScalableLedger keeps only unspent outputs in memory while delegating history queries to a `HistoryStore`:
+For large-scale applications, store-backed mode keeps only unspent outputs in memory while delegating history queries to a `HistoryStore`:
 
 ```php
-use Chemaclass\Unspent\ScalableLedger;
+use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
 
@@ -42,8 +42,8 @@ use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
 $pdo = new PDO('sqlite:ledger.db');
 $store = new SqliteHistoryStore($pdo, 'wallet-1');
 
-// Create scalable ledger
-$ledger = ScalableLedger::create($store, Output::open(1000, 'genesis'));
+// Create store-backed ledger
+$ledger = Ledger::withStore($store)->addGenesis(Output::open(1000, 'genesis'));
 
 // Apply transactions (persisted to store immediately)
 $ledger = $ledger->apply($tx);
@@ -56,36 +56,36 @@ $history = $ledger->outputHistory($outputId);
 - Only unspent outputs in memory
 - History queries delegated to HistoryStore
 - Memory bounded by unspent count, not total history
-- Slightly higher latency for history queries (~1ms vs ~1μs)
+- Slightly higher latency for history queries (~1ms vs ~1us)
 
 **Best for:**
 - 100k+ total outputs
 - Applications with long transaction history
 - Memory-constrained environments
 
-**Memory usage (ScalableLedger):**
+**Memory usage (store-backed mode):**
 | Total Outputs | Unspent | Memory |
 |---------------|---------|--------|
 | 1M | 100k | ~100 MB |
 | 10M | 100k | ~100 MB |
 | 100M | 100k | ~100 MB |
 
-## Choosing an Implementation
+## Choosing a Mode
 
-| Factor | InMemoryLedger | ScalableLedger |
-|--------|----------------|----------------|
+| Factor | In-memory Mode | Store-backed Mode |
+|--------|----------------|-------------------|
 | Setup complexity | Simple | Requires HistoryStore |
 | Memory usage | Grows with history | Bounded by unspent |
-| Query latency | ~1μs | ~1ms for history |
+| Query latency | ~1us | ~1ms for history |
 | Persistence | Manual (JSON/SQLite) | Automatic |
 | Scale limit | ~1M outputs | Unlimited |
 
-## ScalableLedger Usage
+## Store-backed Mode Usage
 
-### Creating a New ScalableLedger
+### Creating a New Store-backed Ledger
 
 ```php
-use Chemaclass\Unspent\ScalableLedger;
+use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteSchema;
@@ -105,16 +105,16 @@ $pdo->exec("INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fee
 
 // Create history store and ledger
 $store = new SqliteHistoryStore($pdo, 'my-wallet');
-$ledger = ScalableLedger::create($store, Output::open(1000, 'initial-funds'));
+$ledger = Ledger::withStore($store)->addGenesis(Output::open(1000, 'initial-funds'));
 
 // Apply transactions
 $ledger = $ledger->apply($tx);
 ```
 
-### Loading an Existing ScalableLedger
+### Loading an Existing Store-backed Ledger
 
 ```php
-use Chemaclass\Unspent\ScalableLedger;
+use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
 use PDO;
@@ -129,7 +129,7 @@ $store = new SqliteHistoryStore($pdo, 'my-wallet');
 $data = $repo->findUnspentOnly('my-wallet');
 
 if ($data !== null) {
-    $ledger = ScalableLedger::fromUnspentSet(
+    $ledger = Ledger::fromUnspentSet(
         $data['unspentSet'],
         $store,
         $data['totalFees'],
@@ -140,10 +140,10 @@ if ($data !== null) {
 
 ## API Differences
 
-In ScalableLedger, the following methods query the HistoryStore instead of memory:
+In store-backed mode, the following methods query the HistoryStore instead of memory:
 
-| Method | InMemoryLedger | ScalableLedger |
-|--------|----------------|----------------|
+| Method | In-memory Mode | Store-backed Mode |
+|--------|----------------|-------------------|
 | `outputHistory()` | Memory lookup | HistoryStore query |
 | `outputCreatedBy()` | Memory lookup | HistoryStore query |
 | `outputSpentBy()` | Memory lookup | HistoryStore query |
@@ -151,7 +151,7 @@ In ScalableLedger, the following methods query the HistoryStore instead of memor
 | `isCoinbase()` | Memory lookup | HistoryStore query |
 | `coinbaseAmount()` | Memory lookup | HistoryStore query |
 
-These methods work identically in both implementations (always in-memory):
+These methods work identically in both modes (always in-memory):
 
 | Method | Notes |
 |--------|-------|
@@ -163,11 +163,11 @@ These methods work identically in both implementations (always in-memory):
 
 ## Ledger Interface
 
-Both implementations share the `Ledger` interface, enabling polymorphic code:
+Both modes share the same `Ledger` class, enabling consistent usage:
 
 ```php
 function processLedger(Ledger $ledger): void {
-    // Works with InMemoryLedger or ScalableLedger
+    // Works with in-memory or store-backed mode
     $ledger = $ledger->apply($tx);
     echo $ledger->totalUnspentAmount();
 }
@@ -191,31 +191,31 @@ class MySQLHistoryStore implements HistoryStore
 }
 ```
 
-Then use with ScalableLedger:
+Then use with store-backed mode:
 
 ```php
 $store = new RedisHistoryStore($redis, 'my-wallet');
-$ledger = ScalableLedger::create($store, ...$genesis);
+$ledger = Ledger::withStore($store)->addGenesis(...$genesis);
 ```
 
 ## Migration
 
-To migrate from InMemoryLedger to ScalableLedger:
+To migrate from in-memory to store-backed mode:
 
 1. Save existing ledger to SQLite using standard persistence
-2. Load using `ScalableLedger::fromUnspentSet()` with a HistoryStore
+2. Load using `Ledger::fromUnspentSet()` with a HistoryStore
 
 ```php
 // Save existing ledger
 $repo = SqliteRepositoryFactory::createFromFile('ledger.db');
 $repo->save('my-wallet', $existingLedger);
 
-// Reload as ScalableLedger
+// Reload with store-backed mode
 $pdo = new PDO('sqlite:ledger.db');
 $store = new SqliteHistoryStore($pdo, 'my-wallet');
 $data = (new SqliteLedgerRepository($pdo))->findUnspentOnly('my-wallet');
 
-$scalableLedger = ScalableLedger::fromUnspentSet(
+$ledger = Ledger::fromUnspentSet(
     $data['unspentSet'],
     $store,
     $data['totalFees'],

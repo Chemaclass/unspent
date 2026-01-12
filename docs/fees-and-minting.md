@@ -38,7 +38,7 @@ Fees are removed from circulation. Your app can:
 Create new value out of nothing:
 
 ```php
-$ledger = InMemoryLedger::empty()->applyCoinbase(CoinbaseTx::create(
+$ledger = Ledger::inMemory()->applyCoinbase(CoinbaseTx::create(
     outputs: [Output::ownedBy('miner', 50, 'block-reward')],
     id: 'block-1',
 ));
@@ -85,7 +85,7 @@ foreach ($blocks as $block) {
 ### Fixed supply
 
 ```php
-$ledger = InMemoryLedger::withGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('treasury', 21_000_000, 'total-supply'),
 );
 // Never call applyCoinbase()

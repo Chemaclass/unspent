@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Example\Console;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
-use Chemaclass\Unspent\InMemoryLedger;
+use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -52,18 +53,18 @@ final class CustomLocksCommand extends Command
         $io->newLine();
     }
 
-    private function createLedger(): InMemoryLedger
+    private function createLedger(): LedgerInterface
     {
-        return InMemoryLedger::withGenesis(
+        return Ledger::withGenesis(
             Output::lockedWith(new TimeLock(strtotime('2020-01-01'), 'alice'), 1000, 'unlocked'),
             Output::lockedWith(new TimeLock(strtotime('+1 year'), 'bob'), 500, 'still-locked'),
         );
     }
 
-    private function serializeAndRestore(SymfonyStyle $io, InMemoryLedger $ledger): InMemoryLedger
+    private function serializeAndRestore(SymfonyStyle $io, LedgerInterface $ledger): LedgerInterface
     {
         $json = $ledger->toJson();
-        $restored = InMemoryLedger::fromJson($json);
+        $restored = Ledger::fromJson($json);
 
         $output = $restored->unspent()->get(new OutputId('unlocked'));
         $io->text('Restored lock type: ' . $output?->lock::class);
@@ -72,7 +73,7 @@ final class CustomLocksCommand extends Command
         return $restored;
     }
 
-    private function spendUnlockedOutput(SymfonyStyle $io, InMemoryLedger $ledger): void
+    private function spendUnlockedOutput(SymfonyStyle $io, LedgerInterface $ledger): void
     {
         $ledger->apply(Tx::create(
             spendIds: ['unlocked'],
@@ -82,7 +83,7 @@ final class CustomLocksCommand extends Command
         $io->text('Alice spent unlocked funds');
     }
 
-    private function demonstrateLockedBlocked(SymfonyStyle $io, InMemoryLedger $ledger): void
+    private function demonstrateLockedBlocked(SymfonyStyle $io, LedgerInterface $ledger): void
     {
         $io->text('Bob tries to spend locked output... ');
 
@@ -101,7 +102,7 @@ final class CustomLocksCommand extends Command
     {
         $io->text("Eve tries to spend Alice's output... ");
 
-        $ledger2 = InMemoryLedger::withGenesis(
+        $ledger2 = Ledger::withGenesis(
             Output::lockedWith(new TimeLock(strtotime('2020-01-01'), 'alice'), 100, 'alice-funds'),
         );
 

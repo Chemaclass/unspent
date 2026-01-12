@@ -7,7 +7,7 @@
 
 ```php
 // Start with 1000 units
-$ledger = InMemoryLedger::withGenesis(Output::open(1000, 'funds'));
+$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
 
 // Spend 600, keep 400 as change
 $ledger = $ledger->apply(Tx::create(
@@ -64,7 +64,7 @@ composer require chemaclass/unspent
 
 ```php
 // Initial value
-$ledger = InMemoryLedger::withGenesis(Output::open(1000, 'funds'));
+$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
 
 // Transfer: spend existing outputs, create new ones
 $ledger = $ledger->apply(Tx::create(
@@ -86,7 +86,7 @@ When you need to control who can spend:
 
 ```php
 // Server-side ownership (sessions, JWT, etc.)
-$ledger = InMemoryLedger::withGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
 );
 
@@ -120,7 +120,7 @@ $ledger = $ledger->apply(Tx::create(
 | [Event sourcing](example/Console/EventSourcingCommand.php) | State machines, immutable history tracing |
 | [Bitcoin simulation](example/Console/BitcoinSimulationCommand.php) | Coinbase mining, fees, UTXO consolidation |
 | [Custom locks](example/Console/CustomLocksCommand.php) | Timelocks, custom lock types, serialization |
-| [SQLite persistence](example/Console/SqlitePersistenceCommand.php) | Database storage, querying, ScalableLedger |
+| [SQLite persistence](example/Console/SqlitePersistenceCommand.php) | Database storage, querying, Ledger with HistoryStore |
 
 ```bash
 php example/run game      # Run any example (loyalty, wallet, btc, etc.)
@@ -137,7 +137,7 @@ See [example/README.md](example/README.md) for details.
 | [History](docs/history.md) | Tracing value through transactions |
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees, coinbase transactions |
 | [Persistence](docs/persistence.md) | JSON, SQLite, custom storage |
-| [Scalability](docs/scalability.md) | InMemoryLedger vs ScalableLedger for large datasets |
+| [Scalability](docs/scalability.md) | In-memory mode vs store-backed mode for large datasets |
 | [API Reference](docs/api-reference.md) | Complete method reference |
 
 ## FAQ
@@ -161,16 +161,16 @@ This mirrors Bitcoin's UTXO model where each output has a unique `txid:vout` ide
 </details>
 
 <details>
-<summary><strong>When should I use InMemoryLedger vs ScalableLedger?</strong></summary>
+<summary><strong>When should I use in-memory mode vs store-backed mode?</strong></summary>
 
 | Scenario | Recommendation |
 |-|-|
-| < 100k total outputs | `InMemoryLedger` |
-| > 100k total outputs | `ScalableLedger` |
-| Need full history in memory | `InMemoryLedger` |
-| Memory-constrained environment | `ScalableLedger` |
+| < 100k total outputs | `Ledger::inMemory()` or `Ledger::withGenesis(...)` |
+| > 100k total outputs | `Ledger::withStore($store)` |
+| Need full history in memory | `Ledger::inMemory()` |
+| Memory-constrained environment | `Ledger::withStore($store)` |
 
-`ScalableLedger` keeps only unspent outputs in memory and delegates history to a `HistoryStore`. See [Scalability docs](docs/scalability.md).
+Store-backed mode keeps only unspent outputs in memory and delegates history to a `HistoryStore`. See [Scalability docs](docs/scalability.md).
 </details>
 
 <details>

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Example\Console;
 
 use Chemaclass\Unspent\CoinbaseTx;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -56,19 +56,19 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
     }
 
     private function earnPoints(
-        Ledger $ledger,
+        LedgerInterface $ledger,
         string $customer,
         int $amount,
         string $outputId,
         string $txId,
-    ): Ledger {
+    ): LedgerInterface {
         return $ledger->applyCoinbase(CoinbaseTx::create(
             outputs: [Output::ownedBy($customer, $amount, $outputId)],
             id: $txId,
         ));
     }
 
-    private function earnFromPurchase(Ledger $ledger): Ledger
+    private function earnFromPurchase(LedgerInterface $ledger): LedgerInterface
     {
         $purchaseAmount = random_int(20, 100);
         $earnId = "purchase-{$this->runNumber}";
@@ -85,7 +85,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function redeemPoints(Ledger $ledger): Ledger
+    private function redeemPoints(LedgerInterface $ledger): LedgerInterface
     {
         $ledger = $ledger->apply(Tx::create(
             spendIds: ['purchase-001', 'purchase-002'],
@@ -104,7 +104,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function maybeRedeem(Ledger $ledger): Ledger
+    private function maybeRedeem(LedgerInterface $ledger): LedgerInterface
     {
         if ($this->runNumber % 3 !== 0) {
             return $ledger;
@@ -142,14 +142,14 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function showAudit(Ledger $ledger): void
+    private function showAudit(LedgerInterface $ledger): void
     {
         $this->io->section('Audit Trail');
         $ledger->outputHistory(new OutputId('purchase-001'));
         $this->io->text('purchase-001: minted in earn-50, spent in redeem-coffee');
     }
 
-    private function showFinalState(Ledger $ledger): void
+    private function showFinalState(LedgerInterface $ledger): void
     {
         $this->io->section('Final State');
         foreach ($ledger->unspent() as $id => $output) {
@@ -158,7 +158,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         }
     }
 
-    private function showPointsBreakdown(Ledger $ledger): void
+    private function showPointsBreakdown(LedgerInterface $ledger): void
     {
         $this->io->section('Points Breakdown');
         foreach ($ledger->unspent() as $id => $output) {

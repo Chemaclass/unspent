@@ -4,12 +4,11 @@ declare(strict_types=1);
 
 namespace Example\Console;
 
-use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
-use Chemaclass\Unspent\ScalableLedger;
 use PDO;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -88,10 +87,10 @@ abstract class AbstractExampleCommand extends Command
     /**
      * @param callable(): list<Output> $genesisFactory
      */
-    protected function loadOrCreate(callable $genesisFactory): Ledger
+    protected function loadOrCreate(callable $genesisFactory): LedgerInterface
     {
         if (!$this->isDatabase()) {
-            return InMemoryLedger::withGenesis(...$genesisFactory());
+            return Ledger::withGenesis(...$genesisFactory());
         }
 
         \assert($this->repo !== null);
@@ -103,7 +102,7 @@ abstract class AbstractExampleCommand extends Command
             $this->io->text("<fg=yellow>[Loaded existing ledger with {$existingData['unspentSet']->count()} outputs]</>");
             $this->io->newLine();
 
-            return ScalableLedger::fromUnspentSet(
+            return Ledger::fromUnspentSet(
                 $existingData['unspentSet'],
                 $this->store,
                 $existingData['totalFees'],
@@ -118,13 +117,13 @@ abstract class AbstractExampleCommand extends Command
 
         \assert($this->store !== null);
 
-        return ScalableLedger::create($this->store, ...$outputs);
+        return Ledger::withStore($this->store)->addGenesis(...$outputs);
     }
 
-    protected function loadOrCreateEmpty(): Ledger
+    protected function loadOrCreateEmpty(): LedgerInterface
     {
         if (!$this->isDatabase()) {
-            return InMemoryLedger::empty();
+            return Ledger::inMemory();
         }
 
         \assert($this->repo !== null);
@@ -136,7 +135,7 @@ abstract class AbstractExampleCommand extends Command
             $this->io->text("<fg=yellow>[Loaded existing ledger with {$existingData['unspentSet']->count()} outputs]</>");
             $this->io->newLine();
 
-            return ScalableLedger::fromUnspentSet(
+            return Ledger::fromUnspentSet(
                 $existingData['unspentSet'],
                 $this->store,
                 $existingData['totalFees'],
@@ -150,10 +149,10 @@ abstract class AbstractExampleCommand extends Command
 
         \assert($this->store !== null);
 
-        return ScalableLedger::create($this->store);
+        return Ledger::withStore($this->store);
     }
 
-    protected function showStats(Ledger $ledger): void
+    protected function showStats(LedgerInterface $ledger): void
     {
         if (!$this->isDatabase()) {
             return;

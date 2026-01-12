@@ -111,31 +111,34 @@ $coinbase->totalOutputAmount(): int  // Sum of output amounts
 
 ## Ledger
 
-Immutable state container. Two implementations available:
+Immutable state container with two modes:
 
-- `InMemoryLedger` - Simple, all-in-memory (< 100k outputs)
-- `ScalableLedger` - Production-ready, bounded memory (100k+ outputs)
+- **In-memory mode** - Simple, all-in-memory (< 100k outputs)
+- **Store-backed mode** - Production-ready, bounded memory (100k+ outputs)
 
-### InMemoryLedger Creation
+### In-memory Mode Creation
 
 ```php
-InMemoryLedger::empty(): Ledger
-InMemoryLedger::withGenesis(Output ...$outputs): Ledger  // Recommended
+Ledger::inMemory(): Ledger                                 // Empty ledger
+Ledger::withGenesis(Output ...$outputs): Ledger            // Recommended
+Ledger::fromArray(array $data): Ledger                     // From serialized data
+Ledger::fromJson(string $json): Ledger                     // From JSON
 ```
 
-### ScalableLedger Creation
+### Store-backed Mode Creation
 
 ```php
 // Create new ledger with HistoryStore
-ScalableLedger::create(HistoryStore $store, Output ...$genesis): ScalableLedger
+Ledger::withStore(HistoryStore $store): Ledger
+Ledger::withStore($store)->addGenesis(Output ...$outputs): Ledger
 
 // Load from existing UnspentSet (for persistence)
-ScalableLedger::fromUnspentSet(
+Ledger::fromUnspentSet(
     UnspentSet $unspentSet,
     HistoryStore $store,
     int $totalFees = 0,
     int $totalMinted = 0,
-): ScalableLedger
+): Ledger
 ```
 
 ### Genesis
@@ -176,7 +179,7 @@ $ledger->totalFeesCollected(): int       // Sum of all fees
 $ledger->allTxFees(): array              // ['id' => fee, ...]
 ```
 
-> **Note:** `allTxFees()` returns an empty array for `ScalableLedger` since individual fees are stored in the `HistoryStore`, not in memory. Use `feeForTx()` to query specific transaction fees, or query the HistoryStore directly for batch operations.
+> **Note:** `allTxFees()` returns an empty array for store-backed mode since individual fees are stored in the `HistoryStore`, not in memory. Use `feeForTx()` to query specific transaction fees, or query the HistoryStore directly for batch operations.
 
 ### Query - Coinbase
 
@@ -211,8 +214,8 @@ $ledger->outputHistory(OutputId $id): ?OutputHistory
 $ledger->toArray(): array
 $ledger->toJson(int $flags = 0): string
 
-InMemoryLedger::fromArray(array $data): Ledger
-InMemoryLedger::fromJson(string $json): Ledger
+Ledger::fromArray(array $data): Ledger
+Ledger::fromJson(string $json): Ledger
 ```
 
 ## UnspentSet
@@ -441,20 +444,20 @@ LockFactory::fromArray(array $data): OutputLock
 **Usage:**
 
 ```php
-// Register before calling InMemoryLedger::fromJson()
+// Register before calling Ledger::fromJson()
 LockFactory::register('timelock', fn(array $data) => new TimeLock(
     $data['unlockTimestamp'],
     $data['owner'],
 ));
 
-$ledger = InMemoryLedger::fromJson($json);  // Custom locks restored transparently
+$ledger = Ledger::fromJson($json);  // Custom locks restored transparently
 ```
 
 ## Persistence
 
 ### HistoryStore Interface
 
-Used by `ScalableLedger` to delegate history storage to a database. Implement this interface for custom storage backends.
+Used by store-backed mode (`Ledger::withStore()`) to delegate history storage to a database. Implement this interface for custom storage backends.
 
 ```php
 interface HistoryStore
@@ -468,7 +471,7 @@ interface HistoryStore
     public function isCoinbase(TxId $id): bool;
     public function coinbaseAmount(TxId $id): ?int;
 
-    // Recording methods (called by ScalableLedger)
+    // Recording methods (called by store-backed Ledger)
     public function recordTransaction(Tx $tx, int $fee, array $spentOutputData): void;
     public function recordCoinbase(CoinbaseTx $coinbase): void;
     public function recordGenesis(array $outputs): void;
@@ -546,7 +549,7 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
     // Convert rows to Output objects
     protected function rowsToOutputs(array $rows): array;
 
-    // Build ledger data for InMemoryLedger::fromArray()
+    // Build ledger data for Ledger::fromArray()
     protected function buildLedgerDataArray(
         array $unspentRows,
         array $spentRows,

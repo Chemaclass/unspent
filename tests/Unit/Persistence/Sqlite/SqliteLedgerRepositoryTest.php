@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\UnspentTests\Unit\Persistence\Sqlite;
 
 use Chemaclass\Unspent\CoinbaseTx;
-use Chemaclass\Unspent\InMemoryLedger;
+use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -28,7 +28,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_save_and_load_empty_ledger(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::empty();
+        $ledger = Ledger::inMemory();
 
         $repo->save('test', $ledger);
         $loaded = $repo->find('test');
@@ -40,7 +40,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_save_and_load_ledger_with_genesis(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
             Output::ownedBy('bob', 500, 'bob-funds'),
         );
@@ -63,7 +63,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_save_and_load_ledger_with_transactions(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'alice-funds'),
         )->apply(Tx::create(
             spendIds: ['alice-funds'],
@@ -94,7 +94,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_exists_returns_true_for_existing_ledger(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $repo->save('test', InMemoryLedger::empty());
+        $repo->save('test', Ledger::inMemory());
 
         self::assertTrue($repo->exists('test'));
     }
@@ -109,7 +109,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_delete_removes_ledger(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $repo->save('test', InMemoryLedger::empty());
+        $repo->save('test', Ledger::inMemory());
 
         $repo->delete('test');
 
@@ -121,10 +121,10 @@ final class SqliteLedgerRepositoryTest extends TestCase
     {
         $repo = SqliteRepositoryFactory::createInMemory();
 
-        $ledger1 = InMemoryLedger::withGenesis(Output::ownedBy('alice', 100, 'funds'));
+        $ledger1 = Ledger::withGenesis(Output::ownedBy('alice', 100, 'funds'));
         $repo->save('test', $ledger1);
 
-        $ledger2 = InMemoryLedger::withGenesis(Output::ownedBy('bob', 200, 'funds'));
+        $ledger2 = Ledger::withGenesis(Output::ownedBy('bob', 200, 'funds'));
         $repo->save('test', $ledger2);
 
         $loaded = $repo->find('test');
@@ -139,7 +139,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_preserves_output_created_by(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'genesis-output'),
         )->apply(Tx::create(
             spendIds: ['genesis-output'],
@@ -159,7 +159,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_preserves_output_spent_by(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'funds'),
         )->apply(Tx::create(
             spendIds: ['funds'],
@@ -178,7 +178,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_preserves_spent_outputs(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'spent-output'),
         )->apply(Tx::create(
             spendIds: ['spent-output'],
@@ -202,7 +202,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_preserves_owner_lock(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(Output::ownedBy('alice', 100, 'funds'));
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 100, 'funds'));
 
         $repo->save('test', $ledger);
         $loaded = $repo->find('test');
@@ -216,7 +216,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_preserves_no_lock(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(Output::open(100, 'open-funds'));
+        $ledger = Ledger::withGenesis(Output::open(100, 'open-funds'));
 
         $repo->save('test', $ledger);
         $loaded = $repo->find('test');
@@ -234,7 +234,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $keypair = sodium_crypto_sign_keypair();
         $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
 
-        $ledger = InMemoryLedger::withGenesis(Output::signedBy($publicKey, 100, 'crypto-funds'));
+        $ledger = Ledger::withGenesis(Output::signedBy($publicKey, 100, 'crypto-funds'));
 
         $repo->save('test', $ledger);
         $loaded = $repo->find('test');
@@ -291,7 +291,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
             }
         };
 
-        $ledger = InMemoryLedger::withGenesis(Output::lockedWith($customLock, 100, 'locked-funds'));
+        $ledger = Ledger::withGenesis(Output::lockedWith($customLock, 100, 'locked-funds'));
 
         $repo->save('test', $ledger);
         $loaded = $repo->find('test');
@@ -313,7 +313,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_preserves_coinbase_transactions(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::empty()->applyCoinbase(CoinbaseTx::create(
+        $ledger = Ledger::inMemory()->applyCoinbase(CoinbaseTx::create(
             outputs: [Output::ownedBy('miner', 50, 'reward')],
             id: 'coinbase-1',
         ));
@@ -334,7 +334,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_find_unspent_by_owner(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 100, 'alice-1'),
             Output::ownedBy('alice', 200, 'alice-2'),
             Output::ownedBy('bob', 300, 'bob-1'),
@@ -352,7 +352,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_find_unspent_by_amount_range(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 50, 'small'),
             Output::ownedBy('alice', 150, 'medium'),
             Output::ownedBy('alice', 500, 'large'),
@@ -368,7 +368,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_find_unspent_by_amount_range_no_max(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 50, 'small'),
             Output::ownedBy('alice', 150, 'medium'),
             Output::ownedBy('alice', 500, 'large'),
@@ -387,7 +387,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
         $keypair = sodium_crypto_sign_keypair();
         $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
 
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 100, 'owner-lock'),
             Output::open(50, 'no-lock'),
             Output::signedBy($publicKey, 200, 'pubkey-lock'),
@@ -410,7 +410,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_find_outputs_created_by(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'genesis-output'),
         )->apply(Tx::create(
             spendIds: ['genesis-output'],
@@ -433,7 +433,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_count_unspent(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 100, 'a'),
             Output::ownedBy('bob', 200, 'b'),
             Output::ownedBy('charlie', 300, 'c'),
@@ -446,7 +446,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_sum_unspent_by_owner(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 100, 'alice-1'),
             Output::ownedBy('alice', 250, 'alice-2'),
             Output::ownedBy('bob', 300, 'bob-1'),
@@ -461,7 +461,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_find_coinbase_transactions(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::empty()
+        $ledger = Ledger::inMemory()
             ->applyCoinbase(CoinbaseTx::create([Output::ownedBy('miner', 50, 'r1')], 'cb-1'))
             ->applyCoinbase(CoinbaseTx::create([Output::ownedBy('miner', 50, 'r2')], 'cb-2'))
             ->apply(Tx::create(['r1'], [Output::ownedBy('alice', 50, 'a1')], 'miner', 'tx-1'));
@@ -476,7 +476,7 @@ final class SqliteLedgerRepositoryTest extends TestCase
     public function test_find_transactions_by_fee_range(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();
-        $ledger = InMemoryLedger::withGenesis(
+        $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 1000, 'funds'),
         )->apply(Tx::create(
             spendIds: ['funds'],
@@ -515,8 +515,8 @@ final class SqliteLedgerRepositoryTest extends TestCase
     {
         $repo = SqliteRepositoryFactory::createInMemory();
 
-        $repo->save('ledger-1', InMemoryLedger::withGenesis(Output::ownedBy('alice', 100, 'a')));
-        $repo->save('ledger-2', InMemoryLedger::withGenesis(Output::ownedBy('bob', 200, 'b')));
+        $repo->save('ledger-1', Ledger::withGenesis(Output::ownedBy('alice', 100, 'a')));
+        $repo->save('ledger-2', Ledger::withGenesis(Output::ownedBy('bob', 200, 'b')));
 
         $ledger1 = $repo->find('ledger-1');
         $ledger2 = $repo->find('ledger-2');

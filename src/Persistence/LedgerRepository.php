@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent\Persistence;
 
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 
 /**
  * Repository interface for persisting ledgers.
@@ -16,16 +16,16 @@ interface LedgerRepository
      *
      * @throws PersistenceException on storage failure
      */
-    public function save(string $id, Ledger $ledger): void;
+    public function save(string $id, LedgerInterface $ledger): void;
 
     /**
      * Find a ledger by identifier.
      *
      * @throws PersistenceException on storage failure
      *
-     * @return Ledger|null The ledger if found, null otherwise
+     * @return LedgerInterface|null The ledger if found, null otherwise
      */
-    public function find(string $id): ?Ledger;
+    public function find(string $id): ?LedgerInterface;
 
     /**
      * Delete a ledger by identifier.

@@ -154,7 +154,7 @@ final class InitLedgerDbCommandTest extends TestCase
 
         self::assertStringContainsString('Database initialized successfully', $output);
         self::assertStringContainsString('SqliteHistoryStore', $output);
-        self::assertStringContainsString('ScalableLedger::create', $output);
+        self::assertStringContainsString('Ledger::withStore', $output);
     }
 
     #[Test]

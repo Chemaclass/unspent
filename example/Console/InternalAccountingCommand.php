@@ -6,8 +6,8 @@ namespace Example\Console;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\InsufficientSpendsException;
-use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -42,9 +42,9 @@ final class InternalAccountingCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function allocateBudget(SymfonyStyle $io): Ledger
+    private function allocateBudget(SymfonyStyle $io): LedgerInterface
     {
-        $company = InMemoryLedger::withGenesis(
+        $company = Ledger::withGenesis(
             Output::ownedBy('engineering', 100_000, 'eng-budget'),
             Output::ownedBy('marketing', 50_000, 'mkt-budget'),
             Output::ownedBy('operations', 30_000, 'ops-budget'),
@@ -57,7 +57,7 @@ final class InternalAccountingCommand extends Command
         return $company;
     }
 
-    private function splitEngineeringBudget(SymfonyStyle $io, Ledger $company): Ledger
+    private function splitEngineeringBudget(SymfonyStyle $io, LedgerInterface $company): LedgerInterface
     {
         $company = $company->apply(Tx::create(
             spendIds: ['eng-budget'],
@@ -74,7 +74,7 @@ final class InternalAccountingCommand extends Command
         return $company;
     }
 
-    private function demonstrateUnauthorizedBlocked(SymfonyStyle $io, Ledger $company): void
+    private function demonstrateUnauthorizedBlocked(SymfonyStyle $io, LedgerInterface $company): void
     {
         $io->newLine();
         $io->text('Finance tries to reallocate engineering funds... ');
@@ -90,7 +90,7 @@ final class InternalAccountingCommand extends Command
         }
     }
 
-    private function interDepartmentTransfer(SymfonyStyle $io, Ledger $company): Ledger
+    private function interDepartmentTransfer(SymfonyStyle $io, LedgerInterface $company): LedgerInterface
     {
         $company = $company->apply(Tx::create(
             spendIds: ['ops-budget'],
@@ -109,7 +109,7 @@ final class InternalAccountingCommand extends Command
         return $company;
     }
 
-    private function demonstrateOverspendBlocked(SymfonyStyle $io, Ledger $company): void
+    private function demonstrateOverspendBlocked(SymfonyStyle $io, LedgerInterface $company): void
     {
         $io->newLine();
         $io->text('Marketing tries to overspend... ');
@@ -125,14 +125,14 @@ final class InternalAccountingCommand extends Command
         }
     }
 
-    private function showAuditTrail(SymfonyStyle $io, Ledger $company): void
+    private function showAuditTrail(SymfonyStyle $io, LedgerInterface $company): void
     {
         $io->section('Audit Trail');
         $id = new OutputId('mkt-campaign');
         $io->text("mkt-campaign: created by {$company->outputCreatedBy($id)}");
     }
 
-    private function showReconciliation(SymfonyStyle $io, Ledger $company): void
+    private function showReconciliation(SymfonyStyle $io, LedgerInterface $company): void
     {
         $io->section('Reconciliation');
 
@@ -148,7 +148,7 @@ final class InternalAccountingCommand extends Command
         ]);
     }
 
-    private function showCurrentState(SymfonyStyle $io, Ledger $company): void
+    private function showCurrentState(SymfonyStyle $io, LedgerInterface $company): void
     {
         $io->section('Budget by Department');
 

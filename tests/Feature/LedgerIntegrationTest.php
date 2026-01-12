@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\UnspentTests\Feature;
 
-use Chemaclass\Unspent\InMemoryLedger;
+use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -16,7 +16,7 @@ final class LedgerIntegrationTest extends TestCase
     public function test_readme_usage_example(): void
     {
         // Create a ledger with genesis outputs
-        $ledger = InMemoryLedger::empty()
+        $ledger = Ledger::inMemory()
             ->addGenesis(
                 Output::open(1000, 'genesis-1'),
                 Output::open(500, 'genesis-2'),
@@ -66,7 +66,7 @@ final class LedgerIntegrationTest extends TestCase
 
     public function test_chain_of_spends_with_fees(): void
     {
-        $ledger = InMemoryLedger::empty()
+        $ledger = Ledger::inMemory()
             ->addGenesis(Output::open(1000, 'genesis'))
             ->apply(Tx::create(
                 spendIds: ['genesis'],
@@ -101,7 +101,7 @@ final class LedgerIntegrationTest extends TestCase
 
     public function test_multi_input_spend(): void
     {
-        $ledger = InMemoryLedger::empty()
+        $ledger = Ledger::inMemory()
             ->addGenesis(
                 Output::open(100, 'a'),
                 Output::open(200, 'b'),

@@ -8,14 +8,14 @@ $json = $ledger->toJson();
 file_put_contents('ledger.json', $json);
 
 // Restore
-$ledger = InMemoryLedger::fromJson(file_get_contents('ledger.json'));
+$ledger = Ledger::fromJson(file_get_contents('ledger.json'));
 ```
 
 ## Array Serialization
 
 ```php
 $array = $ledger->toArray();
-$ledger = InMemoryLedger::fromArray($array);
+$ledger = Ledger::fromArray($array);
 ```
 
 ## SQLite (Built-in)
@@ -73,7 +73,7 @@ LockFactory::register('timelock', fn($data) => new TimeLock(
     $data['owner'],
 ));
 
-$ledger = InMemoryLedger::fromJson($json); // Custom locks restored
+$ledger = Ledger::fromJson($json); // Custom locks restored
 ```
 
 ## What Gets Persisted

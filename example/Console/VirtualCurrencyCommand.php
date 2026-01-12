@@ -7,7 +7,7 @@ namespace Example\Console;
 use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\OutputLock;
@@ -77,7 +77,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         return Command::SUCCESS;
     }
 
-    private function mintDailyBonus(Ledger $ledger): Ledger
+    private function mintDailyBonus(LedgerInterface $ledger): LedgerInterface
     {
         $this->io->section('Minting');
 
@@ -92,7 +92,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function aliceBuysSword(Ledger $ledger): Ledger
+    private function aliceBuysSword(LedgerInterface $ledger): LedgerInterface
     {
         $this->io->section('Purchase');
 
@@ -111,7 +111,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function demonstrateTheftBlocked(Ledger $ledger): void
+    private function demonstrateTheftBlocked(LedgerInterface $ledger): void
     {
         $this->io->section('Security');
         $this->io->text("Mallory tries to steal Bob's gold... ");
@@ -127,7 +127,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
     }
 
-    private function demonstrateDoubleSpendBlocked(Ledger $ledger): void
+    private function demonstrateDoubleSpendBlocked(LedgerInterface $ledger): void
     {
         $this->io->text('Alice tries to spend already-spent gold... ');
 
@@ -142,7 +142,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
     }
 
-    private function grantQuestReward(Ledger $ledger): Ledger
+    private function grantQuestReward(LedgerInterface $ledger): LedgerInterface
     {
         $this->io->section('Quest Reward');
 
@@ -162,7 +162,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function demonstrateTimelockBlocked(Ledger $ledger): void
+    private function demonstrateTimelockBlocked(LedgerInterface $ledger): void
     {
         $this->io->text('Alice tries to spend locked reward... ');
 
@@ -177,7 +177,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
     }
 
-    private function bobPaysAlice(Ledger $ledger): Ledger
+    private function bobPaysAlice(LedgerInterface $ledger): LedgerInterface
     {
         $this->io->section('Trade');
 
@@ -195,7 +195,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function demonstrateHistoryTracing(Ledger $ledger): void
+    private function demonstrateHistoryTracing(LedgerInterface $ledger): void
     {
         $this->io->section('History Tracing');
 
@@ -210,7 +210,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
     }
 
-    private function processRandomAction(Ledger $ledger): Ledger
+    private function processRandomAction(LedgerInterface $ledger): LedgerInterface
     {
         $outputs = iterator_to_array($ledger->unspent());
         $playerOutputs = array_filter($outputs, function (Output $o): bool {
@@ -246,12 +246,12 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
     }
 
     private function buyFromShop(
-        Ledger $ledger,
+        LedgerInterface $ledger,
         Output $toSpend,
         string $owner,
         int $amount,
         int $fee,
-    ): Ledger {
+    ): LedgerInterface {
         $spend = min(200, (int) ($amount * 0.3));
         $change = $amount - $spend - $fee;
 
@@ -271,12 +271,12 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
     }
 
     private function tradeWithPlayer(
-        Ledger $ledger,
+        LedgerInterface $ledger,
         Output $toSpend,
         string $owner,
         int $amount,
         int $fee,
-    ): Ledger {
+    ): LedgerInterface {
         $otherPlayers = array_diff($this->players, [$owner, 'shop']);
         $recipient = $otherPlayers[array_rand($otherPlayers)];
         $send = (int) (($amount - $fee) * 0.5);
@@ -297,7 +297,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function showBalances(Ledger $ledger): void
+    private function showBalances(LedgerInterface $ledger): void
     {
         $this->io->section('Balances');
         $balances = [];
@@ -312,7 +312,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         $this->io->text("Total fees collected: {$ledger->totalFeesCollected()}g");
     }
 
-    private function showFinalBalances(Ledger $ledger): void
+    private function showFinalBalances(LedgerInterface $ledger): void
     {
         $this->io->section('Final State');
 

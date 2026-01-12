@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace Example\Console;
 
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
-use Chemaclass\Unspent\ScalableLedger;
 use Chemaclass\Unspent\Tx;
 use PDO;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -74,7 +74,7 @@ final class SqlitePersistenceCommand extends Command
         return true;
     }
 
-    private function loadOrCreateLedger(): Ledger
+    private function loadOrCreateLedger(): LedgerInterface
     {
         $existingData = $this->repo->findUnspentOnly(self::LEDGER_ID);
 
@@ -82,7 +82,7 @@ final class SqlitePersistenceCommand extends Command
             $this->io->text("<fg=yellow>Loaded existing ledger with {$existingData['unspentSet']->count()} outputs</>");
             $this->io->newLine();
 
-            return ScalableLedger::fromUnspentSet(
+            return Ledger::fromUnspentSet(
                 $existingData['unspentSet'],
                 $this->store,
                 $existingData['totalFees'],
@@ -97,8 +97,7 @@ final class SqlitePersistenceCommand extends Command
         );
         $stmt->execute([self::LEDGER_ID]);
 
-        $ledger = ScalableLedger::create(
-            $this->store,
+        $ledger = Ledger::withStore($this->store)->addGenesis(
             Output::ownedBy('alice', 1000, 'alice-initial'),
             Output::ownedBy('bob', 500, 'bob-initial'),
         );
@@ -109,7 +108,7 @@ final class SqlitePersistenceCommand extends Command
         return $ledger;
     }
 
-    private function applyTransaction(Ledger $ledger): Ledger
+    private function applyTransaction(LedgerInterface $ledger): LedgerInterface
     {
         $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM transactions WHERE ledger_id = ?');
         $stmt->execute([self::LEDGER_ID]);
@@ -180,7 +179,7 @@ final class SqlitePersistenceCommand extends Command
         $this->io->text('Owner-locked outputs: ' . \count($ownerLocked));
     }
 
-    private function showHistoryTracking(Ledger $ledger): void
+    private function showHistoryTracking(LedgerInterface $ledger): void
     {
         $this->io->section('History Tracking');
 
@@ -196,7 +195,7 @@ final class SqlitePersistenceCommand extends Command
         }
     }
 
-    private function showLedgerSummary(Ledger $ledger): void
+    private function showLedgerSummary(LedgerInterface $ledger): void
     {
         $this->io->section('Ledger Summary');
         $this->io->listing([

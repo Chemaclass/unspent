@@ -15,7 +15,7 @@ Every output has a **lock** that determines who can spend it.
 For apps where you control authentication (sessions, JWT, API keys).
 
 ```php
-$ledger = InMemoryLedger::withGenesis(
+$ledger = Ledger::withGenesis(
     Output::ownedBy('alice', 1000, 'alice-funds'),
 );
 
@@ -45,7 +45,7 @@ $publicKey = base64_encode(sodium_crypto_sign_publickey($keypair));
 $privateKey = sodium_crypto_sign_secretkey($keypair);
 
 // Lock to public key
-$ledger = InMemoryLedger::withGenesis(
+$ledger = Ledger::withGenesis(
     Output::signedBy($publicKey, 1000, 'secure-funds'),
 );
 
@@ -132,7 +132,7 @@ LockFactory::register('timelock', fn(array $data) => new TimeLock(
     $data['owner'],
 ));
 
-$ledger = InMemoryLedger::fromJson($json); // Custom locks restored
+$ledger = Ledger::fromJson($json); // Custom locks restored
 ```
 
 ## Next Steps

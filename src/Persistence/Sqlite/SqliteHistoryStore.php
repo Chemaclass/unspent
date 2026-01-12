@@ -31,6 +31,7 @@ final class SqliteHistoryStore implements HistoryStore
 {
     private const string SQL_OUTPUT_BY_ID = 'SELECT * FROM outputs WHERE ledger_id = ? AND id = ?';
     private const string SQL_TX_BY_ID = 'SELECT * FROM transactions WHERE ledger_id = ? AND id = ?';
+    private const string SQL_ALL_TX_FEES = 'SELECT id, fee FROM transactions WHERE ledger_id = ? AND is_coinbase = 0 AND fee IS NOT NULL';
     private const string SQL_OUTPUT_INSERT = 'INSERT INTO outputs (id, ledger_id, amount, lock_type, lock_owner, lock_pubkey, lock_custom_data, is_spent, created_by, spent_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     private const string SQL_OUTPUT_MARK_SPENT = 'UPDATE outputs SET is_spent = 1, spent_by = ? WHERE ledger_id = ? AND id = ?';
     private const string SQL_TX_INSERT = 'INSERT INTO transactions (id, ledger_id, is_coinbase, fee, coinbase_amount) VALUES (?, ?, ?, ?, ?)';
@@ -117,6 +118,23 @@ final class SqliteHistoryStore implements HistoryStore
         }
 
         return (int) $row['coinbase_amount'];
+    }
+
+    public function allTxFees(): array
+    {
+        try {
+            $stmt = $this->prepare(self::SQL_ALL_TX_FEES);
+            $stmt->execute([$this->ledgerId]);
+
+            $fees = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $fees[$row['id']] = (int) $row['fee'];
+            }
+
+            return $fees;
+        } catch (PDOException $e) {
+            throw PersistenceException::queryFailed($e->getMessage());
+        }
     }
 
     public function recordTransaction(

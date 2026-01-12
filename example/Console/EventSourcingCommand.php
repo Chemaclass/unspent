@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Example\Console;
 
-use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -37,9 +37,9 @@ final class EventSourcingCommand extends Command
         return Command::SUCCESS;
     }
 
-    private function processOrderLifecycle(SymfonyStyle $io): Ledger
+    private function processOrderLifecycle(SymfonyStyle $io): LedgerInterface
     {
-        $orders = InMemoryLedger::withGenesis(
+        $orders = Ledger::withGenesis(
             Output::open(1, 'order-1001_placed'),
         );
         $io->text('Order #1001: placed');
@@ -69,7 +69,7 @@ final class EventSourcingCommand extends Command
         return $orders;
     }
 
-    private function showEventChain(SymfonyStyle $io, Ledger $orders): void
+    private function showEventChain(SymfonyStyle $io, LedgerInterface $orders): void
     {
         $io->section('Event Chain');
 
@@ -93,7 +93,7 @@ final class EventSourcingCommand extends Command
     {
         $io->section('Multiple Orders');
 
-        $multi = InMemoryLedger::withGenesis(
+        $multi = Ledger::withGenesis(
             Output::open(1, 'order-2001_placed'),
             Output::open(1, 'order-2002_placed'),
         );

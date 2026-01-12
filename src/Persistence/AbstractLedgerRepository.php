@@ -20,13 +20,13 @@ use RuntimeException;
  *
  *     class MySQLLedgerRepository extends AbstractLedgerRepository
  *     {
- *         public function save(string $id, Ledger $ledger): void
+ *         public function save(string $id, LedgerInterface $ledger): void
  *         {
  *             // MySQL-specific SQL
  *             // Use: $this->extractLockData($output) for normalization
  *         }
  *
- *         public function load(string $id): ?Ledger
+ *         public function find(string $id): ?LedgerInterface
  *         {
  *             // MySQL-specific SQL
  *             // Use: Ledger::fromArray($this->buildLedgerDataArray(...))

@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent\Persistence\Sqlite;
 
-use Chemaclass\Unspent\InMemoryLedger;
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -61,7 +61,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     ) {
     }
 
-    public function save(string $id, Ledger $ledger): void
+    public function save(string $id, LedgerInterface $ledger): void
     {
         try {
             $this->pdo->beginTransaction();
@@ -78,7 +78,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         }
     }
 
-    public function find(string $id): ?Ledger
+    public function find(string $id): ?LedgerInterface
     {
         try {
             $stmt = $this->prepare(self::SQL_LEDGER_SELECT);
@@ -88,7 +88,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
                 return null;
             }
 
-            return InMemoryLedger::fromArray($this->fetchLedgerData($id));
+            return Ledger::fromArray($this->fetchLedgerData($id));
         } catch (PDOException $e) {
             throw PersistenceException::findFailed($id, $e->getMessage());
         }
@@ -317,7 +317,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         $stmt->execute([$id]);
     }
 
-    private function insertLedger(string $id, Ledger $ledger): void
+    private function insertLedger(string $id, LedgerInterface $ledger): void
     {
         $stmt = $this->prepare(self::SQL_LEDGER_INSERT);
         $stmt->execute([
@@ -329,7 +329,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         ]);
     }
 
-    private function insertOutputs(string $id, Ledger $ledger): void
+    private function insertOutputs(string $id, LedgerInterface $ledger): void
     {
         $stmt = $this->prepare(self::SQL_OUTPUT_INSERT);
 
@@ -354,7 +354,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         string $ledgerId,
         string $outputId,
         Output $output,
-        Ledger $ledger,
+        LedgerInterface $ledger,
         bool $isSpent,
     ): void {
         $lockData = $this->extractLockData($output);
@@ -372,7 +372,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         ]);
     }
 
-    private function insertTransactions(string $id, Ledger $ledger): void
+    private function insertTransactions(string $id, LedgerInterface $ledger): void
     {
         $stmt = $this->prepare(self::SQL_TX_INSERT);
         $allFees = $ledger->allTxFees();

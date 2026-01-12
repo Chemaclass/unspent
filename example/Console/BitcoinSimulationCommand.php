@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Example\Console;
 
 use Chemaclass\Unspent\CoinbaseTx;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -69,7 +69,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         return Command::SUCCESS;
     }
 
-    private function mineBlock(Ledger $ledger, int $blockNum, string $prefix = 'satoshi'): Ledger
+    private function mineBlock(LedgerInterface $ledger, int $blockNum, string $prefix = 'satoshi'): LedgerInterface
     {
         $outputId = $blockNum >= 2 ? "miner-{$blockNum}" : "{$prefix}-{$blockNum}";
         return $ledger->applyCoinbase(CoinbaseTx::create(
@@ -79,13 +79,13 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
     }
 
     private function applyTransaction(
-        Ledger $ledger,
+        LedgerInterface $ledger,
         string $fromId,
         string $toId,
         int $amount,
         string $txId = 'tx-to-hal',
         string $changeId = 'satoshi-change',
-    ): Ledger {
+    ): LedgerInterface {
         $output = $ledger->unspent()->get(new OutputId($fromId));
         if ($output === null) {
             return $ledger;
@@ -104,7 +104,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         ));
     }
 
-    private function consolidateOutputs(Ledger $ledger): Ledger
+    private function consolidateOutputs(LedgerInterface $ledger): LedgerInterface
     {
         return $ledger->apply(Tx::create(
             spendIds: ['satoshi-1', 'satoshi-change', 'miner-2'],
@@ -113,7 +113,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         ));
     }
 
-    private function processTransaction(Ledger $ledger, int $blockNum): Ledger
+    private function processTransaction(LedgerInterface $ledger, int $blockNum): LedgerInterface
     {
         $outputs = iterator_to_array($ledger->unspent());
         usort($outputs, static fn ($a, $b): int => $b->amount <=> $a->amount);
@@ -148,7 +148,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function mineCoinbase(Ledger $ledger, int $blockNum): Ledger
+    private function mineCoinbase(LedgerInterface $ledger, int $blockNum): LedgerInterface
     {
         $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
             [Output::open(self::BLOCK_REWARD, "miner-{$blockNum}")],
@@ -161,7 +161,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function displayBlockchainState(Ledger $ledger): void
+    private function displayBlockchainState(LedgerInterface $ledger): void
     {
         $this->io->section('Blockchain State');
         $this->io->listing([
@@ -172,7 +172,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         ]);
     }
 
-    private function displayFinalState(Ledger $ledger): void
+    private function displayFinalState(LedgerInterface $ledger): void
     {
         $this->io->section('Final State');
         $this->io->listing([

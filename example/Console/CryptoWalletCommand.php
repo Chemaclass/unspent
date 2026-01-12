@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Example\Console;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
@@ -84,7 +84,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         ]);
     }
 
-    private function aliceSendsToBob(Ledger $ledger): Ledger
+    private function aliceSendsToBob(LedgerInterface $ledger): LedgerInterface
     {
         $txId = 'tx-001';
         $sig = base64_encode(sodium_crypto_sign_detached($txId, $this->alicePriv));
@@ -104,7 +104,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function demonstrateMalloryAttack(Ledger $ledger): void
+    private function demonstrateMalloryAttack(LedgerInterface $ledger): void
     {
         $this->io->newLine();
         $this->io->text('Mallory tries to steal with wrong key... ');
@@ -125,7 +125,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         }
     }
 
-    private function bobCombinesOutputs(Ledger $ledger): Ledger
+    private function bobCombinesOutputs(LedgerInterface $ledger): LedgerInterface
     {
         $txId2 = 'tx-002';
         $bobSig1 = base64_encode(sodium_crypto_sign_detached($txId2, $this->bobPriv));
@@ -144,7 +144,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function processRandomTransfer(Ledger $ledger): Ledger
+    private function processRandomTransfer(LedgerInterface $ledger): LedgerInterface
     {
         $outputs = iterator_to_array($ledger->unspent());
         if ($outputs === []) {
@@ -195,14 +195,14 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function showHistory(Ledger $ledger): void
+    private function showHistory(LedgerInterface $ledger): void
     {
         $this->io->section('History');
         $history = $ledger->outputHistory(new OutputId('bob-combined'));
         $this->io->text("bob-combined: created by {$history?->createdBy}");
     }
 
-    private function showFinalBalances(Ledger $ledger): void
+    private function showFinalBalances(LedgerInterface $ledger): void
     {
         $this->io->section('Final Balances');
         foreach ($ledger->unspent() as $id => $output) {
