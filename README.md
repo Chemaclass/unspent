@@ -120,7 +120,7 @@ $ledger = $ledger->apply(Tx::create(
 | [Event sourcing](example/Console/EventSourcingCommand.php) | State machines, immutable history tracing |
 | [Bitcoin simulation](example/Console/BitcoinSimulationCommand.php) | Coinbase mining, fees, UTXO consolidation |
 | [Custom locks](example/Console/CustomLocksCommand.php) | Timelocks, custom lock types, serialization |
-| [SQLite persistence](example/Console/SqlitePersistenceCommand.php) | Database storage, querying, Ledger with HistoryStore |
+| [SQLite persistence](example/Console/SqlitePersistenceCommand.php) | Database storage, querying, Ledger with HistoryRepository |
 
 ```bash
 php example/run game      # Run any example (loyalty, wallet, btc, etc.)
@@ -166,11 +166,11 @@ This mirrors Bitcoin's UTXO model where each output has a unique `txid:vout` ide
 | Scenario | Recommendation |
 |-|-|
 | < 100k total outputs | `Ledger::inMemory()` or `Ledger::withGenesis(...)` |
-| > 100k total outputs | `Ledger::withStore($store)` |
+| > 100k total outputs | `Ledger::withRepository($repository)` |
 | Need full history in memory | `Ledger::inMemory()` |
-| Memory-constrained environment | `Ledger::withStore($store)` |
+| Memory-constrained environment | `Ledger::withRepository($repository)` |
 
-Store-backed mode keeps only unspent outputs in memory and delegates history to a `HistoryStore`. See [Scalability docs](docs/scalability.md).
+Store-backed mode keeps only unspent outputs in memory and delegates history to a `HistoryRepository`. See [Scalability docs](docs/scalability.md).
 </details>
 
 <details>

@@ -144,8 +144,8 @@ final class InitLedgerDbCommand extends Command
         $io->section('Usage');
         $io->text([
             "\$pdo = new PDO('sqlite:{$dbPath}');",
-            "\$store = new SqliteHistoryStore(\$pdo, '{$ledgerId}');",
-            '$ledger = Ledger::withStore($store)->addGenesis(...genesis);',
+            "\$repository = new SqliteHistoryRepository(\$pdo, '{$ledgerId}');",
+            '$ledger = Ledger::withRepository($repository)->addGenesis(...genesis);',
         ]);
     }
 }

@@ -153,8 +153,8 @@ final class InitLedgerDbCommandTest extends TestCase
         $output = $tester->getDisplay();
 
         self::assertStringContainsString('Database initialized successfully', $output);
-        self::assertStringContainsString('SqliteHistoryStore', $output);
-        self::assertStringContainsString('Ledger::withStore', $output);
+        self::assertStringContainsString('SqliteHistoryRepository', $output);
+        self::assertStringContainsString('Ledger::withRepository', $output);
     }
 
     #[Test]

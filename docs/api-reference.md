@@ -114,7 +114,7 @@ $coinbase->totalOutputAmount(): int  // Sum of output amounts
 Immutable state container with two modes:
 
 - **In-memory mode** - Simple, all-in-memory (< 100k outputs)
-- **Store-backed mode** - Production-ready, bounded memory (100k+ outputs)
+- **Store-backed mode** - Production-ready, bounded memory (100k+ outputs, uses HistoryRepository)
 
 ### In-memory Mode Creation
 
@@ -128,14 +128,14 @@ Ledger::fromJson(string $json): Ledger                     // From JSON
 ### Store-backed Mode Creation
 
 ```php
-// Create new ledger with HistoryStore
-Ledger::withStore(HistoryStore $store): Ledger
-Ledger::withStore($store)->addGenesis(Output ...$outputs): Ledger
+// Create new ledger with HistoryRepository
+Ledger::withRepository(HistoryRepository $repository): Ledger
+Ledger::withRepository($repository)->addGenesis(Output ...$outputs): Ledger
 
 // Load from existing UnspentSet (for persistence)
 Ledger::fromUnspentSet(
     UnspentSet $unspentSet,
-    HistoryStore $store,
+    HistoryRepository $repository,
     int $totalFees = 0,
     int $totalMinted = 0,
 ): Ledger
@@ -179,7 +179,7 @@ $ledger->totalFeesCollected(): int       // Sum of all fees
 $ledger->allTxFees(): array              // ['id' => fee, ...]
 ```
 
-> **Note:** `allTxFees()` returns an empty array for store-backed mode since individual fees are stored in the `HistoryStore`, not in memory. Use `feeForTx()` to query specific transaction fees, or query the HistoryStore directly for batch operations.
+> **Note:** In store-backed mode, `allTxFees()` queries the `HistoryRepository` for all fees. Use `feeForTx()` to query specific transaction fees.
 
 ### Query - Coinbase
 
@@ -455,35 +455,68 @@ $ledger = Ledger::fromJson($json);  // Custom locks restored transparently
 
 ## Persistence
 
-### HistoryStore Interface
+### HistoryRepository Interface
 
-Used by store-backed mode (`Ledger::withStore()`) to delegate history storage to a database. Implement this interface for custom storage backends.
+Used by store-backed mode (`Ledger::withRepository()`) to delegate history storage to a database. Implement this interface for custom storage backends.
 
 ```php
-interface HistoryStore
+interface HistoryRepository
 {
-    // Query methods
-    public function outputHistory(OutputId $id): ?OutputHistory;
-    public function outputCreatedBy(OutputId $id): ?string;   // 'genesis' or tx ID
-    public function outputSpentBy(OutputId $id): ?string;     // tx ID or null
-    public function getSpentOutput(OutputId $id): ?Output;
-    public function feeForTx(TxId $id): ?int;
-    public function isCoinbase(TxId $id): bool;
-    public function coinbaseAmount(TxId $id): ?int;
+    // Write operations
+    public function saveTransaction(Tx $tx, int $fee, array $spentOutputData): void;
+    public function saveCoinbase(CoinbaseTx $coinbase): void;
+    public function saveGenesis(array $outputs): void;
 
-    // Recording methods (called by store-backed Ledger)
-    public function recordTransaction(Tx $tx, int $fee, array $spentOutputData): void;
-    public function recordCoinbase(CoinbaseTx $coinbase): void;
-    public function recordGenesis(array $outputs): void;
+    // Read operations - Outputs
+    public function findSpentOutput(OutputId $id): ?Output;
+    public function findOutputHistory(OutputId $id): ?OutputHistory;
+    public function findOutputCreatedBy(OutputId $id): ?string;   // 'genesis' or tx ID
+    public function findOutputSpentBy(OutputId $id): ?string;     // tx ID or null
+
+    // Read operations - Transactions
+    public function findFeeForTx(TxId $id): ?int;
+    public function findAllTxFees(): array;
+    public function isCoinbase(TxId $id): bool;
+    public function findCoinbaseAmount(TxId $id): ?int;
 }
 ```
 
-**Built-in implementation:** `SqliteHistoryStore`
+**Built-in implementations:**
+
+- `InMemoryHistoryRepository` - Stores all history in memory (used by `Ledger::inMemory()`)
+- `SqliteHistoryRepository` - Stores history in SQLite database
 
 ```php
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
+use Chemaclass\Unspent\Persistence\InMemoryHistoryRepository;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
 
-$store = new SqliteHistoryStore(PDO $pdo, string $ledgerId);
+// In-memory (for development/testing, < 100k outputs)
+$repository = new InMemoryHistoryRepository();
+
+// SQLite (for production, 100k+ outputs)
+$repository = new SqliteHistoryRepository(PDO $pdo, string $ledgerId);
+```
+
+### InMemoryHistoryRepository
+
+Stores all transaction history in memory arrays. Ideal for development, testing, and small applications.
+
+```php
+// Create empty repository
+$repository = new InMemoryHistoryRepository();
+
+// Create with pre-populated data
+$repository = new InMemoryHistoryRepository(
+    txFees: ['tx-1' => 10],
+    coinbaseAmounts: ['cb-1' => 100],
+    outputCreatedBy: ['o-1' => 'genesis'],
+    outputSpentBy: ['o-1' => 'tx-2'],
+    spentOutputs: ['o-1' => ['amount' => 50, 'lock' => ['type' => 'none']]],
+);
+
+// Serialization (for JSON persistence)
+$data = $repository->toArray();
+$restored = InMemoryHistoryRepository::fromArray($data);
 ```
 
 ### LedgerRepository Interface

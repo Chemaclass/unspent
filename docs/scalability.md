@@ -4,15 +4,19 @@ The `Ledger` class supports two modes for different scale requirements.
 
 ## In-memory Mode (Simple)
 
-The default mode stores everything in memory:
+The default mode uses `InMemoryHistoryRepository` to store everything in memory:
 
 ```php
 $ledger = Ledger::withGenesis(Output::open(1000));
 $ledger = $ledger->apply($tx);
+
+// Equivalent to:
+$ledger = Ledger::withRepository(new InMemoryHistoryRepository())
+    ->addGenesis(Output::open(1000));
 ```
 
 **Characteristics:**
-- All outputs (unspent and spent) stored in memory
+- All outputs (unspent and spent) stored in memory via `InMemoryHistoryRepository`
 - All transaction history in memory
 - O(1) queries for everything
 - Simple, fast, no external dependencies
@@ -23,6 +27,7 @@ $ledger = $ledger->apply($tx);
 - Small to medium applications
 
 **Memory usage:**
+
 | Total Outputs | Approximate Memory |
 |---------------|-------------------|
 | 10k | ~10 MB |
@@ -31,21 +36,21 @@ $ledger = $ledger->apply($tx);
 
 ## Store-backed Mode (Production)
 
-For large-scale applications, store-backed mode keeps only unspent outputs in memory while delegating history queries to a `HistoryStore`:
+For large-scale applications, store-backed mode keeps only unspent outputs in memory while delegating history queries to a `HistoryRepository`:
 
 ```php
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
 
-// Create a HistoryStore (any implementation)
+// Create a HistoryRepository (any implementation)
 $pdo = new PDO('sqlite:ledger.db');
-$store = new SqliteHistoryStore($pdo, 'wallet-1');
+$repository = new SqliteHistoryRepository($pdo, 'wallet-1');
 
 // Create store-backed ledger
-$ledger = Ledger::withStore($store)->addGenesis(Output::open(1000, 'genesis'));
+$ledger = Ledger::withRepository($repository)->addGenesis(Output::open(1000, 'genesis'));
 
-// Apply transactions (persisted to store immediately)
+// Apply transactions (persisted to repository immediately)
 $ledger = $ledger->apply($tx);
 
 // History queries go to database
@@ -54,7 +59,7 @@ $history = $ledger->outputHistory($outputId);
 
 **Characteristics:**
 - Only unspent outputs in memory
-- History queries delegated to HistoryStore
+- History queries delegated to HistoryRepository
 - Memory bounded by unspent count, not total history
 - Slightly higher latency for history queries (~1ms vs ~1us)
 
@@ -64,6 +69,7 @@ $history = $ledger->outputHistory($outputId);
 - Memory-constrained environments
 
 **Memory usage (store-backed mode):**
+
 | Total Outputs | Unspent | Memory |
 |---------------|---------|--------|
 | 1M | 100k | ~100 MB |
@@ -74,7 +80,7 @@ $history = $ledger->outputHistory($outputId);
 
 | Factor | In-memory Mode | Store-backed Mode |
 |--------|----------------|-------------------|
-| Setup complexity | Simple | Requires HistoryStore |
+| Setup complexity | Simple | Requires HistoryRepository |
 | Memory usage | Grows with history | Bounded by unspent |
 | Query latency | ~1us | ~1ms for history |
 | Persistence | Manual (JSON/SQLite) | Automatic |
@@ -87,7 +93,7 @@ $history = $ledger->outputHistory($outputId);
 ```php
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteSchema;
 use PDO;
 
@@ -103,9 +109,9 @@ if (!$schema->exists()) {
 // Initialize ledger record
 $pdo->exec("INSERT OR IGNORE INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES ('my-wallet', 1, 0, 0, 0)");
 
-// Create history store and ledger
-$store = new SqliteHistoryStore($pdo, 'my-wallet');
-$ledger = Ledger::withStore($store)->addGenesis(Output::open(1000, 'initial-funds'));
+// Create history repository and ledger
+$repository = new SqliteHistoryRepository($pdo, 'my-wallet');
+$ledger = Ledger::withRepository($repository)->addGenesis(Output::open(1000, 'initial-funds'));
 
 // Apply transactions
 $ledger = $ledger->apply($tx);
@@ -115,7 +121,7 @@ $ledger = $ledger->apply($tx);
 
 ```php
 use Chemaclass\Unspent\Ledger;
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
 use PDO;
 
@@ -123,7 +129,7 @@ $pdo = new PDO('sqlite:ledger.db');
 $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
 $repo = new SqliteLedgerRepository($pdo);
-$store = new SqliteHistoryStore($pdo, 'my-wallet');
+$repository = new SqliteHistoryRepository($pdo, 'my-wallet');
 
 // Load only unspent outputs into memory
 $data = $repo->findUnspentOnly('my-wallet');
@@ -131,7 +137,7 @@ $data = $repo->findUnspentOnly('my-wallet');
 if ($data !== null) {
     $ledger = Ledger::fromUnspentSet(
         $data['unspentSet'],
-        $store,
+        $repository,
         $data['totalFees'],
         $data['totalMinted'],
     );
@@ -140,16 +146,16 @@ if ($data !== null) {
 
 ## API Differences
 
-In store-backed mode, the following methods query the HistoryStore instead of memory:
+Both modes use `HistoryRepository` internally, but with different implementations:
 
-| Method | In-memory Mode | Store-backed Mode |
-|--------|----------------|-------------------|
-| `outputHistory()` | Memory lookup | HistoryStore query |
-| `outputCreatedBy()` | Memory lookup | HistoryStore query |
-| `outputSpentBy()` | Memory lookup | HistoryStore query |
-| `feeForTx()` | Memory lookup | HistoryStore query |
-| `isCoinbase()` | Memory lookup | HistoryStore query |
-| `coinbaseAmount()` | Memory lookup | HistoryStore query |
+| Method | InMemoryHistoryRepository | SqliteHistoryRepository |
+|--------|---------------------------|-------------------------|
+| `outputHistory()` | O(1) memory lookup | ~1ms database query |
+| `outputCreatedBy()` | O(1) memory lookup | ~1ms database query |
+| `outputSpentBy()` | O(1) memory lookup | ~1ms database query |
+| `feeForTx()` | O(1) memory lookup | ~1ms database query |
+| `isCoinbase()` | O(1) memory lookup | ~1ms database query |
+| `coinbaseAmount()` | O(1) memory lookup | ~1ms database query |
 
 These methods work identically in both modes (always in-memory):
 
@@ -173,19 +179,19 @@ function processLedger(Ledger $ledger): void {
 }
 ```
 
-## Custom HistoryStore Implementations
+## Custom HistoryRepository Implementations
 
-The `HistoryStore` interface can be implemented for any storage backend:
+The `HistoryRepository` interface can be implemented for any storage backend:
 
 ```php
-use Chemaclass\Unspent\Persistence\HistoryStore;
+use Chemaclass\Unspent\Persistence\HistoryRepository;
 
-class RedisHistoryStore implements HistoryStore
+class RedisHistoryRepository implements HistoryRepository
 {
     // Implement for Redis
 }
 
-class MySQLHistoryStore implements HistoryStore
+class MySQLHistoryRepository implements HistoryRepository
 {
     // Implement for MySQL
 }
@@ -194,8 +200,8 @@ class MySQLHistoryStore implements HistoryStore
 Then use with store-backed mode:
 
 ```php
-$store = new RedisHistoryStore($redis, 'my-wallet');
-$ledger = Ledger::withStore($store)->addGenesis(...$genesis);
+$repository = new RedisHistoryRepository($redis, 'my-wallet');
+$ledger = Ledger::withRepository($repository)->addGenesis(...$genesis);
 ```
 
 ## Migration
@@ -203,7 +209,7 @@ $ledger = Ledger::withStore($store)->addGenesis(...$genesis);
 To migrate from in-memory to store-backed mode:
 
 1. Save existing ledger to SQLite using standard persistence
-2. Load using `Ledger::fromUnspentSet()` with a HistoryStore
+2. Load using `Ledger::fromUnspentSet()` with a HistoryRepository
 
 ```php
 // Save existing ledger
@@ -212,12 +218,12 @@ $repo->save('my-wallet', $existingLedger);
 
 // Reload with store-backed mode
 $pdo = new PDO('sqlite:ledger.db');
-$store = new SqliteHistoryStore($pdo, 'my-wallet');
+$repository = new SqliteHistoryRepository($pdo, 'my-wallet');
 $data = (new SqliteLedgerRepository($pdo))->findUnspentOnly('my-wallet');
 
 $ledger = Ledger::fromUnspentSet(
     $data['unspentSet'],
-    $store,
+    $repository,
     $data['totalFees'],
     $data['totalMinted'],
 );

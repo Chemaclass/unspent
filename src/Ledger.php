@@ -9,24 +9,20 @@ use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
-use Chemaclass\Unspent\Lock\LockFactory;
-use Chemaclass\Unspent\Persistence\HistoryStore;
+use Chemaclass\Unspent\Persistence\HistoryRepository;
+use Chemaclass\Unspent\Persistence\InMemoryHistoryRepository;
 use Chemaclass\Unspent\Validation\DuplicateValidator;
 use JsonException;
 
 /**
- * Operates in two modes:
- * - In-memory mode (historyStore = null): Stores all history in memory. Best for dev/testing.
- * - Store-backed mode (historyStore != null): Delegates history to a HistoryStore. Best for production.
+ * Immutable UTXO ledger with pluggable history storage.
  *
- * Memory usage in-memory mode:
- * - 10k outputs: ~10 MB
- * - 100k outputs: ~100 MB
- * - 1M outputs: ~700 MB
+ * - Use `Ledger::inMemory()` for development/testing (InMemoryHistoryRepository)
+ * - Use `Ledger::withRepository($repo)` for production (SqliteHistoryRepository, etc.)
  *
- * Memory usage in store-backed mode (bounded by unspent count only):
- * - 1M total outputs with 100k unspent: ~100 MB
- * - 10M total outputs with 100k unspent: ~100 MB
+ * Memory usage depends on the HistoryRepository implementation:
+ * - InMemoryHistoryRepository: grows with total history
+ * - SqliteHistoryRepository: bounded by unspent count only
  */
 final readonly class Ledger implements LedgerInterface
 {
@@ -34,24 +30,14 @@ final readonly class Ledger implements LedgerInterface
     private const int SERIALIZATION_VERSION = 1;
 
     /**
-     * @param array<string, true>                                           $appliedTxIds
-     * @param array<string, int>                                            $txFees          Map of TxId value to fee (in-memory mode only)
-     * @param array<string, int>                                            $coinbaseAmounts Map of coinbase TxId to minted amount (in-memory mode only)
-     * @param array<string, string>                                         $outputCreatedBy Map of OutputId → TxId|'genesis' (in-memory mode only)
-     * @param array<string, string>                                         $outputSpentBy   Map of OutputId → TxId (in-memory mode only)
-     * @param array<string, array{amount: int, lock: array<string, mixed>}> $spentOutputs    (in-memory mode only)
+     * @param array<string, true> $appliedTxIds
      */
     private function __construct(
         private UnspentSet $unspentSet,
         private array $appliedTxIds,
         private int $totalFees,
         private int $totalMinted,
-        private ?HistoryStore $historyStore,
-        private array $txFees = [],
-        private array $coinbaseAmounts = [],
-        private array $outputCreatedBy = [],
-        private array $outputSpentBy = [],
-        private array $spentOutputs = [],
+        private HistoryRepository $historyRepository,
     ) {
     }
 
@@ -69,7 +55,7 @@ final readonly class Ledger implements LedgerInterface
             appliedTxIds: [],
             totalFees: 0,
             totalMinted: 0,
-            historyStore: null,
+            historyRepository: new InMemoryHistoryRepository(),
         );
     }
 
@@ -101,17 +87,20 @@ final readonly class Ledger implements LedgerInterface
         $totalFees = array_sum($data['txFees']);
         $totalMinted = array_sum($data['coinbaseAmounts']);
 
+        $historyRepository = InMemoryHistoryRepository::fromArray([
+            'txFees' => $data['txFees'],
+            'coinbaseAmounts' => $data['coinbaseAmounts'],
+            'outputCreatedBy' => $data['outputCreatedBy'] ?? [],
+            'outputSpentBy' => $data['outputSpentBy'] ?? [],
+            'spentOutputs' => $data['spentOutputs'] ?? [],
+        ]);
+
         return new self(
             unspentSet: UnspentSet::fromArray($data['unspent']),
             appliedTxIds: $appliedTxIds,
             totalFees: $totalFees,
             totalMinted: $totalMinted,
-            historyStore: null,
-            txFees: $data['txFees'],
-            coinbaseAmounts: $data['coinbaseAmounts'],
-            outputCreatedBy: $data['outputCreatedBy'] ?? [],
-            outputSpentBy: $data['outputSpentBy'] ?? [],
-            spentOutputs: $data['spentOutputs'] ?? [],
+            historyRepository: $historyRepository,
         );
     }
 
@@ -134,14 +123,14 @@ final readonly class Ledger implements LedgerInterface
     /**
      * Creates an empty ledger with external history storage.
      */
-    public static function withStore(HistoryStore $store): self
+    public static function withRepository(HistoryRepository $repository): self
     {
         return new self(
             unspentSet: UnspentSet::empty(),
             appliedTxIds: [],
             totalFees: 0,
             totalMinted: 0,
-            historyStore: $store,
+            historyRepository: $repository,
         );
     }
 
@@ -152,7 +141,7 @@ final readonly class Ledger implements LedgerInterface
      */
     public static function fromUnspentSet(
         UnspentSet $unspentSet,
-        HistoryStore $store,
+        HistoryRepository $repository,
         int $totalFees = 0,
         int $totalMinted = 0,
     ): self {
@@ -161,7 +150,7 @@ final readonly class Ledger implements LedgerInterface
             appliedTxIds: [],
             totalFees: $totalFees,
             totalMinted: $totalMinted,
-            historyStore: $store,
+            historyRepository: $repository,
         );
     }
 
@@ -180,35 +169,16 @@ final readonly class Ledger implements LedgerInterface
 
         DuplicateValidator::assertNoDuplicateOutputIds(array_values($outputs));
 
-        if ($this->usesInMemoryHistory()) {
-            $outputCreatedBy = $this->outputCreatedBy;
-            foreach ($outputs as $output) {
-                $outputCreatedBy[$output->id->value] = 'genesis';
-            }
-
-            return new self(
-                UnspentSet::fromOutputs(...$outputs),
-                $this->appliedTxIds,
-                $this->totalFees,
-                $this->totalMinted,
-                null,
-                $this->txFees,
-                $this->coinbaseAmounts,
-                $outputCreatedBy,
-                $this->outputSpentBy,
-                $this->spentOutputs,
-            );
-        }
-
-        \assert($this->historyStore !== null);
-        $this->historyStore->recordGenesis($outputs);
+        // Clone repository to maintain immutability (for in-memory mode)
+        $newRepository = clone $this->historyRepository;
+        $newRepository->saveGenesis($outputs);
 
         return new self(
             UnspentSet::fromOutputs(...$outputs),
             $this->appliedTxIds,
             $this->totalFees,
             $this->totalMinted,
-            $this->historyStore,
+            $newRepository,
         );
     }
 
@@ -241,45 +211,16 @@ final readonly class Ledger implements LedgerInterface
         $appliedTxs = $this->appliedTxIds;
         $appliedTxs[$tx->id->value] = true;
 
-        if ($this->usesInMemoryHistory()) {
-            $outputSpentBy = $this->outputSpentBy;
-            foreach ($tx->spends as $spendId) {
-                $outputSpentBy[$spendId->value] = $tx->id->value;
-            }
-
-            $outputCreatedBy = $this->outputCreatedBy;
-            foreach ($tx->outputs as $output) {
-                $outputCreatedBy[$output->id->value] = $tx->id->value;
-            }
-
-            $txFees = $this->txFees;
-            $txFees[$tx->id->value] = $fee;
-
-            $spentOutputs = array_merge($this->spentOutputs, $spentOutputData);
-
-            return new self(
-                $unspent,
-                $appliedTxs,
-                $this->totalFees + $fee,
-                $this->totalMinted,
-                null,
-                $txFees,
-                $this->coinbaseAmounts,
-                $outputCreatedBy,
-                $outputSpentBy,
-                $spentOutputs,
-            );
-        }
-
-        \assert($this->historyStore !== null);
-        $this->historyStore->recordTransaction($tx, $fee, $spentOutputData);
+        // Clone repository to maintain immutability (for in-memory mode)
+        $newRepository = clone $this->historyRepository;
+        $newRepository->saveTransaction($tx, $fee, $spentOutputData);
 
         return new self(
             $unspent,
             $appliedTxs,
             $this->totalFees + $fee,
             $this->totalMinted,
-            $this->historyStore,
+            $newRepository,
         );
     }
 
@@ -294,38 +235,16 @@ final readonly class Ledger implements LedgerInterface
         $appliedTxs = $this->appliedTxIds;
         $appliedTxs[$coinbase->id->value] = true;
 
-        if ($this->usesInMemoryHistory()) {
-            $outputCreatedBy = $this->outputCreatedBy;
-            foreach ($coinbase->outputs as $output) {
-                $outputCreatedBy[$output->id->value] = $coinbase->id->value;
-            }
-
-            $coinbaseAmounts = $this->coinbaseAmounts;
-            $coinbaseAmounts[$coinbase->id->value] = $mintedAmount;
-
-            return new self(
-                $unspent,
-                $appliedTxs,
-                $this->totalFees,
-                $this->totalMinted + $mintedAmount,
-                null,
-                $this->txFees,
-                $coinbaseAmounts,
-                $outputCreatedBy,
-                $this->outputSpentBy,
-                $this->spentOutputs,
-            );
-        }
-
-        \assert($this->historyStore !== null);
-        $this->historyStore->recordCoinbase($coinbase);
+        // Clone repository to maintain immutability (for in-memory mode)
+        $newRepository = clone $this->historyRepository;
+        $newRepository->saveCoinbase($coinbase);
 
         return new self(
             $unspent,
             $appliedTxs,
             $this->totalFees,
             $this->totalMinted + $mintedAmount,
-            $this->historyStore,
+            $newRepository,
         );
     }
 
@@ -351,24 +270,12 @@ final readonly class Ledger implements LedgerInterface
 
     public function feeForTx(TxId $txId): ?int
     {
-        if ($this->usesInMemoryHistory()) {
-            return $this->txFees[$txId->value] ?? null;
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->feeForTx($txId);
+        return $this->historyRepository->findFeeForTx($txId);
     }
 
     public function allTxFees(): array
     {
-        if ($this->usesInMemoryHistory()) {
-            return $this->txFees;
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->allTxFees();
+        return $this->historyRepository->findAllTxFees();
     }
 
     public function totalMinted(): int
@@ -378,46 +285,22 @@ final readonly class Ledger implements LedgerInterface
 
     public function isCoinbase(TxId $id): bool
     {
-        if ($this->usesInMemoryHistory()) {
-            return isset($this->coinbaseAmounts[$id->value]);
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->isCoinbase($id);
+        return $this->historyRepository->isCoinbase($id);
     }
 
     public function coinbaseAmount(TxId $id): ?int
     {
-        if ($this->usesInMemoryHistory()) {
-            return $this->coinbaseAmounts[$id->value] ?? null;
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->coinbaseAmount($id);
+        return $this->historyRepository->findCoinbaseAmount($id);
     }
 
     public function outputCreatedBy(OutputId $id): ?string
     {
-        if ($this->usesInMemoryHistory()) {
-            return $this->outputCreatedBy[$id->value] ?? null;
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->outputCreatedBy($id);
+        return $this->historyRepository->findOutputCreatedBy($id);
     }
 
     public function outputSpentBy(OutputId $id): ?string
     {
-        if ($this->usesInMemoryHistory()) {
-            return $this->outputSpentBy[$id->value] ?? null;
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->outputSpentBy($id);
+        return $this->historyRepository->findOutputSpentBy($id);
     }
 
     public function getOutput(OutputId $id): ?Output
@@ -427,22 +310,7 @@ final readonly class Ledger implements LedgerInterface
             return $output;
         }
 
-        if ($this->usesInMemoryHistory()) {
-            $spentData = $this->spentOutputs[$id->value] ?? null;
-            if ($spentData !== null) {
-                return new Output(
-                    $id,
-                    $spentData['amount'],
-                    LockFactory::fromArray($spentData['lock']),
-                );
-            }
-
-            return null;
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->getSpentOutput($id);
+        return $this->historyRepository->findSpentOutput($id);
     }
 
     public function outputExists(OutputId $id): bool
@@ -451,63 +319,29 @@ final readonly class Ledger implements LedgerInterface
             return true;
         }
 
-        if ($this->usesInMemoryHistory()) {
-            return isset($this->spentOutputs[$id->value]);
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->getSpentOutput($id) !== null;
+        return $this->historyRepository->findSpentOutput($id) !== null;
     }
 
     public function outputHistory(OutputId $id): ?OutputHistory
     {
         $output = $this->unspentSet->get($id);
         if ($output !== null) {
-            if ($this->usesInMemoryHistory()) {
-                return OutputHistory::fromOutput(
-                    output: $output,
-                    createdBy: $this->outputCreatedBy[$id->value] ?? null,
-                    spentBy: null,
-                );
-            }
-
-            \assert($this->historyStore !== null);
-
             return OutputHistory::fromOutput(
                 output: $output,
-                createdBy: $this->historyStore->outputCreatedBy($id),
+                createdBy: $this->historyRepository->findOutputCreatedBy($id),
                 spentBy: null,
             );
         }
 
-        if ($this->usesInMemoryHistory()) {
-            $spentData = $this->spentOutputs[$id->value] ?? null;
-            if ($spentData === null) {
-                return null;
-            }
-
-            return new OutputHistory(
-                id: $id,
-                amount: $spentData['amount'],
-                lock: LockFactory::fromArray($spentData['lock']),
-                createdBy: $this->outputCreatedBy[$id->value] ?? null,
-                spentBy: $this->outputSpentBy[$id->value] ?? null,
-                status: OutputStatus::SPENT,
-            );
-        }
-
-        \assert($this->historyStore !== null);
-
-        return $this->historyStore->outputHistory($id);
+        return $this->historyRepository->findOutputHistory($id);
     }
 
     /**
-     * Returns the HistoryStore if using external storage, null otherwise.
+     * Returns the HistoryRepository.
      */
-    public function historyStore(): ?HistoryStore
+    public function historyRepository(): HistoryRepository
     {
-        return $this->historyStore;
+        return $this->historyRepository;
     }
 
     /**
@@ -524,29 +358,25 @@ final readonly class Ledger implements LedgerInterface
      */
     public function toArray(): array
     {
-        if ($this->usesInMemoryHistory()) {
-            return [
-                'version' => self::SERIALIZATION_VERSION,
-                'unspent' => $this->unspentSet->toArray(),
-                'appliedTxs' => array_keys($this->appliedTxIds),
-                'txFees' => $this->txFees,
-                'coinbaseAmounts' => $this->coinbaseAmounts,
-                'outputCreatedBy' => $this->outputCreatedBy,
-                'outputSpentBy' => $this->outputSpentBy,
-                'spentOutputs' => $this->spentOutputs,
+        $historyData = $this->historyRepository instanceof InMemoryHistoryRepository
+            ? $this->historyRepository->toArray()
+            : [
+                'txFees' => [],
+                'coinbaseAmounts' => [],
+                'outputCreatedBy' => [],
+                'outputSpentBy' => [],
+                'spentOutputs' => [],
             ];
-        }
 
-        // Store-backed mode: history is in the store, not serialized here
         return [
             'version' => self::SERIALIZATION_VERSION,
             'unspent' => $this->unspentSet->toArray(),
             'appliedTxs' => array_keys($this->appliedTxIds),
-            'txFees' => [],
-            'coinbaseAmounts' => [],
-            'outputCreatedBy' => [],
-            'outputSpentBy' => [],
-            'spentOutputs' => [],
+            'txFees' => $historyData['txFees'],
+            'coinbaseAmounts' => $historyData['coinbaseAmounts'],
+            'outputCreatedBy' => $historyData['outputCreatedBy'],
+            'outputSpentBy' => $historyData['outputSpentBy'],
+            'spentOutputs' => $historyData['spentOutputs'],
         ];
     }
 
@@ -561,11 +391,6 @@ final readonly class Ledger implements LedgerInterface
     // ========================================================================
     // Private Helpers
     // ========================================================================
-
-    private function usesInMemoryHistory(): bool
-    {
-        return $this->historyStore === null;
-    }
 
     private function assertTxNotAlreadyApplied(Tx $tx): void
     {

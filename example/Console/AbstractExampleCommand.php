@@ -7,7 +7,7 @@ namespace Example\Console;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
 use PDO;
 use Symfony\Component\Console\Command\Command;
@@ -25,7 +25,7 @@ abstract class AbstractExampleCommand extends Command
     protected SymfonyStyle $io;
     protected string $mode;
     protected ?PDO $pdo = null;
-    protected ?SqliteHistoryStore $store = null;
+    protected ?SqliteHistoryRepository $repository = null;
     protected ?SqliteLedgerRepository $repo = null;
     protected int $runNumber = 1;
 
@@ -94,7 +94,7 @@ abstract class AbstractExampleCommand extends Command
         }
 
         \assert($this->repo !== null);
-        \assert($this->store !== null);
+        \assert($this->repository !== null);
 
         $existingData = $this->repo->findUnspentOnly($this->getLedgerId());
 
@@ -104,7 +104,7 @@ abstract class AbstractExampleCommand extends Command
 
             return Ledger::fromUnspentSet(
                 $existingData['unspentSet'],
-                $this->store,
+                $this->repository,
                 $existingData['totalFees'],
                 $existingData['totalMinted'],
             );
@@ -115,9 +115,9 @@ abstract class AbstractExampleCommand extends Command
         $this->io->text('<fg=green>[Created new ledger with ' . \count($outputs) . ' genesis outputs]</>');
         $this->io->newLine();
 
-        \assert($this->store !== null);
+        \assert($this->repository !== null);
 
-        return Ledger::withStore($this->store)->addGenesis(...$outputs);
+        return Ledger::withRepository($this->repository)->addGenesis(...$outputs);
     }
 
     protected function loadOrCreateEmpty(): LedgerInterface
@@ -127,7 +127,7 @@ abstract class AbstractExampleCommand extends Command
         }
 
         \assert($this->repo !== null);
-        \assert($this->store !== null);
+        \assert($this->repository !== null);
 
         $existingData = $this->repo->findUnspentOnly($this->getLedgerId());
 
@@ -137,7 +137,7 @@ abstract class AbstractExampleCommand extends Command
 
             return Ledger::fromUnspentSet(
                 $existingData['unspentSet'],
-                $this->store,
+                $this->repository,
                 $existingData['totalFees'],
                 $existingData['totalMinted'],
             );
@@ -147,9 +147,9 @@ abstract class AbstractExampleCommand extends Command
         $this->io->text('<fg=green>[Created new empty ledger]</>');
         $this->io->newLine();
 
-        \assert($this->store !== null);
+        \assert($this->repository !== null);
 
-        return Ledger::withStore($this->store);
+        return Ledger::withRepository($this->repository);
     }
 
     protected function showStats(LedgerInterface $ledger): void
@@ -194,7 +194,7 @@ abstract class AbstractExampleCommand extends Command
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
         $ledgerId = $this->getLedgerId();
-        $this->store = new SqliteHistoryStore($this->pdo, $ledgerId);
+        $this->repository = new SqliteHistoryRepository($this->pdo, $ledgerId);
         $this->repo = new SqliteLedgerRepository($this->pdo);
 
         $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM transactions WHERE ledger_id = ?');

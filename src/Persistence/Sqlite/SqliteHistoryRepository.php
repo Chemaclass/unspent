@@ -11,7 +11,7 @@ use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputHistory;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\OutputStatus;
-use Chemaclass\Unspent\Persistence\HistoryStore;
+use Chemaclass\Unspent\Persistence\HistoryRepository;
 use Chemaclass\Unspent\Persistence\LockData;
 use Chemaclass\Unspent\Persistence\PersistenceException;
 use Chemaclass\Unspent\Tx;
@@ -22,12 +22,12 @@ use PDOStatement;
 use RuntimeException;
 
 /**
- * SQLite implementation of HistoryStore for hybrid mode.
+ * SQLite implementation of HistoryRepository for store-backed mode.
  *
  * Provides direct database queries for history information without loading
- * the entire ledger into memory. Used by Ledger in hybrid mode for scalability.
+ * the entire ledger into memory. Used by Ledger in store-backed mode for scalability.
  */
-final class SqliteHistoryStore implements HistoryStore
+final class SqliteHistoryRepository implements HistoryRepository
 {
     private const string SQL_OUTPUT_BY_ID = 'SELECT * FROM outputs WHERE ledger_id = ? AND id = ?';
     private const string SQL_TX_BY_ID = 'SELECT * FROM transactions WHERE ledger_id = ? AND id = ?';
@@ -48,96 +48,11 @@ final class SqliteHistoryStore implements HistoryStore
     ) {
     }
 
-    public function outputHistory(OutputId $id): ?OutputHistory
-    {
-        $row = $this->fetchOutputRow($id);
-        if ($row === null) {
-            return null;
-        }
+    // =========================================================================
+    // Write Operations
+    // =========================================================================
 
-        return new OutputHistory(
-            id: $id,
-            amount: (int) $row['amount'],
-            lock: LockFactory::fromArray($this->rowToLockArray($row)),
-            createdBy: $row['created_by'],
-            spentBy: $row['spent_by'],
-            status: OutputStatus::fromSpentBy($row['spent_by']),
-        );
-    }
-
-    public function outputCreatedBy(OutputId $id): ?string
-    {
-        $row = $this->fetchOutputRow($id);
-
-        return $row['created_by'] ?? null;
-    }
-
-    public function outputSpentBy(OutputId $id): ?string
-    {
-        $row = $this->fetchOutputRow($id);
-
-        return $row['spent_by'] ?? null;
-    }
-
-    public function getSpentOutput(OutputId $id): ?Output
-    {
-        $row = $this->fetchOutputRow($id);
-        if ($row === null || (int) $row['is_spent'] === 0) {
-            return null;
-        }
-
-        return new Output(
-            $id,
-            (int) $row['amount'],
-            LockFactory::fromArray($this->rowToLockArray($row)),
-        );
-    }
-
-    public function feeForTx(TxId $id): ?int
-    {
-        $row = $this->fetchTransactionRow($id);
-        if ($row === null || $row['fee'] === null) {
-            return null;
-        }
-
-        return (int) $row['fee'];
-    }
-
-    public function isCoinbase(TxId $id): bool
-    {
-        $row = $this->fetchTransactionRow($id);
-
-        return $row !== null && (int) $row['is_coinbase'] === 1;
-    }
-
-    public function coinbaseAmount(TxId $id): ?int
-    {
-        $row = $this->fetchTransactionRow($id);
-        if ($row === null || $row['coinbase_amount'] === null) {
-            return null;
-        }
-
-        return (int) $row['coinbase_amount'];
-    }
-
-    public function allTxFees(): array
-    {
-        try {
-            $stmt = $this->prepare(self::SQL_ALL_TX_FEES);
-            $stmt->execute([$this->ledgerId]);
-
-            $fees = [];
-            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
-                $fees[$row['id']] = (int) $row['fee'];
-            }
-
-            return $fees;
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
-    }
-
-    public function recordTransaction(
+    public function saveTransaction(
         Tx $tx,
         int $fee,
         array $spentOutputData,
@@ -203,7 +118,7 @@ final class SqliteHistoryStore implements HistoryStore
         }
     }
 
-    public function recordCoinbase(CoinbaseTx $coinbase): void
+    public function saveCoinbase(CoinbaseTx $coinbase): void
     {
         try {
             $this->pdo->beginTransaction();
@@ -253,7 +168,7 @@ final class SqliteHistoryStore implements HistoryStore
         }
     }
 
-    public function recordGenesis(array $outputs): void
+    public function saveGenesis(array $outputs): void
     {
         try {
             $this->pdo->beginTransaction();
@@ -293,6 +208,107 @@ final class SqliteHistoryStore implements HistoryStore
             throw PersistenceException::saveFailed($this->ledgerId, $e->getMessage());
         }
     }
+
+    // =========================================================================
+    // Read Operations - Outputs
+    // =========================================================================
+
+    public function findSpentOutput(OutputId $id): ?Output
+    {
+        $row = $this->fetchOutputRow($id);
+        if ($row === null || (int) $row['is_spent'] === 0) {
+            return null;
+        }
+
+        return new Output(
+            $id,
+            (int) $row['amount'],
+            LockFactory::fromArray($this->rowToLockArray($row)),
+        );
+    }
+
+    public function findOutputHistory(OutputId $id): ?OutputHistory
+    {
+        $row = $this->fetchOutputRow($id);
+        if ($row === null) {
+            return null;
+        }
+
+        return new OutputHistory(
+            id: $id,
+            amount: (int) $row['amount'],
+            lock: LockFactory::fromArray($this->rowToLockArray($row)),
+            createdBy: $row['created_by'],
+            spentBy: $row['spent_by'],
+            status: OutputStatus::fromSpentBy($row['spent_by']),
+        );
+    }
+
+    public function findOutputCreatedBy(OutputId $id): ?string
+    {
+        $row = $this->fetchOutputRow($id);
+
+        return $row['created_by'] ?? null;
+    }
+
+    public function findOutputSpentBy(OutputId $id): ?string
+    {
+        $row = $this->fetchOutputRow($id);
+
+        return $row['spent_by'] ?? null;
+    }
+
+    // =========================================================================
+    // Read Operations - Transactions
+    // =========================================================================
+
+    public function findFeeForTx(TxId $id): ?int
+    {
+        $row = $this->fetchTransactionRow($id);
+        if ($row === null || $row['fee'] === null) {
+            return null;
+        }
+
+        return (int) $row['fee'];
+    }
+
+    public function findAllTxFees(): array
+    {
+        try {
+            $stmt = $this->prepare(self::SQL_ALL_TX_FEES);
+            $stmt->execute([$this->ledgerId]);
+
+            $fees = [];
+            while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+                $fees[$row['id']] = (int) $row['fee'];
+            }
+
+            return $fees;
+        } catch (PDOException $e) {
+            throw PersistenceException::queryFailed($e->getMessage());
+        }
+    }
+
+    public function isCoinbase(TxId $id): bool
+    {
+        $row = $this->fetchTransactionRow($id);
+
+        return $row !== null && (int) $row['is_coinbase'] === 1;
+    }
+
+    public function findCoinbaseAmount(TxId $id): ?int
+    {
+        $row = $this->fetchTransactionRow($id);
+        if ($row === null || $row['coinbase_amount'] === null) {
+            return null;
+        }
+
+        return (int) $row['coinbase_amount'];
+    }
+
+    // =========================================================================
+    // Private Helpers
+    // =========================================================================
 
     /**
      * @return array<string, mixed>|null

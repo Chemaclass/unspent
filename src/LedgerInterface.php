@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
+use Chemaclass\Unspent\Persistence\HistoryRepository;
+
 /**
  * Core interface for the UTXO ledger.
  *
- * Use Ledger::inMemory() for development/testing or Ledger::withStore() for production.
+ * Use Ledger::inMemory() for development/testing (InMemoryHistoryRepository)
+ * or Ledger::withRepository() for production (SqliteHistoryRepository, etc.).
  */
 interface LedgerInterface
 {
@@ -112,6 +115,11 @@ interface LedgerInterface
      * Returns complete history of an output.
      */
     public function outputHistory(OutputId $id): ?OutputHistory;
+
+    /**
+     * Returns the HistoryRepository.
+     */
+    public function historyRepository(): HistoryRepository;
 
     /**
      * Serializes the ledger to an array format suitable for persistence.

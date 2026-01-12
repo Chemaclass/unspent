@@ -8,7 +8,7 @@ use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryStore;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
 use Chemaclass\Unspent\Tx;
 use PDO;
@@ -30,7 +30,7 @@ final class SqlitePersistenceCommand extends Command
 
     private SymfonyStyle $io;
     private PDO $pdo;
-    private SqliteHistoryStore $store;
+    private SqliteHistoryRepository $repository;
     private SqliteLedgerRepository $repo;
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -64,7 +64,7 @@ final class SqlitePersistenceCommand extends Command
         $this->pdo = new PDO('sqlite:' . self::DB_PATH);
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        $this->store = new SqliteHistoryStore($this->pdo, self::LEDGER_ID);
+        $this->repository = new SqliteHistoryRepository($this->pdo, self::LEDGER_ID);
         $this->repo = new SqliteLedgerRepository($this->pdo);
 
         $this->io->text('Connected to: ' . self::DB_PATH);
@@ -84,7 +84,7 @@ final class SqlitePersistenceCommand extends Command
 
             return Ledger::fromUnspentSet(
                 $existingData['unspentSet'],
-                $this->store,
+                $this->repository,
                 $existingData['totalFees'],
                 $existingData['totalMinted'],
             );
@@ -97,7 +97,7 @@ final class SqlitePersistenceCommand extends Command
         );
         $stmt->execute([self::LEDGER_ID]);
 
-        $ledger = Ledger::withStore($this->store)->addGenesis(
+        $ledger = Ledger::withRepository($this->repository)->addGenesis(
             Output::ownedBy('alice', 1000, 'alice-initial'),
             Output::ownedBy('bob', 500, 'bob-initial'),
         );
