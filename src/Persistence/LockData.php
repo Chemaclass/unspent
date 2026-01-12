@@ -7,6 +7,7 @@ namespace Chemaclass\Unspent\Persistence;
 use Chemaclass\Unspent\Lock\LockType;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputLock;
+use RuntimeException;
 
 /**
  * Represents normalized lock data for database storage.
@@ -81,5 +82,28 @@ final readonly class LockData
     public function isCustomLock(): bool
     {
         return !LockType::isBuiltIn($this->type);
+    }
+
+    /**
+     * Convert a database row to a lock array for LockFactory::fromArray().
+     *
+     * @param array<string, mixed> $row Database row with lock_type, lock_owner, lock_pubkey, lock_custom_data
+     *
+     * @return array<string, mixed> Lock array for LockFactory::fromArray()
+     */
+    public static function toArrayFromRow(array $row): array
+    {
+        $type = $row['lock_type'];
+
+        if ($row['lock_custom_data'] !== null) {
+            return json_decode($row['lock_custom_data'], true, 512, JSON_THROW_ON_ERROR);
+        }
+
+        return match (LockType::tryFrom($type)) {
+            LockType::NONE => ['type' => LockType::NONE->value],
+            LockType::OWNER => ['type' => LockType::OWNER->value, 'name' => $row['lock_owner']],
+            LockType::PUBLIC_KEY => ['type' => LockType::PUBLIC_KEY->value, 'key' => $row['lock_pubkey']],
+            null => throw new RuntimeException("Unknown lock type: {$type}"),
+        };
     }
 }

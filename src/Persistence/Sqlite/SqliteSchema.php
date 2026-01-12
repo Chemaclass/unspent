@@ -57,12 +57,6 @@ final readonly class SqliteSchema implements DatabaseSchema
         return AbstractLedgerRepository::SCHEMA_VERSION;
     }
 
-    // =========================================================================
-    // Static convenience methods (backward compatibility)
-    // =========================================================================
-    /**
-     * Create schema using static method.
-     */
     #[Deprecated(message: 'Use instance method: (new SqliteSchema($pdo))->create()')]
     public static function createSchema(PDO $pdo): void
     {
@@ -86,10 +80,6 @@ final readonly class SqliteSchema implements DatabaseSchema
     {
         new self($pdo)->drop();
     }
-
-    // =========================================================================
-    // Private table definitions
-    // =========================================================================
 
     private function ledgersTable(): string
     {

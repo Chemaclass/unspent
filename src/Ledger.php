@@ -41,13 +41,6 @@ final readonly class Ledger implements LedgerInterface
     ) {
     }
 
-    // ========================================================================
-    // Factory Methods - In-Memory Mode
-    // ========================================================================
-
-    /**
-     * Creates an empty in-memory ledger.
-     */
     public static function inMemory(): self
     {
         return new self(
@@ -116,13 +109,6 @@ final readonly class Ledger implements LedgerInterface
         return self::fromArray($data);
     }
 
-    // ========================================================================
-    // Factory Methods - Store-Backed Mode
-    // ========================================================================
-
-    /**
-     * Creates an empty ledger with external history storage.
-     */
     public static function withRepository(HistoryRepository $repository): self
     {
         return new self(
@@ -154,13 +140,6 @@ final readonly class Ledger implements LedgerInterface
         );
     }
 
-    // ========================================================================
-    // Public API
-    // ========================================================================
-
-    /**
-     * Adds genesis outputs to an empty ledger.
-     */
     public function addGenesis(Output ...$outputs): self
     {
         if (!$this->unspentSet->isEmpty()) {
@@ -171,7 +150,7 @@ final readonly class Ledger implements LedgerInterface
 
         // Clone repository to maintain immutability (for in-memory mode)
         $newRepository = clone $this->historyRepository;
-        $newRepository->saveGenesis($outputs);
+        $newRepository->saveGenesis(array_values($outputs));
 
         return new self(
             UnspentSet::fromOutputs(...$outputs),
@@ -387,10 +366,6 @@ final readonly class Ledger implements LedgerInterface
     {
         return json_encode($this->toArray(), $flags | JSON_THROW_ON_ERROR);
     }
-
-    // ========================================================================
-    // Private Helpers
-    // ========================================================================
 
     private function assertTxNotAlreadyApplied(Tx $tx): void
     {

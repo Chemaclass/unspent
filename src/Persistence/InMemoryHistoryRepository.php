@@ -39,10 +39,6 @@ final class InMemoryHistoryRepository implements HistoryRepository
     ) {
     }
 
-    // =========================================================================
-    // Write Operations
-    // =========================================================================
-
     public function saveTransaction(
         Tx $tx,
         int $fee,
@@ -79,10 +75,6 @@ final class InMemoryHistoryRepository implements HistoryRepository
             $this->outputCreatedBy[$output->id->value] = 'genesis';
         }
     }
-
-    // =========================================================================
-    // Read Operations - Outputs
-    // =========================================================================
 
     public function findSpentOutput(OutputId $id): ?Output
     {
@@ -125,10 +117,6 @@ final class InMemoryHistoryRepository implements HistoryRepository
         return $this->outputSpentBy[$id->value] ?? null;
     }
 
-    // =========================================================================
-    // Read Operations - Transactions
-    // =========================================================================
-
     public function findFeeForTx(TxId $id): ?int
     {
         return $this->txFees[$id->value] ?? null;
@@ -148,10 +136,6 @@ final class InMemoryHistoryRepository implements HistoryRepository
     {
         return $this->coinbaseAmounts[$id->value] ?? null;
     }
-
-    // =========================================================================
-    // Serialization
-    // =========================================================================
 
     /**
      * Serializes the repository data to an array.

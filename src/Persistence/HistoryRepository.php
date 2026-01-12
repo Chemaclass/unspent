@@ -19,10 +19,6 @@ use Chemaclass\Unspent\TxId;
  */
 interface HistoryRepository
 {
-    // =========================================================================
-    // Write Operations
-    // =========================================================================
-
     /**
      * Saves a regular transaction and its effects.
      *
@@ -42,13 +38,9 @@ interface HistoryRepository
     /**
      * Saves genesis outputs.
      *
-     * @param Output[] $outputs
+     * @param list<Output> $outputs
      */
     public function saveGenesis(array $outputs): void;
-
-    // =========================================================================
-    // Read Operations - Outputs
-    // =========================================================================
 
     /**
      * Finds output data for a spent output.
@@ -77,10 +69,6 @@ interface HistoryRepository
      * @return string|null Tx ID if spent, null if unspent or unknown
      */
     public function findOutputSpentBy(OutputId $id): ?string;
-
-    // =========================================================================
-    // Read Operations - Transactions
-    // =========================================================================
 
     /**
      * Finds the fee paid for a specific transaction.

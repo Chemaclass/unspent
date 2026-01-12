@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Chemaclass\Unspent\Persistence;
 
 use Chemaclass\Unspent\Lock\LockFactory;
-use Chemaclass\Unspent\Lock\LockType;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
-use RuntimeException;
 
 /**
  * Abstract base class for ledger repository implementations.
@@ -56,36 +54,6 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
     }
 
     /**
-     * Convert a database row to a lock array for LockFactory.
-     *
-     * Expects rows with these columns:
-     * - lock_type: 'owner', 'pubkey', 'none', or custom type
-     * - lock_owner: Owner name (for owner locks)
-     * - lock_pubkey: Base64 key (for pubkey locks)
-     * - lock_custom_data: JSON string (for custom locks)
-     *
-     * @param array<string, mixed> $row Database row with lock columns
-     *
-     * @return array<string, mixed> Lock array for LockFactory::fromArray()
-     */
-    protected function rowToLockArray(array $row): array
-    {
-        $type = $row['lock_type'];
-
-        // Custom locks stored as JSON
-        if ($row['lock_custom_data'] !== null) {
-            return json_decode($row['lock_custom_data'], true, 512, JSON_THROW_ON_ERROR);
-        }
-
-        return match (LockType::tryFrom($type)) {
-            LockType::NONE => ['type' => LockType::NONE->value],
-            LockType::OWNER => ['type' => LockType::OWNER->value, 'name' => $row['lock_owner']],
-            LockType::PUBLIC_KEY => ['type' => LockType::PUBLIC_KEY->value, 'key' => $row['lock_pubkey']],
-            null => throw new RuntimeException("Unknown lock type: {$type}"),
-        };
-    }
-
-    /**
      * Convert database rows to Output objects.
      *
      * Expects rows with these columns:
@@ -100,10 +68,10 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
     protected function rowsToOutputs(array $rows): array
     {
         return array_values(array_map(
-            fn (array $row): Output => new Output(
+            static fn (array $row): Output => new Output(
                 new OutputId($row['id']),
                 (int) $row['amount'],
-                LockFactory::fromArray($this->rowToLockArray($row)),
+                LockFactory::fromArray(LockData::toArrayFromRow($row)),
             ),
             $rows,
         ));
@@ -142,7 +110,7 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
         foreach ($unspentRows as $row) {
             $unspent[$row['id']] = [
                 'amount' => (int) $row['amount'],
-                'lock' => $this->rowToLockArray($row),
+                'lock' => LockData::toArrayFromRow($row),
             ];
             $outputCreatedBy[$row['id']] = $row['created_by'];
         }
@@ -150,7 +118,7 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
         foreach ($spentRows as $row) {
             $spentOutputs[$row['id']] = [
                 'amount' => (int) $row['amount'],
-                'lock' => $this->rowToLockArray($row),
+                'lock' => LockData::toArrayFromRow($row),
             ];
             $outputCreatedBy[$row['id']] = $row['created_by'];
             if ($row['spent_by'] !== null) {

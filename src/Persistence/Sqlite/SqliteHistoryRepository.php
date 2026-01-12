@@ -6,7 +6,6 @@ namespace Chemaclass\Unspent\Persistence\Sqlite;
 
 use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Lock\LockFactory;
-use Chemaclass\Unspent\Lock\LockType;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputHistory;
 use Chemaclass\Unspent\OutputId;
@@ -19,7 +18,6 @@ use Chemaclass\Unspent\TxId;
 use PDO;
 use PDOException;
 use PDOStatement;
-use RuntimeException;
 
 /**
  * SQLite implementation of HistoryRepository for store-backed mode.
@@ -48,10 +46,6 @@ final class SqliteHistoryRepository implements HistoryRepository
     ) {
     }
 
-    // =========================================================================
-    // Write Operations
-    // =========================================================================
-
     public function saveTransaction(
         Tx $tx,
         int $fee,
@@ -60,23 +54,7 @@ final class SqliteHistoryRepository implements HistoryRepository
         try {
             $this->pdo->beginTransaction();
 
-            // Insert new outputs
-            $outputStmt = $this->prepare(self::SQL_OUTPUT_INSERT);
-            foreach ($tx->outputs as $output) {
-                $lockData = LockData::fromOutput($output);
-                $outputStmt->execute([
-                    $output->id->value,
-                    $this->ledgerId,
-                    $output->amount,
-                    $lockData->type,
-                    $lockData->owner,
-                    $lockData->pubkey,
-                    $lockData->custom,
-                    0, // is_spent = false
-                    $tx->id->value, // created_by
-                    null, // spent_by
-                ]);
-            }
+            $this->insertOutputs($tx->outputs, $tx->id->value);
 
             // Mark spent outputs
             $spentStmt = $this->prepare(self::SQL_OUTPUT_MARK_SPENT);
@@ -123,23 +101,7 @@ final class SqliteHistoryRepository implements HistoryRepository
         try {
             $this->pdo->beginTransaction();
 
-            // Insert new outputs
-            $outputStmt = $this->prepare(self::SQL_OUTPUT_INSERT);
-            foreach ($coinbase->outputs as $output) {
-                $lockData = LockData::fromOutput($output);
-                $outputStmt->execute([
-                    $output->id->value,
-                    $this->ledgerId,
-                    $output->amount,
-                    $lockData->type,
-                    $lockData->owner,
-                    $lockData->pubkey,
-                    $lockData->custom,
-                    0, // is_spent = false
-                    $coinbase->id->value, // created_by
-                    null, // spent_by
-                ]);
-            }
+            $this->insertOutputs($coinbase->outputs, $coinbase->id->value);
 
             // Insert transaction record
             $txStmt = $this->prepare(self::SQL_TX_INSERT);
@@ -173,25 +135,12 @@ final class SqliteHistoryRepository implements HistoryRepository
         try {
             $this->pdo->beginTransaction();
 
-            $outputStmt = $this->prepare(self::SQL_OUTPUT_INSERT);
-            $totalAmount = 0;
+            $this->insertOutputs($outputs, self::ORIGIN_GENESIS);
 
-            foreach ($outputs as $output) {
-                $lockData = LockData::fromOutput($output);
-                $outputStmt->execute([
-                    $output->id->value,
-                    $this->ledgerId,
-                    $output->amount,
-                    $lockData->type,
-                    $lockData->owner,
-                    $lockData->pubkey,
-                    $lockData->custom,
-                    0, // is_spent = false
-                    self::ORIGIN_GENESIS, // created_by
-                    null, // spent_by
-                ]);
-                $totalAmount += $output->amount;
-            }
+            $totalAmount = array_sum(array_map(
+                static fn (Output $o): int => $o->amount,
+                $outputs,
+            ));
 
             // Update ledger totals
             $updateStmt = $this->prepare(self::SQL_LEDGER_UPDATE_TOTALS);
@@ -209,10 +158,6 @@ final class SqliteHistoryRepository implements HistoryRepository
         }
     }
 
-    // =========================================================================
-    // Read Operations - Outputs
-    // =========================================================================
-
     public function findSpentOutput(OutputId $id): ?Output
     {
         $row = $this->fetchOutputRow($id);
@@ -223,7 +168,7 @@ final class SqliteHistoryRepository implements HistoryRepository
         return new Output(
             $id,
             (int) $row['amount'],
-            LockFactory::fromArray($this->rowToLockArray($row)),
+            LockFactory::fromArray(LockData::toArrayFromRow($row)),
         );
     }
 
@@ -237,7 +182,7 @@ final class SqliteHistoryRepository implements HistoryRepository
         return new OutputHistory(
             id: $id,
             amount: (int) $row['amount'],
-            lock: LockFactory::fromArray($this->rowToLockArray($row)),
+            lock: LockFactory::fromArray(LockData::toArrayFromRow($row)),
             createdBy: $row['created_by'],
             spentBy: $row['spent_by'],
             status: OutputStatus::fromSpentBy($row['spent_by']),
@@ -257,10 +202,6 @@ final class SqliteHistoryRepository implements HistoryRepository
 
         return $row['spent_by'] ?? null;
     }
-
-    // =========================================================================
-    // Read Operations - Transactions
-    // =========================================================================
 
     public function findFeeForTx(TxId $id): ?int
     {
@@ -306,9 +247,28 @@ final class SqliteHistoryRepository implements HistoryRepository
         return (int) $row['coinbase_amount'];
     }
 
-    // =========================================================================
-    // Private Helpers
-    // =========================================================================
+    /**
+     * @param list<Output> $outputs
+     */
+    private function insertOutputs(array $outputs, string $createdBy): void
+    {
+        $stmt = $this->prepare(self::SQL_OUTPUT_INSERT);
+        foreach ($outputs as $output) {
+            $lockData = LockData::fromOutput($output);
+            $stmt->execute([
+                $output->id->value,
+                $this->ledgerId,
+                $output->amount,
+                $lockData->type,
+                $lockData->owner,
+                $lockData->pubkey,
+                $lockData->custom,
+                0, // is_spent = false
+                $createdBy,
+                null, // spent_by
+            ]);
+        }
+    }
 
     /**
      * @return array<string, mixed>|null
@@ -345,26 +305,5 @@ final class SqliteHistoryRepository implements HistoryRepository
     private function prepare(string $sql): PDOStatement
     {
         return $this->stmtCache[$sql] ??= $this->pdo->prepare($sql);
-    }
-
-    /**
-     * @param array<string, mixed> $row
-     *
-     * @return array<string, mixed>
-     */
-    private function rowToLockArray(array $row): array
-    {
-        $type = $row['lock_type'];
-
-        if ($row['lock_custom_data'] !== null) {
-            return json_decode($row['lock_custom_data'], true, 512, JSON_THROW_ON_ERROR);
-        }
-
-        return match (LockType::tryFrom($type)) {
-            LockType::NONE => ['type' => LockType::NONE->value],
-            LockType::OWNER => ['type' => LockType::OWNER->value, 'name' => $row['lock_owner']],
-            LockType::PUBLIC_KEY => ['type' => LockType::PUBLIC_KEY->value, 'key' => $row['lock_pubkey']],
-            null => throw new RuntimeException("Unknown lock type: {$type}"),
-        };
     }
 }
