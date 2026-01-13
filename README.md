@@ -111,16 +111,349 @@ $ledger = $ledger->apply(Tx::create(
 
 ## Use Cases
 
-| What you're building | Topics |
-|-|-|
-| [In-game currency](example/Console/VirtualCurrencyCommand.php) | Ownership, double-spend prevention, implicit fees |
-| [Loyalty points](example/Console/LoyaltyPointsCommand.php) | Minting new value, redemption, audit trails |
-| [Internal accounting](example/Console/InternalAccountingCommand.php) | Multi-party authorization, reconciliation |
-| [Crypto wallet](example/Console/CryptoWalletCommand.php) | Ed25519 signatures, trustless verification |
-| [Event sourcing](example/Console/EventSourcingCommand.php) | State machines, immutable history tracing |
-| [Bitcoin simulation](example/Console/BitcoinSimulationCommand.php) | Coinbase mining, fees, UTXO consolidation |
-| [Custom locks](example/Console/CustomLocksCommand.php) | Timelocks, custom lock types, serialization |
-| [SQLite persistence](example/Console/SqlitePersistenceCommand.php) | Database storage, querying, Ledger with HistoryRepository |
+<details>
+<summary><strong>In-game currency</strong> — Ownership, double-spend prevention, implicit fees</summary>
+
+📄 [Source code](example/Console/VirtualCurrencyCommand.php)
+
+```
+Virtual Currency - In-Game Economy (Flagship Demo)
+==================================================
+
+ Mode: memory
+
+ Game started: Alice=1000g, Bob=500g
+
+Minting
+-------
+
+ Admin minted 100g daily bonus for Alice
+ Total minted so far: 100g
+
+Purchase
+--------
+
+ Alice bought sword (-200g), now has 900g total
+
+Security
+--------
+
+ Mallory tries to steal Bob's gold...
+ BLOCKED
+ Alice tries to spend already-spent gold...
+ BLOCKED
+
+Quest Reward
+------------
+
+ Alice completed quest! Reward: 500g (locked for 1 hour)
+ Alice tries to spend locked reward...
+ BLOCKED (cooldown active)
+
+Trade
+-----
+
+ Bob paid Alice 450g (50g fee/tax)
+ Fee collected: 50g
+
+History Tracing
+---------------
+
+ alice-change: created by 'buy-sword'
+ daily-bonus: created by 'mint-daily-bonus' (minted)
+
+Final State
+-----------
+
+   alice: 1850g
+   shop: 200g
+
+ Total in circulation: 2050g
+ Total fees (burned): 50g
+ Total minted: 600g
+ UTXOs: 5
+```
+
+</details>
+
+<details>
+<summary><strong>Loyalty points</strong> — Minting new value, redemption, audit trails</summary>
+
+📄 [Source code](example/Console/LoyaltyPointsCommand.php)
+
+```
+Loyalty Points - Customer Rewards Program
+=========================================
+
+ Mode: memory
+
+ Alice bought $50 -> earned 50 pts
+ Alice bought $30 -> earned 30 pts
+
+ Total points minted: 80
+ Alice's balance: 80 pts
+
+ Alice redeemed 60 pts for coffee voucher
+ Remaining: 80 pts
+
+Audit Trail
+-----------
+
+ purchase-001: minted in earn-50, spent in redeem-coffee
+
+Final State
+-----------
+
+   coffee-voucher: 60 pts (none)
+   change: 20 pts (owner)
+```
+
+</details>
+
+<details>
+<summary><strong>Internal accounting</strong> — Multi-party authorization, reconciliation</summary>
+
+📄 [Source code](example/Console/InternalAccountingCommand.php)
+
+```
+Internal Accounting - Department Budgets
+========================================
+
+ FY Budget: Eng=$100k, Mkt=$50k, Ops=$30k
+ Total: $180000
+
+ Engineering splits: projects=$60k, infra=$40k
+
+ Finance tries to reallocate engineering funds...
+ BLOCKED
+
+ Ops transfers $15k to Marketing (2% admin fee)
+ Fee: $600
+
+ Marketing tries to overspend...
+ BLOCKED
+
+Audit Trail
+-----------
+
+ mkt-campaign: created by ops-to-mkt
+
+Reconciliation
+--------------
+
+ * Initial: $180000
+ * Fees: $600
+ * Remaining: $179400
+ * Check: BALANCED
+
+Budget by Department
+--------------------
+
+   marketing: $65,000
+   engineering: $100,000
+   operations: $14,400
+```
+
+</details>
+
+<details>
+<summary><strong>Crypto wallet</strong> — Ed25519 signatures, trustless verification</summary>
+
+📄 [Source code](example/Console/CryptoWalletCommand.php)
+
+```
+Crypto Wallet - Ed25519 Signatures
+==================================
+
+ Mode: memory
+
+Keys Generated
+--------------
+
+ * Alice: P2n5f7zT2a3ok8QX...
+ * Bob: Y+U9UIYQmP5FTJM9...
+
+ Wallets: Alice=1000, Bob=500
+
+ Alice -> Bob: 300 (signed)
+
+ Mallory tries to steal with wrong key...
+ BLOCKED
+
+ Bob combined 500+300 = 800 (multi-sig)
+
+History
+-------
+
+ bob-combined: created by tx-002
+
+Final Balances
+--------------
+
+   alice-change: 700
+   bob-combined: 800
+```
+
+</details>
+
+<details>
+<summary><strong>Event sourcing</strong> — State machines, immutable history tracing</summary>
+
+📄 [Source code](example/Console/EventSourcingCommand.php)
+
+```
+Event Sourcing - Order Lifecycle
+================================
+
+ Order lifecycle: placed -> paid -> shipped -> delivered
+ Each transition spends old state, creates new state
+
+ Order #1001: placed
+ Order #1001: paid
+ Order #1001: shipped
+ Order #1001: delivered
+
+Event Chain
+-----------
+
+   order-1001_placed: genesis -> evt_payment
+   order-1001_paid: evt_payment -> evt_shipped
+   order-1001_shipped: evt_shipped -> evt_delivered
+   order-1001_delivered: evt_delivered (current)
+
+Multiple Orders
+---------------
+
+   order-2002: placed
+   order-2001: paid
+```
+
+</details>
+
+<details>
+<summary><strong>Bitcoin simulation</strong> — Coinbase mining, fees, UTXO consolidation</summary>
+
+📄 [Source code](example/Console/BitcoinSimulationCommand.php)
+
+```
+Bitcoin Simulation - Multi-Block Mining
+=======================================
+
+ Mode: memory
+
+ Block 0: Satoshi mines 50 BTC
+ Block 1: Satoshi mines 50 BTC (total: 100 BTC)
+
+ Block 2: Satoshi sends 10 BTC to Hal
+   Fee: 1.0E-5 BTC
+
+ Block 3: Hal buys pizza for 5 BTC
+
+ Block 4: Satoshi consolidates 3 UTXOs into 1
+
+Final State
+-----------
+
+ * Blocks mined: 5
+ * Total minted: 200 BTC
+ * Total fees: 0.02001 BTC
+ * In circulation: 249.97999 BTC
+ * UTXOs: 5
+
+UTXOs
+-----
+
+   laszlo-pizza: 5 BTC
+   hal-change: 4.99999 BTC
+   miner-3: 50 BTC
+   satoshi-consolidated: 139.98 BTC
+   miner-4: 50 BTC
+```
+
+</details>
+
+<details>
+<summary><strong>Custom locks</strong> — Timelocks, custom lock types, serialization</summary>
+
+📄 [Source code](example/Console/CustomLocksCommand.php)
+
+```
+Custom Locks - Time-Locked Outputs
+==================================
+
+ Registered 'timelock' handler
+
+ Restored lock type: Example\Console\TimeLock
+
+ Alice spent unlocked funds
+ Bob tries to spend locked output...
+ BLOCKED: Still locked until 2027-01-12
+ Eve tries to spend Alice's output...
+ BLOCKED
+```
+
+</details>
+
+<details>
+<summary><strong>SQLite persistence</strong> — Database storage, querying, Ledger with HistoryRepository</summary>
+
+📄 [Source code](example/Console/SqlitePersistenceCommand.php)
+
+```
+SQLite Persistence Example
+==========================
+
+ Connected to: data/ledger.db
+ Ledger ID: sqlite-persistence
+
+ Creating new ledger...
+ Created ledger with genesis outputs for alice (1000) and bob (500)
+
+Transaction example-tx-1
+------------------------
+
+ Alice spends: alice-initial (1000)
+ * Created: charlie-1 (495), alice-change-1 (495)
+ * Fee: 10
+
+Query Examples
+--------------
+
+ Balances:
+ * alice: 495
+ * bob: 500
+ * charlie: 495
+
+ Outputs >= 100: 3
+ Owner-locked outputs: 3
+
+History Tracking
+----------------
+
+ alice-initial:
+ * Amount: 1000
+ * Status: spent
+ * Created by: genesis
+ * Spent by: example-tx-1
+
+Ledger Summary
+--------------
+
+ * Total unspent: 1490
+ * Total fees: 10
+ * Total minted: 0
+ * Unspent count: 3
+
+Database Stats
+--------------
+
+ * Outputs in DB: 4
+ * Transactions in DB: 1
+
+ Run again to add more transactions.
+```
+
+</details>
 
 ```bash
 php example/run game      # Run any example (loyalty, wallet, btc, etc.)
