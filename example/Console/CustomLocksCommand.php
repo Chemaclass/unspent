@@ -147,4 +147,9 @@ final readonly class TimeLock implements OutputLock
             'owner' => $this->owner,
         ];
     }
+
+    public function type(): string
+    {
+        return 'timelock';
+    }
 }

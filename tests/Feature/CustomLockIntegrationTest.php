@@ -44,6 +44,11 @@ final readonly class TimeLock implements OutputLock
             'owner' => $this->owner,
         ];
     }
+
+    public function type(): string
+    {
+        return 'timelock';
+    }
 }
 
 final class CustomLockIntegrationTest extends TestCase
@@ -162,6 +167,11 @@ final class CustomLockIntegrationTest extends TestCase
             {
                 return ['type' => 'hashlock', 'hash' => $this->hash];
             }
+
+            public function type(): string
+            {
+                return 'hashlock';
+            }
         });
 
         $ledger = Ledger::withGenesis(
@@ -179,6 +189,11 @@ final class CustomLockIntegrationTest extends TestCase
                     public function toArray(): array
                     {
                         return ['type' => 'hashlock', 'hash' => $this->hash];
+                    }
+
+                    public function type(): string
+                    {
+                        return 'hashlock';
                     }
                 },
                 500,

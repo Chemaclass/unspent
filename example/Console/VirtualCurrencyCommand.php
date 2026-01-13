@@ -367,4 +367,9 @@ final readonly class GameTimeLock implements OutputLock
             'owner' => $this->owner,
         ];
     }
+
+    public function type(): string
+    {
+        return 'timelock';
+    }
 }

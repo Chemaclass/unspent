@@ -33,6 +33,8 @@ final readonly class Output
     /**
      * Creates an output owned by a named entity.
      * Use for server-side authentication where the app verifies identity.
+     *
+     * @throws InvalidArgumentException If amount is not positive or owner is empty
      */
     public static function ownedBy(string $owner, int $amount, ?string $id = null): self
     {
@@ -46,6 +48,8 @@ final readonly class Output
     /**
      * Creates an output locked by an Ed25519 public key.
      * Requires cryptographic signature to spend (trustless).
+     *
+     * @throws InvalidArgumentException If amount is not positive or public key is invalid
      */
     public static function signedBy(string $publicKey, int $amount, ?string $id = null): self
     {
@@ -59,6 +63,8 @@ final readonly class Output
     /**
      * Creates an open output that anyone can spend.
      * Use with caution - explicit intent required.
+     *
+     * @throws InvalidArgumentException If amount is not positive
      */
     public static function open(int $amount, ?string $id = null): self
     {
@@ -72,6 +78,8 @@ final readonly class Output
     /**
      * Creates an output with a custom lock implementation.
      * Use for advanced scenarios like multisig, timelocks, etc.
+     *
+     * @throws InvalidArgumentException If amount is not positive
      */
     public static function lockedWith(OutputLock $lock, int $amount, ?string $id = null): self
     {

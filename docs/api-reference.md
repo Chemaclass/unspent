@@ -165,6 +165,26 @@ $ledger->unspent(): UnspentSet           // Access unspent outputs
 $ledger->totalUnspentAmount(): int       // Sum of all unspent
 ```
 
+### Query - By Owner
+
+```php
+// Get all unspent outputs owned by a specific owner
+$ledger->unspentByOwner(string $owner): UnspentSet
+
+// Get total unspent amount for a specific owner
+$ledger->totalUnspentByOwner(string $owner): int
+```
+
+> **Note:** For large datasets with SQLite, prefer `QueryableLedgerRepository::findUnspentByOwner()` and `sumUnspentByOwner()` for O(1) memory usage.
+
+### Validation
+
+```php
+// Check if a transaction can be applied without actually applying it
+// Returns null if valid, or the exception that would be thrown
+$ledger->canApply(Tx $tx): ?UnspentException
+```
+
 ### Query - Transactions
 
 ```php

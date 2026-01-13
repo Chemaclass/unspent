@@ -333,19 +333,27 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     {
         $stmt = $this->prepare(self::SQL_OUTPUT_INSERT);
 
+        // Pre-fetch all metadata to avoid N+1 queries
+        $ledgerArray = $ledger->toArray();
+        $outputCreatedBy = $ledgerArray['outputCreatedBy'];
+        $outputSpentBy = $ledgerArray['outputSpentBy'];
+
         // Insert unspent outputs
         foreach ($ledger->unspent() as $outputId => $output) {
-            $this->executeOutputInsert($stmt, $id, $outputId, $output, $ledger, isSpent: false);
+            $createdBy = $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS;
+            $this->executeOutputInsert($stmt, $id, $outputId, $output, $createdBy, null);
         }
 
         // Insert spent outputs
-        foreach ($ledger->toArray()['spentOutputs'] as $outputId => $outputData) {
+        foreach ($ledgerArray['spentOutputs'] as $outputId => $outputData) {
             $output = new Output(
                 new OutputId($outputId),
                 $outputData['amount'],
                 LockFactory::fromArray($outputData['lock']),
             );
-            $this->executeOutputInsert($stmt, $id, $outputId, $output, $ledger, isSpent: true);
+            $createdBy = $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS;
+            $spentBy = $outputSpentBy[$outputId] ?? null;
+            $this->executeOutputInsert($stmt, $id, $outputId, $output, $createdBy, $spentBy);
         }
     }
 
@@ -354,8 +362,8 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         string $ledgerId,
         string $outputId,
         Output $output,
-        LedgerInterface $ledger,
-        bool $isSpent,
+        string $createdBy,
+        ?string $spentBy,
     ): void {
         $lockData = $this->extractLockData($output);
         $stmt->execute([
@@ -366,9 +374,9 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $lockData->owner,
             $lockData->pubkey,
             $lockData->custom,
-            $isSpent ? 1 : 0,
-            $ledger->outputCreatedBy(new OutputId($outputId)) ?? self::ORIGIN_GENESIS,
-            $isSpent ? $ledger->outputSpentBy(new OutputId($outputId)) : null,
+            $spentBy !== null ? 1 : 0,
+            $createdBy,
+            $spentBy,
         ]);
     }
 

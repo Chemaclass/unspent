@@ -267,6 +267,11 @@ final class SqliteLedgerRepositoryTest extends TestCase
                     'owner' => $this->owner,
                 ];
             }
+
+            public function type(): string
+            {
+                return 'timelock';
+            }
         });
 
         $repo = SqliteRepositoryFactory::createInMemory();
@@ -288,6 +293,11 @@ final class SqliteLedgerRepositoryTest extends TestCase
                     'unlockTimestamp' => $this->unlockTimestamp,
                     'owner' => $this->owner,
                 ];
+            }
+
+            public function type(): string
+            {
+                return 'timelock';
             }
         };
 

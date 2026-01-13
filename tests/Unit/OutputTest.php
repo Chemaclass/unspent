@@ -128,6 +128,10 @@ final class OutputTest extends TestCase
             {
                 return ['type' => 'custom'];
             }
+            public function type(): string
+            {
+                return 'custom';
+            }
         };
 
         $output = Output::lockedWith($customLock, 1000, 'custom-id');

@@ -27,4 +27,9 @@ final readonly class NoLock implements OutputLock
     {
         return ['type' => LockType::NONE->value];
     }
+
+    public function type(): string
+    {
+        return LockType::NONE->value;
+    }
 }

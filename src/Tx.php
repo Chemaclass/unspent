@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
+use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Validation\DuplicateValidator;
 use InvalidArgumentException;
 
@@ -34,9 +35,14 @@ final readonly class Tx
     }
 
     /**
+     * Creates a new transaction.
+     *
      * @param list<string> $spendIds IDs of outputs to spend (consume)
      * @param list<Output> $outputs  New outputs to create
      * @param list<string> $proofs   Authorization proofs indexed by input position
+     *
+     * @throws InvalidArgumentException   If spendIds or outputs is empty, or duplicate spend IDs found
+     * @throws DuplicateOutputIdException If any output ID appears more than once
      */
     public static function create(
         array $spendIds,

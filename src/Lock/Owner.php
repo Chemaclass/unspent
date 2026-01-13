@@ -38,4 +38,9 @@ final readonly class Owner implements OutputLock
     {
         return ['type' => LockType::OWNER->value, 'name' => $this->name];
     }
+
+    public function type(): string
+    {
+        return LockType::OWNER->value;
+    }
 }

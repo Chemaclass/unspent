@@ -95,4 +95,41 @@ interface HistoryRepository
      * @return int|null Minted amount, or null if not a coinbase
      */
     public function findCoinbaseAmount(TxId $id): ?int;
+
+    /**
+     * Returns a new repository instance with the transaction saved.
+     *
+     * This method is used for immutable ledger operations. The returned instance
+     * contains the transaction data. For database-backed repositories, this may
+     * return the same instance after persisting.
+     *
+     * @param array<string, array{amount: int, lock: array<string, mixed>}> $spentOutputData
+     *
+     * @return static New repository instance with transaction saved
+     */
+    public function withTransaction(Tx $tx, int $fee, array $spentOutputData): static;
+
+    /**
+     * Returns a new repository instance with the coinbase saved.
+     *
+     * This method is used for immutable ledger operations. The returned instance
+     * contains the coinbase data. For database-backed repositories, this may
+     * return the same instance after persisting.
+     *
+     * @return static New repository instance with coinbase saved
+     */
+    public function withCoinbase(CoinbaseTx $coinbase): static;
+
+    /**
+     * Returns a new repository instance with the genesis outputs saved.
+     *
+     * This method is used for immutable ledger operations. The returned instance
+     * contains the genesis data. For database-backed repositories, this may
+     * return the same instance after persisting.
+     *
+     * @param list<Output> $outputs
+     *
+     * @return static New repository instance with genesis saved
+     */
+    public function withGenesis(array $outputs): static;
 }

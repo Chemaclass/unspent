@@ -6,6 +6,7 @@ namespace Chemaclass\Unspent;
 
 use ArrayIterator;
 use Chemaclass\Unspent\Lock\LockFactory;
+use Chemaclass\Unspent\Lock\Owner;
 use Countable;
 use InvalidArgumentException;
 use IteratorAggregate;
@@ -135,10 +136,46 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
      */
     public function outputIds(): array
     {
-        return array_map(
+        return array_values(array_map(
             static fn (Output $output): OutputId => $output->id,
-            array_values($this->outputs),
+            $this->outputs,
+        ));
+    }
+
+    /**
+     * Returns a new UnspentSet containing only outputs matching the predicate.
+     *
+     * @param callable(Output): bool $predicate
+     */
+    public function filter(callable $predicate): self
+    {
+        $filtered = array_filter($this->outputs, $predicate);
+        $total = array_sum(array_map(static fn (Output $o): int => $o->amount, $filtered));
+
+        return new self($filtered, $total);
+    }
+
+    /**
+     * Returns all outputs owned by a specific owner.
+     *
+     * Only returns outputs with an Owner lock matching the given name.
+     * For database-level queries, prefer QueryableLedgerRepository::findUnspentByOwner().
+     */
+    public function ownedBy(string $owner): self
+    {
+        return $this->filter(
+            static fn (Output $o): bool => $o->lock instanceof Owner && $o->lock->name === $owner,
         );
+    }
+
+    /**
+     * Returns total amount owned by a specific owner.
+     *
+     * For database-level queries, prefer QueryableLedgerRepository::sumUnspentByOwner().
+     */
+    public function totalAmountOwnedBy(string $owner): int
+    {
+        return $this->ownedBy($owner)->totalAmount();
     }
 
     public function getIterator(): Traversable

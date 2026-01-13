@@ -18,6 +18,14 @@ use InvalidArgumentException;
  *     ));
  *
  * Custom handlers take precedence over built-in types.
+ *
+ * IMPORTANT: This class uses static state for handler registration.
+ * In tests, call LockFactory::reset() in tearDown() to prevent test pollution:
+ *
+ *     protected function tearDown(): void
+ *     {
+ *         LockFactory::reset();
+ *     }
  */
 class LockFactory
 {

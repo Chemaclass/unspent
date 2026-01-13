@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
+use Chemaclass\Unspent\Exception\AuthorizationException;
+use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
+use Chemaclass\Unspent\Exception\DuplicateTxException;
+use Chemaclass\Unspent\Exception\InsufficientSpendsException;
+use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Persistence\HistoryRepository;
 
 /**
@@ -20,6 +25,12 @@ interface LedgerInterface
      * The transaction must spend existing unspent outputs and create new outputs.
      * Any difference between input and output amounts becomes a fee.
      *
+     * @throws DuplicateTxException        If the transaction ID was already used
+     * @throws OutputAlreadySpentException If any spend references an output not in the unspent set
+     * @throws InsufficientSpendsException If the total output amount exceeds the total spend amount
+     * @throws DuplicateOutputIdException  If any new output ID already exists in the unspent set
+     * @throws AuthorizationException      If authorization fails for any spent output
+     *
      * @return static New ledger with the transaction applied
      */
     public function apply(Tx $tx): static;
@@ -29,6 +40,9 @@ interface LedgerInterface
      *
      * Coinbase transactions create new outputs without spending any inputs,
      * effectively minting new value.
+     *
+     * @throws DuplicateTxException       If the transaction ID was already used
+     * @throws DuplicateOutputIdException If any output ID already exists in the unspent set
      *
      * @return static New ledger with the coinbase applied
      */
@@ -43,6 +57,30 @@ interface LedgerInterface
      * Returns the total amount across all unspent outputs.
      */
     public function totalUnspentAmount(): int;
+
+    /**
+     * Returns all unspent outputs owned by a specific owner.
+     *
+     * For large datasets with SQLite, prefer QueryableLedgerRepository::findUnspentByOwner()
+     * for O(1) memory usage.
+     */
+    public function unspentByOwner(string $owner): UnspentSet;
+
+    /**
+     * Returns total unspent amount for a specific owner.
+     *
+     * For large datasets with SQLite, prefer QueryableLedgerRepository::sumUnspentByOwner()
+     * for O(1) memory usage.
+     */
+    public function totalUnspentByOwner(string $owner): int;
+
+    /**
+     * Checks if a transaction can be applied without actually applying it.
+     *
+     * Returns null if the transaction is valid, or the exception that would be thrown.
+     * Useful for validation before committing to apply.
+     */
+    public function canApply(Tx $tx): ?Exception\UnspentException;
 
     /**
      * Returns the total fees collected across all applied transactions.

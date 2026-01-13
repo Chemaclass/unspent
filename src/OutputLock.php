@@ -28,4 +28,12 @@ interface OutputLock
      * @return array{type: string, name?:string, ...}
      */
     public function toArray(): array;
+
+    /**
+     * Returns the lock type identifier for introspection.
+     *
+     * Built-in locks return LockType enum values ('none', 'owner', 'pubkey').
+     * Custom locks should return their registered type string.
+     */
+    public function type(): string;
 }

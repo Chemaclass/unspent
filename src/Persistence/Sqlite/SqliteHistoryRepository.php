@@ -247,6 +247,27 @@ final class SqliteHistoryRepository implements HistoryRepository
         return (int) $row['coinbase_amount'];
     }
 
+    public function withTransaction(Tx $tx, int $fee, array $spentOutputData): static
+    {
+        $this->saveTransaction($tx, $fee, $spentOutputData);
+
+        return $this;
+    }
+
+    public function withCoinbase(CoinbaseTx $coinbase): static
+    {
+        $this->saveCoinbase($coinbase);
+
+        return $this;
+    }
+
+    public function withGenesis(array $outputs): static
+    {
+        $this->saveGenesis($outputs);
+
+        return $this;
+    }
+
     /**
      * @param list<Output> $outputs
      */

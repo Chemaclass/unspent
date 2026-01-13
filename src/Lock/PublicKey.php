@@ -50,6 +50,11 @@ final readonly class PublicKey implements OutputLock
         return ['type' => LockType::PUBLIC_KEY->value, 'key' => $this->key];
     }
 
+    public function type(): string
+    {
+        return LockType::PUBLIC_KEY->value;
+    }
+
     private function verifySignature(string $signature, string $message): bool
     {
         $decodedSignature = base64_decode($signature, true);

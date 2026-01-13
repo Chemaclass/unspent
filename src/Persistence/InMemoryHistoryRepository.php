@@ -180,4 +180,68 @@ final class InMemoryHistoryRepository implements HistoryRepository
             spentOutputs: $data['spentOutputs'] ?? [],
         );
     }
+
+    public function withTransaction(Tx $tx, int $fee, array $spentOutputData): static
+    {
+        $newTxFees = $this->txFees;
+        $newTxFees[$tx->id->value] = $fee;
+
+        $newOutputSpentBy = $this->outputSpentBy;
+        foreach ($tx->spends as $spendId) {
+            $newOutputSpentBy[$spendId->value] = $tx->id->value;
+        }
+
+        $newOutputCreatedBy = $this->outputCreatedBy;
+        foreach ($tx->outputs as $output) {
+            $newOutputCreatedBy[$output->id->value] = $tx->id->value;
+        }
+
+        $newSpentOutputs = $this->spentOutputs;
+        foreach ($spentOutputData as $outputId => $data) {
+            $newSpentOutputs[$outputId] = $data;
+        }
+
+        return new self(
+            $newTxFees,
+            $this->coinbaseAmounts,
+            $newOutputCreatedBy,
+            $newOutputSpentBy,
+            $newSpentOutputs,
+        );
+    }
+
+    public function withCoinbase(CoinbaseTx $coinbase): static
+    {
+        $newCoinbaseAmounts = $this->coinbaseAmounts;
+        $newCoinbaseAmounts[$coinbase->id->value] = $coinbase->totalOutputAmount();
+
+        $newOutputCreatedBy = $this->outputCreatedBy;
+        foreach ($coinbase->outputs as $output) {
+            $newOutputCreatedBy[$output->id->value] = $coinbase->id->value;
+        }
+
+        return new self(
+            $this->txFees,
+            $newCoinbaseAmounts,
+            $newOutputCreatedBy,
+            $this->outputSpentBy,
+            $this->spentOutputs,
+        );
+    }
+
+    public function withGenesis(array $outputs): static
+    {
+        $newOutputCreatedBy = $this->outputCreatedBy;
+        foreach ($outputs as $output) {
+            $newOutputCreatedBy[$output->id->value] = 'genesis';
+        }
+
+        return new self(
+            $this->txFees,
+            $this->coinbaseAmounts,
+            $newOutputCreatedBy,
+            $this->outputSpentBy,
+            $this->spentOutputs,
+        );
+    }
 }

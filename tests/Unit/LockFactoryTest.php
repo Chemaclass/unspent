@@ -129,6 +129,11 @@ final class LockFactoryTest extends TestCase
             {
                 return ['type' => 'none', 'custom' => true];
             }
+
+            public function type(): string
+            {
+                return 'none';
+            }
         })::class;
 
         LockFactory::register('none', static fn (array $data): OutputLock => new $customLockClass());

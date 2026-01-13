@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
+use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\DuplicateOutputIdException;
 use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
@@ -26,6 +27,9 @@ use JsonException;
  */
 final readonly class Ledger implements LedgerInterface
 {
+    /** Library version following semver. */
+    public const string VERSION = '1.0.0';
+
     /** Serialization format version for future migration support. */
     private const int SERIALIZATION_VERSION = 1;
 
@@ -54,6 +58,8 @@ final readonly class Ledger implements LedgerInterface
 
     /**
      * Creates an in-memory ledger with genesis outputs.
+     *
+     * @throws DuplicateOutputIdException If any output ID is duplicated
      */
     public static function withGenesis(Output ...$outputs): self
     {
@@ -140,6 +146,12 @@ final readonly class Ledger implements LedgerInterface
         );
     }
 
+    /**
+     * Adds genesis outputs to an empty ledger.
+     *
+     * @throws GenesisNotAllowedException If the ledger is not empty
+     * @throws DuplicateOutputIdException If any output ID is duplicated
+     */
     public function addGenesis(Output ...$outputs): self
     {
         if (!$this->unspentSet->isEmpty()) {
@@ -148,9 +160,7 @@ final readonly class Ledger implements LedgerInterface
 
         DuplicateValidator::assertNoDuplicateOutputIds(array_values($outputs));
 
-        // Clone repository to maintain immutability (for in-memory mode)
-        $newRepository = clone $this->historyRepository;
-        $newRepository->saveGenesis(array_values($outputs));
+        $newRepository = $this->historyRepository->withGenesis(array_values($outputs));
 
         return new self(
             UnspentSet::fromOutputs(...$outputs),
@@ -161,6 +171,15 @@ final readonly class Ledger implements LedgerInterface
         );
     }
 
+    /**
+     * Applies a transaction to the ledger.
+     *
+     * @throws DuplicateTxException        If the transaction ID was already used
+     * @throws OutputAlreadySpentException If any spend references an output not in the unspent set
+     * @throws InsufficientSpendsException If the total output amount exceeds the total spend amount
+     * @throws DuplicateOutputIdException  If any new output ID already exists in the unspent set
+     * @throws AuthorizationException      If authorization fails for any spent output
+     */
     public function apply(Tx $tx): static
     {
         $this->assertTxNotAlreadyApplied($tx);
@@ -190,9 +209,7 @@ final readonly class Ledger implements LedgerInterface
         $appliedTxs = $this->appliedTxIds;
         $appliedTxs[$tx->id->value] = true;
 
-        // Clone repository to maintain immutability (for in-memory mode)
-        $newRepository = clone $this->historyRepository;
-        $newRepository->saveTransaction($tx, $fee, $spentOutputData);
+        $newRepository = $this->historyRepository->withTransaction($tx, $fee, $spentOutputData);
 
         return new self(
             $unspent,
@@ -203,6 +220,12 @@ final readonly class Ledger implements LedgerInterface
         );
     }
 
+    /**
+     * Applies a coinbase (minting) transaction to the ledger.
+     *
+     * @throws DuplicateTxException       If the transaction ID was already used
+     * @throws DuplicateOutputIdException If any output ID already exists in the unspent set
+     */
     public function applyCoinbase(CoinbaseTx $coinbase): static
     {
         $this->assertTxIdNotAlreadyUsed($coinbase->id);
@@ -214,9 +237,7 @@ final readonly class Ledger implements LedgerInterface
         $appliedTxs = $this->appliedTxIds;
         $appliedTxs[$coinbase->id->value] = true;
 
-        // Clone repository to maintain immutability (for in-memory mode)
-        $newRepository = clone $this->historyRepository;
-        $newRepository->saveCoinbase($coinbase);
+        $newRepository = $this->historyRepository->withCoinbase($coinbase);
 
         return new self(
             $unspent,
@@ -235,6 +256,49 @@ final readonly class Ledger implements LedgerInterface
     public function totalUnspentAmount(): int
     {
         return $this->unspentSet->totalAmount();
+    }
+
+    /**
+     * Returns all unspent outputs owned by a specific owner.
+     *
+     * For large datasets with SQLite, prefer QueryableLedgerRepository::findUnspentByOwner()
+     * for O(1) memory usage.
+     */
+    public function unspentByOwner(string $owner): UnspentSet
+    {
+        return $this->unspentSet->ownedBy($owner);
+    }
+
+    /**
+     * Returns total unspent amount for a specific owner.
+     *
+     * For large datasets with SQLite, prefer QueryableLedgerRepository::sumUnspentByOwner()
+     * for O(1) memory usage.
+     */
+    public function totalUnspentByOwner(string $owner): int
+    {
+        return $this->unspentSet->totalAmountOwnedBy($owner);
+    }
+
+    /**
+     * Checks if a transaction can be applied without actually applying it.
+     *
+     * Returns null if the transaction is valid, or the exception that would be thrown.
+     * Useful for validation before committing to apply.
+     */
+    public function canApply(Tx $tx): ?Exception\UnspentException
+    {
+        try {
+            $this->assertTxNotAlreadyApplied($tx);
+            $spendAmount = $this->validateSpendsAndGetTotal($tx);
+            $outputAmount = $tx->totalOutputAmount();
+            $this->assertSufficientSpends($spendAmount, $outputAmount);
+            $this->assertNoOutputIdConflicts($tx);
+
+            return null;
+        } catch (Exception\UnspentException $e) {
+            return $e;
+        }
     }
 
     public function isTxApplied(TxId $txId): bool
