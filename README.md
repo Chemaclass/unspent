@@ -2,6 +2,7 @@
 
 [![PHP 8.4+](https://img.shields.io/badge/PHP-8.4+-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+[![codecov](https://codecov.io/gh/Chemaclass/unspent/graph/badge.svg)](https://codecov.io/gh/Chemaclass/unspent)
 
 **Track value like physical cash in your PHP apps.** Every unit has an origin, can only be spent once, and leaves a complete audit trail.
 
