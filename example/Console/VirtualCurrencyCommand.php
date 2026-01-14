@@ -12,7 +12,6 @@ use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\OutputLock;
 use Chemaclass\Unspent\Tx;
-use Chemaclass\Unspent\TxId;
 use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -181,16 +180,11 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
     {
         $this->io->section('Trade');
 
-        $ledger = $ledger->apply(Tx::create(
-            spendIds: ['bob-gold'],
-            outputs: [Output::ownedBy('alice', 450, 'alice-from-bob')],
-            signedBy: 'bob',
-            id: 'bob-pays-alice',
-        ));
+        // Simple API: auto-selects Bob's outputs, handles change, applies fee
+        $ledger = $ledger->transfer('bob', 'alice', 450, fee: 50);
 
-        $fee = $ledger->feeForTx(new TxId('bob-pays-alice')) ?? 0;
         $this->io->text('Bob paid Alice 450g (50g fee/tax)');
-        $this->io->text("Fee collected: {$fee}g");
+        $this->io->text('Fee collected: 50g');
 
         return $ledger;
     }
@@ -212,58 +206,48 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     private function processRandomAction(LedgerInterface $ledger): LedgerInterface
     {
-        $outputs = iterator_to_array($ledger->unspent());
-        $playerOutputs = array_filter($outputs, function (Output $o): bool {
-            $owner = $o->lock->toArray()['name'] ?? '';
+        // Find players with available balance
+        $playerBalances = [];
+        foreach ($this->players as $player) {
+            if ($player === 'shop') {
+                continue;
+            }
+            $balance = $ledger->totalUnspentByOwner($player);
+            if ($balance >= 50) {
+                $playerBalances[$player] = $balance;
+            }
+        }
 
-            return \in_array($owner, $this->players) && $owner !== 'shop';
-        });
-
-        if ($playerOutputs === []) {
-            $this->io->text('No player outputs available!');
+        if ($playerBalances === []) {
+            $this->io->text('No player has enough gold!');
 
             return $ledger;
         }
 
-        $toSpend = $playerOutputs[array_rand($playerOutputs)];
-        $owner = $toSpend->lock->toArray()['name'] ?? 'unknown';
-        $amount = $toSpend->amount;
-
-        if ($amount < 50) {
-            $this->io->text("{$owner} doesn't have enough gold.");
-
-            return $ledger;
-        }
-
+        // Pick a random player with sufficient funds
+        $players = array_keys($playerBalances);
+        $owner = $players[array_rand($players)];
+        $amount = $playerBalances[$owner];
         $fee = max(1, (int) ($amount * 0.05));
         $action = random_int(0, 1);
 
         if ($action === 0) {
-            return $this->buyFromShop($ledger, $toSpend, $owner, $amount, $fee);
+            return $this->buyFromShop($ledger, $owner, $amount, $fee);
         }
 
-        return $this->tradeWithPlayer($ledger, $toSpend, $owner, $amount, $fee);
+        return $this->tradeWithPlayer($ledger, $owner, $amount, $fee);
     }
 
     private function buyFromShop(
         LedgerInterface $ledger,
-        Output $toSpend,
         string $owner,
         int $amount,
         int $fee,
     ): LedgerInterface {
         $spend = min(200, (int) ($amount * 0.3));
-        $change = $amount - $spend - $fee;
 
-        $ledger = $ledger->apply(Tx::create(
-            spendIds: [$toSpend->id->value],
-            outputs: [
-                Output::ownedBy('shop', $spend, "shop-sale-{$this->runNumber}"),
-                Output::ownedBy($owner, $change, "{$owner}-change-{$this->runNumber}"),
-            ],
-            signedBy: $owner,
-            id: "buy-{$this->runNumber}",
-        ));
+        // Simple API: handles output selection, change, and fees automatically
+        $ledger = $ledger->transfer($owner, 'shop', $spend, fee: $fee);
 
         $this->io->text("{$owner} bought item for {$spend}g (tax: {$fee}g)");
 
@@ -272,7 +256,6 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
 
     private function tradeWithPlayer(
         LedgerInterface $ledger,
-        Output $toSpend,
         string $owner,
         int $amount,
         int $fee,
@@ -280,17 +263,9 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         $otherPlayers = array_diff($this->players, [$owner, 'shop']);
         $recipient = $otherPlayers[array_rand($otherPlayers)];
         $send = (int) (($amount - $fee) * 0.5);
-        $change = $amount - $send - $fee;
 
-        $ledger = $ledger->apply(Tx::create(
-            spendIds: [$toSpend->id->value],
-            outputs: [
-                Output::ownedBy($recipient, $send, "{$recipient}-from-{$owner}-{$this->runNumber}"),
-                Output::ownedBy($owner, $change, "{$owner}-change-{$this->runNumber}"),
-            ],
-            signedBy: $owner,
-            id: "trade-{$this->runNumber}",
-        ));
+        // Simple API: handles output selection, change, and fees automatically
+        $ledger = $ledger->transfer($owner, $recipient, $send, fee: $fee);
 
         $this->io->text("{$owner} sent {$send}g to {$recipient} (tax: {$fee}g)");
 

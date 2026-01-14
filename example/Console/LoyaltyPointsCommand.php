@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Example\Console;
 
-use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -23,10 +22,11 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
     {
         $ledger = $this->loadOrCreateEmpty();
 
-        $ledger = $this->earnPoints($ledger, 'alice', 50, 'purchase-001', 'earn-50');
+        // Simple API: mints new value to the customer
+        $ledger = $ledger->credit('alice', 50, 'earn-50');
         $this->io->text('Alice bought $50 -> earned 50 pts');
 
-        $ledger = $this->earnPoints($ledger, 'alice', 30, 'purchase-002', 'earn-30');
+        $ledger = $ledger->credit('alice', 30, 'earn-30');
         $this->io->text('Alice bought $30 -> earned 30 pts');
         $this->io->newLine();
 
@@ -55,28 +55,12 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         return Command::SUCCESS;
     }
 
-    private function earnPoints(
-        LedgerInterface $ledger,
-        string $customer,
-        int $amount,
-        string $outputId,
-        string $txId,
-    ): LedgerInterface {
-        return $ledger->applyCoinbase(CoinbaseTx::create(
-            outputs: [Output::ownedBy($customer, $amount, $outputId)],
-            id: $txId,
-        ));
-    }
-
     private function earnFromPurchase(LedgerInterface $ledger): LedgerInterface
     {
         $purchaseAmount = random_int(20, 100);
-        $earnId = "purchase-{$this->runNumber}";
 
-        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
-            outputs: [Output::ownedBy('customer', $purchaseAmount, $earnId)],
-            id: "earn-{$this->runNumber}",
-        ));
+        // Simple API: mints new value to the customer
+        $ledger = $ledger->credit('customer', $purchaseAmount, "earn-{$this->runNumber}");
 
         $this->io->text("Customer bought \${$purchaseAmount} -> earned {$purchaseAmount} pts");
         $this->io->text("Total points minted: {$ledger->totalMinted()}");
@@ -87,11 +71,17 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
 
     private function redeemPoints(LedgerInterface $ledger): LedgerInterface
     {
+        // Coin Control: Create a voucher (open lock) from Alice's points
+        // This demonstrates selecting specific outputs and creating different lock types
+        $aliceOutputs = iterator_to_array($ledger->unspentByOwner('alice'));
+        $spendIds = array_values(array_map(static fn (Output $o): string => $o->id->value, $aliceOutputs));
+        $total = array_sum(array_map(static fn (Output $o): int => $o->amount, $aliceOutputs));
+
         $ledger = $ledger->apply(Tx::create(
-            spendIds: ['purchase-001', 'purchase-002'],
+            spendIds: $spendIds,
             outputs: [
                 Output::open(60, 'coffee-voucher'),
-                Output::ownedBy('alice', 20, 'change'),
+                Output::ownedBy('alice', $total - 60, 'change'),
             ],
             signedBy: 'alice',
             id: 'redeem-coffee',
@@ -145,8 +135,10 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
     private function showAudit(LedgerInterface $ledger): void
     {
         $this->io->section('Audit Trail');
-        $ledger->outputHistory(new OutputId('purchase-001'));
-        $this->io->text('purchase-001: minted in earn-50, spent in redeem-coffee');
+        $history = $ledger->outputHistory(new OutputId('coffee-voucher'));
+        if ($history !== null) {
+            $this->io->text("coffee-voucher: created by '{$history->createdBy}' (redeemed from points)");
+        }
     }
 
     private function showFinalState(LedgerInterface $ledger): void

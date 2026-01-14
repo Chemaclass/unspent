@@ -9,9 +9,7 @@ use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
-use Chemaclass\Unspent\TxId;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
@@ -92,19 +90,12 @@ final class InternalAccountingCommand extends Command
 
     private function interDepartmentTransfer(SymfonyStyle $io, LedgerInterface $company): LedgerInterface
     {
-        $company = $company->apply(Tx::create(
-            spendIds: ['ops-budget'],
-            outputs: [
-                Output::ownedBy('marketing', 15_000, 'mkt-campaign'),
-                Output::ownedBy('operations', 14_400, 'ops-remaining'),
-            ],
-            signedBy: 'operations',
-            id: 'ops-to-mkt',
-        ));
+        // Simple API: handles output selection and change automatically
+        $company = $company->transfer('operations', 'marketing', 15_000, fee: 600);
 
         $io->newLine();
         $io->text('Ops transfers $15k to Marketing (2% admin fee)');
-        $io->text("Fee: \${$company->feeForTx(new TxId('ops-to-mkt'))}");
+        $io->text('Fee: $600');
 
         return $company;
     }
@@ -114,12 +105,10 @@ final class InternalAccountingCommand extends Command
         $io->newLine();
         $io->text('Marketing tries to overspend... ');
 
+        // Marketing has $65k total (50k original + 15k from ops)
+        // Trying to spend $100k should fail
         try {
-            $company->apply(Tx::create(
-                spendIds: ['mkt-budget', 'mkt-campaign'],
-                outputs: [Output::ownedBy('vendor', 100_000)],
-                signedBy: 'marketing',
-            ));
+            $company->transfer('marketing', 'vendor', 100_000);
         } catch (InsufficientSpendsException) {
             $io->text('<fg=green>BLOCKED</>');
         }
@@ -128,8 +117,13 @@ final class InternalAccountingCommand extends Command
     private function showAuditTrail(SymfonyStyle $io, LedgerInterface $company): void
     {
         $io->section('Audit Trail');
-        $id = new OutputId('mkt-campaign');
-        $io->text("mkt-campaign: created by {$company->outputCreatedBy($id)}");
+
+        // Find a marketing output to trace (transfer from operations)
+        foreach ($company->unspentByOwner('marketing') as $output) {
+            $createdBy = $company->outputCreatedBy($output->id);
+            $io->text("{$output->id->value}: created by {$createdBy}");
+            break;
+        }
     }
 
     private function showReconciliation(SymfonyStyle $io, LedgerInterface $company): void
