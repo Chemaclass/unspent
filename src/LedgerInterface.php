@@ -75,6 +75,59 @@ interface LedgerInterface
     public function totalUnspentByOwner(string $owner): int;
 
     /**
+     * Transfer amount from one owner to another.
+     *
+     * Automatically selects outputs to spend, calculates change, and handles authorization.
+     * This is a convenience method that wraps apply() with automatic output selection.
+     *
+     * @param string      $from   Owner to transfer from
+     * @param string      $to     Owner to transfer to
+     * @param int         $amount Amount to transfer
+     * @param int         $fee    Optional fee (burned value)
+     * @param string|null $txId   Optional transaction ID (auto-generated if null)
+     *
+     * @throws InsufficientSpendsException If sender has insufficient balance
+     * @throws OutputAlreadySpentException If outputs have been spent
+     * @throws DuplicateOutputIdException  If output ID conflicts
+     *
+     * @return static New ledger with transfer applied
+     */
+    public function transfer(string $from, string $to, int $amount, int $fee = 0, ?string $txId = null): static;
+
+    /**
+     * Debit (burn) amount from an owner.
+     *
+     * Removes value from an owner without transferring to another.
+     * Useful for redemptions, burns, or system debits.
+     *
+     * @param string      $owner  Owner to debit
+     * @param int         $amount Amount to debit (burned)
+     * @param int         $fee    Optional additional fee
+     * @param string|null $txId   Optional transaction ID (auto-generated if null)
+     *
+     * @throws InsufficientSpendsException If owner has insufficient balance
+     *
+     * @return static New ledger with debit applied
+     */
+    public function debit(string $owner, int $amount, int $fee = 0, ?string $txId = null): static;
+
+    /**
+     * Credit (mint) amount to an owner.
+     *
+     * Creates new value for an owner without spending inputs.
+     * This is a convenience wrapper around applyCoinbase().
+     *
+     * @param string      $owner  Owner to credit
+     * @param int         $amount Amount to mint
+     * @param string|null $txId   Optional transaction ID (auto-generated if null)
+     *
+     * @throws DuplicateOutputIdException If output ID conflicts
+     *
+     * @return static New ledger with credit applied
+     */
+    public function credit(string $owner, int $amount, ?string $txId = null): static;
+
+    /**
      * Checks if a transaction can be applied without actually applying it.
      *
      * Returns null if the transaction is valid, or the exception that would be thrown.

@@ -13,10 +13,22 @@ use IteratorAggregate;
 use Traversable;
 
 /**
+ * Optimized unspent output collection with copy-on-fork semantics.
+ *
+ * Performance optimization: Instead of copying the entire array on every
+ * mutation, we track "ownership" of the internal array. Mutations happen
+ * in-place when we own the array, and copy only when forking from shared state.
+ *
  * @implements IteratorAggregate<string, Output>
  */
-final readonly class UnspentSet implements Countable, IteratorAggregate
+final class UnspentSet implements Countable, IteratorAggregate
 {
+    /**
+     * Whether this instance owns its array and can mutate it.
+     * Set to false when the set is exposed externally (shared).
+     */
+    private bool $owned = true;
+
     /**
      * @param array<string, Output> $outputs
      */
@@ -36,19 +48,40 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
         return self::empty()->addAll(...$outputs);
     }
 
+    /**
+     * Mark this set as shared (not owned). Future mutations will copy.
+     *
+     * @internal called when exposing the set externally
+     */
+    public function release(): self
+    {
+        $this->owned = false;
+
+        return $this;
+    }
+
     public function add(Output $output): self
     {
         $key = $output->id->value;
-        $outputs = $this->outputs;
         $delta = $output->amount;
 
-        if (isset($outputs[$key])) {
-            $delta -= $outputs[$key]->amount;
+        if (isset($this->outputs[$key])) {
+            $delta -= $this->outputs[$key]->amount;
         }
 
-        $outputs[$key] = $output;
+        if ($this->owned) {
+            // Mutate in place - we own this array
+            $this->outputs[$key] = $output;
+            $this->cachedTotal += $delta;
 
-        return new self($outputs, $this->cachedTotal + $delta);
+            return $this;
+        }
+
+        // Fork - create a copy since we don't own the array
+        $newOutputs = $this->outputs;
+        $newOutputs[$key] = $output;
+
+        return new self($newOutputs, $this->cachedTotal + $delta);
     }
 
     public function addAll(Output ...$outputs): self
@@ -57,6 +90,21 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
             return $this;
         }
 
+        if ($this->owned) {
+            // Mutate in place
+            foreach ($outputs as $output) {
+                $key = $output->id->value;
+                if (isset($this->outputs[$key])) {
+                    $this->cachedTotal -= $this->outputs[$key]->amount;
+                }
+                $this->outputs[$key] = $output;
+                $this->cachedTotal += $output->amount;
+            }
+
+            return $this;
+        }
+
+        // Fork
         $newOutputs = $this->outputs;
         $newTotal = $this->cachedTotal;
 
@@ -79,11 +127,21 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
             return $this;
         }
 
-        $outputs = $this->outputs;
-        $removedAmount = $outputs[$key]->amount;
-        unset($outputs[$key]);
+        $removedAmount = $this->outputs[$key]->amount;
 
-        return new self($outputs, $this->cachedTotal - $removedAmount);
+        if ($this->owned) {
+            // Mutate in place
+            unset($this->outputs[$key]);
+            $this->cachedTotal -= $removedAmount;
+
+            return $this;
+        }
+
+        // Fork
+        $newOutputs = $this->outputs;
+        unset($newOutputs[$key]);
+
+        return new self($newOutputs, $this->cachedTotal - $removedAmount);
     }
 
     public function removeAll(OutputId ...$ids): self
@@ -92,18 +150,32 @@ final readonly class UnspentSet implements Countable, IteratorAggregate
             return $this;
         }
 
-        $outputs = $this->outputs;
+        if ($this->owned) {
+            // Mutate in place
+            foreach ($ids as $id) {
+                $key = $id->value;
+                if (isset($this->outputs[$key])) {
+                    $this->cachedTotal -= $this->outputs[$key]->amount;
+                    unset($this->outputs[$key]);
+                }
+            }
+
+            return $this;
+        }
+
+        // Fork
+        $newOutputs = $this->outputs;
         $newTotal = $this->cachedTotal;
 
         foreach ($ids as $id) {
             $key = $id->value;
-            if (isset($outputs[$key])) {
-                $newTotal -= $outputs[$key]->amount;
-                unset($outputs[$key]);
+            if (isset($newOutputs[$key])) {
+                $newTotal -= $newOutputs[$key]->amount;
+                unset($newOutputs[$key]);
             }
         }
 
-        return new self($outputs, $newTotal);
+        return new self($newOutputs, $newTotal);
     }
 
     public function contains(OutputId $id): bool

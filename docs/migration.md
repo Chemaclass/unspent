@@ -49,71 +49,42 @@ $alice->balance -= 100;
 $bob->balance += 100;
 ```
 
-**After (UTXO):**
+**After (UTXO) - using convenience methods:**
 ```php
-// Find alice's outputs
-$aliceOutputs = $ledger->unspentByOwner('alice');
-$outputToSpend = $aliceOutputs->first(); // or select strategically
-
-// Create transaction
-$ledger = $ledger->apply(Tx::create(
-    spendIds: [$outputToSpend->id],
-    outputs: [
-        Output::ownedBy('bob', 100),
-        Output::ownedBy('alice', $outputToSpend->amount - 100), // change
-    ],
-    signedBy: 'alice',
-));
+// One line! Automatic output selection and change handling
+$ledger = $ledger->transfer('alice', 'bob', 100);
 ```
 
-### Step 4: Output Selection Strategies
+That's it! The `transfer()` method automatically:
+- Finds alice's unspent outputs
+- Selects enough to cover the amount
+- Creates the transfer output for bob
+- Returns change to alice
+- Handles authorization
 
-When a user has multiple outputs, choose which to spend:
+### Step 4: Handle Fees
 
 ```php
-// Strategy 1: Largest first (fewer outputs over time)
-$outputs = $ledger->unspentByOwner('alice')->sorted(
-    fn($a, $b) => $b->amount <=> $a->amount
-);
+// Transfer with a 5-unit fee
+$ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
 
-// Strategy 2: Smallest first (consolidate dust)
-$outputs = $ledger->unspentByOwner('alice')->sorted(
-    fn($a, $b) => $a->amount <=> $b->amount
-);
-
-// Strategy 3: Exact match (if available)
-$outputs = $ledger->unspentByOwner('alice')->filter(
-    fn($o) => $o->amount >= $requiredAmount
-);
+// Alice loses 105 total (100 to bob + 5 fee)
 ```
 
-### Step 5: Handle Insufficient Funds
+### Step 5: Error Handling
 
 ```php
-$aliceTotal = $ledger->totalUnspentByOwner('alice');
-if ($aliceTotal < $requiredAmount) {
-    throw new InsufficientFundsException();
+// Throws InsufficientSpendsException if alice can't afford it
+try {
+    $ledger = $ledger->transfer('alice', 'bob', 1000000);
+} catch (InsufficientSpendsException $e) {
+    echo "Alice doesn't have enough funds";
 }
 
-// May need to combine multiple outputs
-$outputsToSpend = [];
-$accumulated = 0;
-foreach ($ledger->unspentByOwner('alice') as $output) {
-    $outputsToSpend[] = $output->id;
-    $accumulated += $output->amount;
-    if ($accumulated >= $requiredAmount) {
-        break;
-    }
+// Or check first
+if ($ledger->totalUnspentByOwner('alice') >= $amount) {
+    $ledger = $ledger->transfer('alice', 'bob', $amount);
 }
-
-$ledger = $ledger->apply(Tx::create(
-    spendIds: $outputsToSpend,
-    outputs: [
-        Output::ownedBy('bob', $requiredAmount),
-        Output::ownedBy('alice', $accumulated - $requiredAmount), // change
-    ],
-    signedBy: 'alice',
-));
 ```
 
 ## Common Patterns
@@ -138,40 +109,55 @@ if ($user->balance >= $amount) { ... }
 if ($ledger->totalUnspentByOwner($userId) >= $amount) { ... }
 ```
 
-### Debit User
+### Transfer Between Users
 
 ```php
-// Old way: simple subtraction
-$user->balance -= $amount;
+// Old way
+$alice->balance -= 100;
+$bob->balance += 100;
 
-// UTXO way: spend and create change
-$ledger = $ledger->apply(Tx::create(
-    spendIds: $selectedOutputIds,
-    outputs: [
-        Output::open($amount, 'destination'),
-        Output::ownedBy($userId, $change),
-    ],
-    signedBy: $userId,
-));
+// UTXO way
+$ledger = $ledger->transfer('alice', 'bob', 100);
+
+// With fee
+$ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
 ```
 
-### Credit User
+### Debit User (Burn Value)
 
 ```php
-// Old way: simple addition
+// Old way
+$user->balance -= $amount;
+
+// UTXO way - burns the amount (e.g., redemption, purchase)
+$ledger = $ledger->debit($userId, $amount);
+
+// With additional fee
+$ledger = $ledger->debit($userId, $amount, fee: 10);
+```
+
+### Credit User (Mint Value)
+
+```php
+// Old way
 $user->balance += $amount;
 
-// UTXO way: create new output (requires spending something)
-// Option A: From existing pool
-$ledger = $ledger->apply(Tx::create(
-    spendIds: ['reward-pool'],
-    outputs: [Output::ownedBy($userId, $amount)],
-));
+// UTXO way - mints new value
+$ledger = $ledger->credit($userId, $amount);
 
-// Option B: Mint new value (if allowed in your system)
-$ledger = $ledger->applyCoinbase(CoinbaseTx::create(
-    outputs: [Output::ownedBy($userId, $amount)],
-));
+// With custom transaction ID
+$ledger = $ledger->credit($userId, $amount, 'daily-bonus-123');
+```
+
+### Chain Operations
+
+```php
+// Multiple operations in sequence
+$ledger = Ledger::inMemory()
+    ->credit('alice', 1000)           // Mint 1000 for alice
+    ->transfer('alice', 'bob', 300)   // Alice sends 300 to bob
+    ->debit('bob', 50)                // Bob redeems 50
+    ->credit('charlie', 200);         // Mint 200 for charlie
 ```
 
 ## Gradual Migration

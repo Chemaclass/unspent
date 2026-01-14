@@ -248,9 +248,81 @@ final readonly class Ledger implements LedgerInterface
         );
     }
 
+    public function transfer(string $from, string $to, int $amount, int $fee = 0, ?string $txId = null): static
+    {
+        $required = $amount + $fee;
+        $outputsToSpend = [];
+        $accumulated = 0;
+
+        foreach ($this->unspentByOwner($from) as $output) {
+            $outputsToSpend[] = $output->id->value;
+            $accumulated += $output->amount;
+            if ($accumulated >= $required) {
+                break;
+            }
+        }
+
+        if ($accumulated < $required) {
+            throw InsufficientSpendsException::create($accumulated, $required);
+        }
+
+        $outputs = [Output::ownedBy($to, $amount)];
+        $change = $accumulated - $required;
+        if ($change > 0) {
+            $outputs[] = Output::ownedBy($from, $change);
+        }
+
+        return $this->apply(Tx::create(
+            spendIds: $outputsToSpend,
+            outputs: $outputs,
+            signedBy: $from,
+            id: $txId,
+        ));
+    }
+
+    public function debit(string $owner, int $amount, int $fee = 0, ?string $txId = null): static
+    {
+        $required = $amount + $fee;
+        $outputsToSpend = [];
+        $accumulated = 0;
+
+        foreach ($this->unspentByOwner($owner) as $output) {
+            $outputsToSpend[] = $output->id->value;
+            $accumulated += $output->amount;
+            if ($accumulated >= $required) {
+                break;
+            }
+        }
+
+        if ($accumulated < $required) {
+            throw InsufficientSpendsException::create($accumulated, $required);
+        }
+
+        $outputs = [];
+        $change = $accumulated - $required;
+        if ($change > 0) {
+            $outputs[] = Output::ownedBy($owner, $change);
+        }
+
+        return $this->apply(Tx::create(
+            spendIds: $outputsToSpend,
+            outputs: $outputs,
+            signedBy: $owner,
+            id: $txId,
+        ));
+    }
+
+    public function credit(string $owner, int $amount, ?string $txId = null): static
+    {
+        return $this->applyCoinbase(CoinbaseTx::create(
+            outputs: [Output::ownedBy($owner, $amount)],
+            id: $txId,
+        ));
+    }
+
     public function unspent(): UnspentSet
     {
-        return $this->unspentSet;
+        return $this->unspentSet->release();
     }
 
     public function totalUnspentAmount(): int

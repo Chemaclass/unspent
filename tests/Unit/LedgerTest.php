@@ -650,4 +650,187 @@ final class LedgerTest extends TestCase
 
         self::assertStringContainsString("\n", $json);
     }
+
+    // ========================================================================
+    // Convenience Methods Tests (transfer, debit, credit)
+    // ========================================================================
+
+    public function test_transfer_moves_amount_between_owners(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        );
+
+        $ledger = $ledger->transfer('alice', 'bob', 300);
+
+        self::assertSame(1000, $ledger->totalUnspentAmount());
+        self::assertSame(700, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(300, $ledger->totalUnspentByOwner('bob'));
+    }
+
+    public function test_transfer_with_fee(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        );
+
+        $ledger = $ledger->transfer('alice', 'bob', 300, fee: 10);
+
+        self::assertSame(990, $ledger->totalUnspentAmount());
+        self::assertSame(690, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(300, $ledger->totalUnspentByOwner('bob'));
+        self::assertSame(10, $ledger->totalFeesCollected());
+    }
+
+    public function test_transfer_with_custom_tx_id(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        );
+
+        $ledger = $ledger->transfer('alice', 'bob', 300, txId: 'my-transfer');
+
+        self::assertTrue($ledger->isTxApplied(new TxId('my-transfer')));
+    }
+
+    public function test_transfer_fails_on_insufficient_balance(): void
+    {
+        $this->expectException(InsufficientSpendsException::class);
+
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 100, 'alice-funds'),
+        );
+
+        $ledger->transfer('alice', 'bob', 200);
+    }
+
+    public function test_transfer_combines_multiple_outputs(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 300, 'alice-1'),
+            Output::ownedBy('alice', 400, 'alice-2'),
+            Output::ownedBy('alice', 300, 'alice-3'),
+        );
+
+        $ledger = $ledger->transfer('alice', 'bob', 600);
+
+        self::assertSame(1000, $ledger->totalUnspentAmount());
+        self::assertSame(400, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(600, $ledger->totalUnspentByOwner('bob'));
+    }
+
+    public function test_transfer_exact_amount_no_change(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 500, 'alice-funds'),
+        );
+
+        $ledger = $ledger->transfer('alice', 'bob', 500);
+
+        self::assertSame(500, $ledger->totalUnspentAmount());
+        self::assertSame(0, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(500, $ledger->totalUnspentByOwner('bob'));
+    }
+
+    public function test_debit_burns_amount_from_owner(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        );
+
+        $ledger = $ledger->debit('alice', 300);
+
+        self::assertSame(700, $ledger->totalUnspentAmount());
+        self::assertSame(700, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(300, $ledger->totalFeesCollected());
+    }
+
+    public function test_debit_with_additional_fee(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        );
+
+        $ledger = $ledger->debit('alice', 300, fee: 50);
+
+        self::assertSame(650, $ledger->totalUnspentAmount());
+        self::assertSame(650, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(350, $ledger->totalFeesCollected());
+    }
+
+    public function test_debit_fails_on_insufficient_balance(): void
+    {
+        $this->expectException(InsufficientSpendsException::class);
+
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 100, 'alice-funds'),
+        );
+
+        $ledger->debit('alice', 200);
+    }
+
+    public function test_debit_exact_amount_leaves_no_change(): void
+    {
+        // Note: In UTXO model, you cannot create a tx with zero outputs.
+        // To "burn" everything, debit most and leave minimal change.
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 500, 'alice-funds'),
+        );
+
+        $ledger = $ledger->debit('alice', 499);
+
+        self::assertSame(1, $ledger->totalUnspentAmount());
+        self::assertSame(1, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(499, $ledger->totalFeesCollected());
+    }
+
+    public function test_credit_mints_amount_to_owner(): void
+    {
+        $ledger = Ledger::inMemory();
+
+        $ledger = $ledger->credit('alice', 500);
+
+        self::assertSame(500, $ledger->totalUnspentAmount());
+        self::assertSame(500, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(500, $ledger->totalMinted());
+    }
+
+    public function test_credit_with_custom_tx_id(): void
+    {
+        $ledger = Ledger::inMemory();
+
+        $ledger = $ledger->credit('alice', 500, 'mint-alice');
+
+        self::assertTrue($ledger->isTxApplied(new TxId('mint-alice')));
+        self::assertTrue($ledger->isCoinbase(new TxId('mint-alice')));
+    }
+
+    public function test_credit_adds_to_existing_balance(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        );
+
+        $ledger = $ledger->credit('alice', 500);
+
+        self::assertSame(1500, $ledger->totalUnspentAmount());
+        self::assertSame(1500, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(500, $ledger->totalMinted());
+    }
+
+    public function test_convenience_methods_chain(): void
+    {
+        $ledger = Ledger::inMemory()
+            ->credit('alice', 1000)
+            ->transfer('alice', 'bob', 300)
+            ->debit('bob', 100)
+            ->credit('charlie', 200);
+
+        self::assertSame(1100, $ledger->totalUnspentAmount());
+        self::assertSame(700, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(200, $ledger->totalUnspentByOwner('bob'));
+        self::assertSame(200, $ledger->totalUnspentByOwner('charlie'));
+        self::assertSame(1200, $ledger->totalMinted());
+        self::assertSame(100, $ledger->totalFeesCollected());
+    }
 }

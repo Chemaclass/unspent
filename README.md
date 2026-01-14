@@ -7,16 +7,13 @@
 **Track value like physical cash in your PHP apps.** Every unit has an origin, can only be spent once, and leaves a complete audit trail.
 
 ```php
-// Start with 1000 units
-$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
+$ledger = Ledger::inMemory()
+    ->credit('alice', 1000)             // Mint 1000 for Alice
+    ->transfer('alice', 'bob', 300)     // Alice sends 300 to Bob
+    ->debit('bob', 50);                 // Bob redeems 50
 
-// Spend 600, keep 400 as change
-$ledger = $ledger->apply(Tx::create(
-    spendIds: ['funds'],
-    outputs: [Output::open(600), Output::open(400)],
-));
-
-// The original 1000 is gone forever - can't be double-spent.
+$ledger->totalUnspentByOwner('alice');  // 700
+$ledger->totalUnspentByOwner('bob');    // 250
 ```
 
 ## Why?
@@ -75,53 +72,74 @@ composer require chemaclass/unspent
 
 ## Quick Start
 
-### Create and transfer value
+### Simple API
+
+For most use cases, use the convenience methods:
 
 ```php
-// Initial value
-$ledger = Ledger::withGenesis(Output::open(1000, 'funds'));
+// Create a ledger and mint initial balances
+$ledger = Ledger::inMemory()
+    ->credit('alice', 1000)    // Mint 1000 to alice
+    ->credit('bob', 500);      // Mint 500 to bob
 
-// Transfer: spend existing outputs, create new ones
-$ledger = $ledger->apply(Tx::create(
-    spendIds: ['funds'],
-    outputs: [
-        Output::open(600, 'payment'),
-        Output::open(400, 'change'),
-    ],
-));
+// Transfer between users (auto handles change)
+$ledger = $ledger->transfer('alice', 'bob', 200);
 
-// Query state
-$ledger->totalUnspentAmount();  // 1000
-$ledger->unspent()->count();    // 2 outputs
+// Transfer with fee (5 units burned)
+$ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
+
+// Debit/burn value (redemption, purchase, etc.)
+$ledger = $ledger->debit('bob', 50);
+
+// Check balances
+$ledger->totalUnspentByOwner('alice');  // 695
+$ledger->totalUnspentByOwner('bob');    // 650
 ```
 
-### Add authorization
+| Method                                | Description               |
+|---------------------------------------|---------------------------|
+| `credit($owner, $amount)`             | Mint new value to owner   |
+| `transfer($from, $to, $amount, $fee)` | Move value between owners |
+| `debit($owner, $amount, $fee)`        | Burn value from owner     |
 
-When you need to control who can spend:
+### Coin Control API
+
+For full control over inputs and outputs, use `apply()`:
 
 ```php
-// Server-side ownership (sessions, JWT, etc.)
+// Start with specific outputs
 $ledger = Ledger::withGenesis(
-    Output::ownedBy('alice', 1000, 'alice-funds'),
+    Output::ownedBy('alice', 500, 'alice-savings'),
+    Output::ownedBy('alice', 300, 'alice-checking'),
 );
 
+// Explicitly choose which outputs to spend
 $ledger = $ledger->apply(Tx::create(
-    spendIds: ['alice-funds'],
+    spendIds: ['alice-checking'],  // Only spend from checking
     outputs: [
-        Output::ownedBy('bob', 600),
-        Output::ownedBy('alice', 400),
+        Output::ownedBy('bob', 200),
+        Output::ownedBy('alice', 100, 'alice-change'),
     ],
-    signedBy: 'alice',  // Must match the owner
+    signedBy: 'alice',
 ));
+
+// alice-savings (500) is untouched
+// alice-change (100) is the new output
 ```
+
+**Use coin control when you need:**
+- Specific output selection (spend oldest first, consolidate dust, etc.)
+- Custom output IDs for tracking
+- Multiple recipients in one transaction
+- Complex fee structures
 
 ### Output types
 
-| Method | Use case |
-|-|-|
-| `Output::open(100)` | No lock - pure bookkeeping |
-| `Output::ownedBy('alice', 100)` | Server-side auth (sessions, JWT) |
-| `Output::signedBy($pubKey, 100)` | Ed25519 crypto (trustless) |
+| Method                           | Use case                          |
+|----------------------------------|-----------------------------------|
+| `Output::open(100)`              | No lock - pure bookkeeping        |
+| `Output::ownedBy('alice', 100)`  | Server-side auth (sessions, JWT)  |
+| `Output::signedBy($pubKey, 100)` | Ed25519 crypto (trustless)        |
 | `Output::lockedWith($lock, 100)` | Custom locks (multisig, timelock) |
 
 ## Use Cases
