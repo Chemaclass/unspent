@@ -72,6 +72,36 @@ $ledger = $ledger->apply(Tx::create(
 ));
 ```
 
+### Key Derivation Options
+
+For user-friendly key management, consider deriving keys from passwords or mnemonics:
+
+```php
+// Option 1: Derive from password using Argon2id
+$salt = random_bytes(SODIUM_CRYPTO_PWHASH_SALTBYTES);
+$seed = sodium_crypto_pwhash(
+    32,
+    $password,
+    $salt,
+    SODIUM_CRYPTO_PWHASH_OPSLIMIT_INTERACTIVE,
+    SODIUM_CRYPTO_PWHASH_MEMLIMIT_INTERACTIVE,
+    SODIUM_CRYPTO_PWHASH_ALG_ARGON2ID13,
+);
+$keypair = sodium_crypto_sign_seed_keypair($seed);
+
+// Option 2: Use a BIP-39 mnemonic library (third-party)
+// Generate deterministic keys from "word word word..." phrases
+
+// Option 3: Store encrypted keys
+$encrypted = sodium_crypto_secretbox($privateKey, $nonce, $encryptionKey);
+```
+
+**Key management best practices:**
+- Never store private keys in plaintext
+- Use hardware security modules (HSM) for high-value systems
+- Implement key rotation strategies for long-running applications
+- Consider multi-signature schemes for critical operations
+
 ## Open Outputs
 
 Anyone can spend. Use for burn addresses or public pools.

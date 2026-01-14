@@ -32,3 +32,31 @@ php example/run btc --run-on=db   # Run with persistence
 ```
 
 Run multiple times to see state accumulate between runs.
+
+## Web API Example
+
+A standalone web API demonstrating Unspent in a web context:
+
+```bash
+php -S localhost:8080 example/web-api.php
+```
+
+Then try:
+
+```bash
+# Get balance
+curl "localhost:8080/balance?owner=alice"
+
+# Transfer funds
+curl -X POST localhost:8080/transfer \
+  -d '{"from":"alice","to":"bob","amount":100}'
+
+# Mint new value
+curl -X POST localhost:8080/mint \
+  -d '{"to":"charlie","amount":500}'
+
+# View output history
+curl "localhost:8080/history?id=alice-initial"
+```
+
+The web API uses PHP sessions for state persistence. For production use, replace with `SqliteHistoryRepository` or a custom repository.

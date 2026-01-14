@@ -12,7 +12,12 @@
         "immutable",
         "audit-trail",
         "double-spend",
-        "transaction"
+        "transaction",
+        "accounting",
+        "wallet",
+        "cryptocurrency",
+        "ed25519",
+        "authorization"
     ],
     "support": {
         "issues": "https://github.com/Chemaclass/unspent/issues",

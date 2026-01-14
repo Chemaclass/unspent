@@ -53,6 +53,20 @@ Inspired by Bitcoin's UTXO model, decoupled as a standalone library.
 - Single-user scenarios with no authorization needs
 - No audit requirements
 
+## When NOT to use this library
+
+Be aware of these limitations before choosing Unspent:
+
+| Limitation | Details |
+|------------|---------|
+| **Integer bounds** | Amounts are bounded by `PHP_INT_MAX` (~9.2 quintillion). Use a wrapper for arbitrary precision. |
+| **Single-node model** | Designed for single-node operation. For distributed consensus, add infrastructure (Raft, blockchain). |
+| **No built-in rate limiting** | Your application must implement rate limiting to prevent abuse. |
+| **Memory for large datasets** | In-memory mode uses ~1MB per 1,000 outputs. Use store-backed mode for >100k outputs. |
+| **Not for sub-second precision** | Timestamps are not enforced; this is not a real-time trading engine. |
+
+If you need distributed consensus, high-frequency trading, or arbitrary precision arithmetic, consider specialized solutions.
+
 ## Install
 
 ```bash
@@ -472,6 +486,8 @@ See [example/README.md](example/README.md) for details.
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees, coinbase transactions |
 | [Persistence](docs/persistence.md) | JSON, SQLite, custom storage |
 | [Scalability](docs/scalability.md) | In-memory mode vs store-backed mode for large datasets |
+| [Migration Guide](docs/migration.md) | Moving from balance-based systems to UTXO |
+| [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
 | [API Reference](docs/api-reference.md) | Complete method reference |
 
 ## FAQ

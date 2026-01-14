@@ -26,7 +26,7 @@ final readonly class Owner implements OutputLock
 
     public function validate(Tx $tx, int $spendIndex): void
     {
-        if ($tx->signedBy !== $this->name) {
+        if ($tx->signedBy === null || !hash_equals($this->name, $tx->signedBy)) {
             throw AuthorizationException::notOwner($this->name, $tx->signedBy);
         }
     }
