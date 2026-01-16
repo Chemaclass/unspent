@@ -78,6 +78,10 @@
         "bashunit": "lib/bashunit tests/bash",
         "benchmark": "vendor/bin/phpbench run --report=aggregate",
         "infection": "vendor/bin/infection --min-msi=80 --min-covered-msi=80 --threads=4",
+        "fix": [
+            "@csfix",
+            "@rector"
+        ],
         "test": [
             "@csrun",
             "@rector-dry",

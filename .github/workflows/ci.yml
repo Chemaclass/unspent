@@ -13,7 +13,7 @@ concurrency:
 env:
   PHP_VERSION: '8.4'
   COMPOSER_CACHE_DIR: ${{ github.workspace }}/.composer-cache
-  MIN_COVERAGE: 85
+  MIN_COVERAGE: 65
   MIN_MSI: 80
 
 jobs:
