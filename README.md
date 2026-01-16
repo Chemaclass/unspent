@@ -3,8 +3,19 @@
 [![PHP 8.4+](https://img.shields.io/badge/PHP-8.4+-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 [![codecov](https://codecov.io/gh/Chemaclass/unspent/graph/badge.svg)](https://codecov.io/gh/Chemaclass/unspent)
+[![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2FChemaclass%2Funspent%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/Chemaclass/unspent/main)
 
 **Track value like physical cash in your PHP apps.** Every unit has an origin, can only be spent once, and leaves a complete audit trail.
+
+```php
+// 3 lines to get started
+$ledger = Ledger::inMemory()->credit('alice', 100);
+$ledger = $ledger->transfer('alice', 'bob', 25);
+echo $ledger->totalUnspentByOwner('bob'); // 25
+```
+
+<details>
+<summary><strong>Full example with all operations</strong></summary>
 
 ```php
 $ledger = Ledger::inMemory()
@@ -15,6 +26,8 @@ $ledger = Ledger::inMemory()
 $ledger->totalUnspentByOwner('alice');  // 700
 $ledger->totalUnspentByOwner('bob');    // 250
 ```
+
+</details>
 
 ## Why?
 
@@ -31,14 +44,14 @@ Inspired by Bitcoin's UTXO model, decoupled as a standalone library.
 
 ## When is UTXO right for you?
 
-| Need | Traditional Balance | Unspent |
-|------|---------------------|---------|
-| Simple spending | ✅ Easy | Overkill |
-| "Who authorized this?" | Requires extra logging | ✅ Built-in |
-| "Trace this value's origin" | Requires event sourcing | ✅ Built-in |
-| Concurrent spending safety | Race conditions | ✅ Atomic |
-| Conditional spending rules | Custom logic needed | ✅ Lock system |
-| Regulatory audit trail | Reconstruct from logs | ✅ Native |
+| Need                        | Traditional Balance     | Unspent       |
+|-----------------------------|-------------------------|---------------|
+| Simple spending             | ✅ Easy                  | Overkill      |
+| "Who authorized this?"      | Requires extra logging  | ✅ Built-in    |
+| "Trace this value's origin" | Requires event sourcing | ✅ Built-in    |
+| Concurrent spending safety  | Race conditions         | ✅ Atomic      |
+| Conditional spending rules  | Custom logic needed     | ✅ Lock system |
+| Regulatory audit trail      | Reconstruct from logs   | ✅ Native      |
 
 **Use Unspent when:**
 - Value moves between parties (not just a single user's balance)
@@ -54,13 +67,13 @@ Inspired by Bitcoin's UTXO model, decoupled as a standalone library.
 
 Be aware of these limitations before choosing Unspent:
 
-| Limitation | Details |
-|------------|---------|
-| **Integer bounds** | Amounts are bounded by `PHP_INT_MAX` (~9.2 quintillion). Use a wrapper for arbitrary precision. |
-| **Single-node model** | Designed for single-node operation. For distributed consensus, add infrastructure (Raft, blockchain). |
-| **No built-in rate limiting** | Your application must implement rate limiting to prevent abuse. |
-| **Memory for large datasets** | In-memory mode uses ~1MB per 1,000 outputs. Use store-backed mode for >100k outputs. |
-| **Not for sub-second precision** | Timestamps are not enforced; this is not a real-time trading engine. |
+| Limitation                       | Details                                                                                               |
+|----------------------------------|-------------------------------------------------------------------------------------------------------|
+| **Integer bounds**               | Amounts are bounded by `PHP_INT_MAX` (~9.2 quintillion). Use a wrapper for arbitrary precision.       |
+| **Single-node model**            | Designed for single-node operation. For distributed consensus, add infrastructure (Raft, blockchain). |
+| **No built-in rate limiting**    | Your application must implement rate limiting to prevent abuse.                                       |
+| **Memory for large datasets**    | In-memory mode uses ~1MB per 1,000 outputs. Use store-backed mode for >100k outputs.                  |
+| **Not for sub-second precision** | Timestamps are not enforced; this is not a real-time trading engine.                                  |
 
 If you need distributed consensus, high-frequency trading, or arbitrary precision arithmetic, consider specialized solutions.
 
