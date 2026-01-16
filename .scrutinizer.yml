@@ -1,0 +1,31 @@
+build:
+  image: default-jammy
+
+  nodes:
+    analysis:
+      environment:
+        php:
+          version: 8.4
+          ini:
+            memory_limit: -1
+
+      project_setup:
+        override:
+          - composer install --no-interaction --prefer-dist
+
+      tests:
+        override:
+          - php-scrutinizer-run
+
+checks:
+  php:
+    code_rating: true
+    duplication: true
+
+filter:
+  paths:
+    - src/
+  excluded_paths:
+    - tests/
+    - examples/
+    - docs/
