@@ -176,12 +176,6 @@ jobs:
             exit 1
           fi
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v5
-        with:
-          files: coverage.xml
-          fail_ci_if_error: false
-
   mutation:
     name: Mutation Testing
     runs-on: ubuntu-latest

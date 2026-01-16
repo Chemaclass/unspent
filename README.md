@@ -2,7 +2,6 @@
 
 [![PHP 8.4+](https://img.shields.io/badge/PHP-8.4+-777BB4?logo=php&logoColor=white)](https://www.php.net/)
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
-[![codecov](https://codecov.io/gh/Chemaclass/unspent/graph/badge.svg)](https://codecov.io/gh/Chemaclass/unspent)
 [![Mutation testing badge](https://img.shields.io/endpoint?style=flat&url=https%3A%2F%2Fbadge-api.stryker-mutator.io%2Fgithub.com%2FChemaclass%2Funspent%2Fmain)](https://dashboard.stryker-mutator.io/reports/github.com/Chemaclass/unspent/main)
 
 **Track value like physical cash in your PHP apps.** Every unit has an origin, can only be spent once, and leaves a complete audit trail.
