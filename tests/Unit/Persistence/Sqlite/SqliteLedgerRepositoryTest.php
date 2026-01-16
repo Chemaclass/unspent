@@ -10,8 +10,11 @@ use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\OutputLock;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteRepositoryFactory;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteSchema;
 use Chemaclass\Unspent\Tx;
+use PDO;
 use PHPUnit\Framework\TestCase;
 
 final class SqliteLedgerRepositoryTest extends TestCase
@@ -544,5 +547,73 @@ final class SqliteLedgerRepositoryTest extends TestCase
         self::assertSame([], $repo->findUnspentByOwner('nonexistent', 'alice'));
         self::assertSame(0, $repo->countUnspent('nonexistent'));
         self::assertSame(0, $repo->sumUnspentByOwner('nonexistent', 'alice'));
+    }
+
+    // ========================================================================
+    // FindUnspentOnly Method (SqliteLedgerRepository specific)
+    // ========================================================================
+
+    public function test_find_unspent_only_returns_null_for_nonexistent_ledger(): void
+    {
+        $repo = $this->createConcreteRepository();
+
+        self::assertNull($repo->findUnspentOnly('nonexistent'));
+    }
+
+    public function test_find_unspent_only_returns_unspent_set_and_totals(): void
+    {
+        $repo = $this->createConcreteRepository();
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        )->apply(Tx::create(
+            spendIds: ['alice-funds'],
+            outputs: [
+                Output::ownedBy('bob', 600, 'bob-funds'),
+                Output::ownedBy('alice', 390, 'alice-change'),
+            ],
+            signedBy: 'alice',
+        ));
+
+        $repo->save('test', $ledger);
+
+        $result = $repo->findUnspentOnly('test');
+
+        self::assertNotNull($result);
+        self::assertArrayHasKey('unspentSet', $result);
+        self::assertArrayHasKey('totalFees', $result);
+        self::assertArrayHasKey('totalMinted', $result);
+        self::assertSame(990, $result['unspentSet']->totalAmount());
+        self::assertSame(10, $result['totalFees']);
+    }
+
+    public function test_find_unspent_only_excludes_spent_outputs(): void
+    {
+        $repo = $this->createConcreteRepository();
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 1000, 'alice-funds'),
+        )->apply(Tx::create(
+            spendIds: ['alice-funds'],
+            outputs: [Output::ownedBy('bob', 1000, 'bob-funds')],
+            signedBy: 'alice',
+        ));
+
+        $repo->save('test', $ledger);
+
+        $result = $repo->findUnspentOnly('test');
+
+        self::assertNotNull($result);
+        self::assertSame(1, $result['unspentSet']->count());
+        self::assertFalse($result['unspentSet']->contains(new OutputId('alice-funds')));
+        self::assertTrue($result['unspentSet']->contains(new OutputId('bob-funds')));
+    }
+
+    private function createConcreteRepository(): SqliteLedgerRepository
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $schema = new SqliteSchema($pdo);
+        $schema->create();
+
+        return new SqliteLedgerRepository($pdo);
     }
 }

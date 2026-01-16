@@ -94,6 +94,24 @@ final class TxBuilderTest extends TestCase
     }
 
     #[Test]
+    public function it_adds_signed_output_with_public_key(): void
+    {
+        $keyPair = sodium_crypto_sign_keypair();
+        $publicKey = base64_encode(sodium_crypto_sign_publickey($keyPair));
+
+        $tx = TxBuilder::new()
+            ->spend('input-1')
+            ->signedOutput($publicKey, 100)
+            ->build();
+
+        $lockArray = $tx->outputs[0]->lock->toArray();
+        self::assertSame('pubkey', $lockArray['type']);
+        self::assertArrayHasKey('key', $lockArray);
+        /** @phpstan-ignore-next-line offsetAccess.notFound */
+        self::assertSame($publicKey, $lockArray['key']);
+    }
+
+    #[Test]
     public function it_adds_custom_output(): void
     {
         $customOutput = Output::ownedBy('charlie', 75, 'custom-id');

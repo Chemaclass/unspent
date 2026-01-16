@@ -81,6 +81,44 @@ final class SqliteSchemaTest extends TestCase
         self::assertSame(AbstractLedgerRepository::SCHEMA_VERSION, $schema->getVersion());
     }
 
+    // ========================================================================
+    // Static Methods (Deprecated but still need coverage)
+    // ========================================================================
+
+    public function test_static_create_schema(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        SqliteSchema::createSchema($pdo);
+
+        $tables = $this->getTables($pdo);
+        self::assertContains('ledgers', $tables);
+    }
+
+    public function test_static_schema_exists(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        self::assertFalse(SqliteSchema::schemaExists($pdo));
+
+        SqliteSchema::createSchema($pdo);
+
+        self::assertTrue(SqliteSchema::schemaExists($pdo));
+    }
+
+    public function test_static_drop_schema(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        SqliteSchema::createSchema($pdo);
+        SqliteSchema::dropSchema($pdo);
+
+        self::assertFalse(SqliteSchema::schemaExists($pdo));
+    }
+
     /**
      * @return list<string>
      */
