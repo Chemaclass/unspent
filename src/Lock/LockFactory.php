@@ -6,6 +6,7 @@ namespace Chemaclass\Unspent\Lock;
 
 use Chemaclass\Unspent\OutputLock;
 use InvalidArgumentException;
+use ReflectionClass;
 
 /**
  * Factory for deserializing OutputLock implementations.
@@ -16,6 +17,13 @@ use InvalidArgumentException;
  *         $data['unlockTimestamp'],
  *         $data['owner'],
  *     ));
+ *
+ * Or use auto-discovery with attributes:
+ *
+ *     #[LockTypeAttribute('timelock')]
+ *     final readonly class TimeLock implements OutputLock { ... }
+ *
+ *     LockFactory::registerFromClass(TimeLock::class);
  *
  * Custom handlers take precedence over built-in types.
  *
@@ -43,6 +51,70 @@ class LockFactory
     public static function register(string $type, callable $handler): void
     {
         self::$handlers[$type] = $handler;
+    }
+
+    /**
+     * Registers a lock class using its LockTypeAttribute.
+     *
+     * The class must:
+     * 1. Have the #[LockTypeAttribute('type-name')] attribute
+     * 2. Implement OutputLock
+     * 3. Have a static fromArray(array $data): self method
+     *
+     * @param class-string<OutputLock> $className
+     *
+     * @throws InvalidArgumentException If class is not properly configured
+     */
+    public static function registerFromClass(string $className): void
+    {
+        $reflection = new ReflectionClass($className);
+        $attributes = $reflection->getAttributes(LockTypeAttribute::class);
+
+        if ($attributes === []) {
+            throw new InvalidArgumentException(
+                \sprintf("Class '%s' must have #[LockTypeAttribute] attribute", $className),
+            );
+        }
+
+        if (!$reflection->implementsInterface(OutputLock::class)) {
+            throw new InvalidArgumentException(
+                \sprintf("Class '%s' must implement OutputLock", $className),
+            );
+        }
+
+        /** @var LockTypeAttribute $attribute */
+        $attribute = $attributes[0]->newInstance();
+
+        // Check for fromArray method
+        if ($reflection->hasMethod('fromArray')) {
+            $method = $reflection->getMethod('fromArray');
+            if ($method->isStatic() && $method->isPublic()) {
+                self::register($attribute->type, static function (array $data) use ($method): OutputLock {
+                    /** @var OutputLock $lock */
+                    $lock = $method->invoke(null, $data);
+
+                    return $lock;
+                });
+
+                return;
+            }
+        }
+
+        throw new InvalidArgumentException(
+            \sprintf("Class '%s' must have a public static fromArray(array \$data): self method", $className),
+        );
+    }
+
+    /**
+     * Registers multiple lock classes using their LockTypeAttribute.
+     *
+     * @param class-string<OutputLock> ...$classNames
+     */
+    public static function registerFromClasses(string ...$classNames): void
+    {
+        foreach ($classNames as $className) {
+            self::registerFromClass($className);
+        }
     }
 
     /**
