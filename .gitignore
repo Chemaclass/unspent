@@ -4,3 +4,4 @@ vendor/
 lib/bashunit
 *cache
 data/*.db
+coverage/
