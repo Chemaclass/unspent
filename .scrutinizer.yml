@@ -6,8 +6,11 @@ build:
       environment:
         php:
           version: 8.4
+          pecl_extensions:
+            - pcov
           ini:
             memory_limit: -1
+            pcov.enabled: 1
 
       project_setup:
         override:
