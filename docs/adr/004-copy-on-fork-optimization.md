@@ -6,13 +6,13 @@ Accepted
 
 ## Context
 
-The immutable design (ADR-002) means every operation creates new instances. For `UnspentSet`, this could mean copying thousands of outputs on every transaction.
+The `UnspentSet` class manages the set of unspent outputs and could contain thousands of outputs. While the `Ledger` class is mutable (see ADR-002), the internal `UnspentSet` uses copy-on-fork semantics for efficient branching and memory management.
 
 We needed an optimization strategy that:
 
-1. Maintains immutability semantics
-2. Minimizes memory allocation
-3. Supports efficient branching (multiple forks from same base)
+1. Minimizes memory allocation during operations
+2. Supports efficient branching (multiple forks from same base)
+3. Allows value objects to remain immutable for thread safety
 
 ## Decision
 
@@ -40,7 +40,7 @@ This is similar to copy-on-write but optimized for the branching use case.
 
 - **Memory efficient branching**: Creating multiple "what-if" scenarios shares base state.
 - **Fast operations**: Adding/removing outputs doesn't copy the entire set.
-- **Transparent immutability**: Users get immutable semantics without performance penalty.
+- **Efficient internal operations**: The mutable `Ledger` benefits from optimized `UnspentSet` operations.
 
 ### Negative
 
