@@ -22,16 +22,20 @@ php example/run game      # Run virtual currency demo
 | `locks`      | Custom time-locked outputs                        |
 | `sqlite`     | SQLite persistence demo                           |
 
-## Database Mode
+## Persistence
 
-Some examples support persistent storage:
+All examples use SQLite file-based persistence by default. Data is stored in `example/data/` and persists between runs:
 
 ```bash
-composer init-db              # Initialize database (once)
-php example/run btc --run-on=db   # Run with persistence
+php example/run game     # First run: creates new ledger
+php example/run game     # Second run: continues from previous state
 ```
 
-Run multiple times to see state accumulate between runs.
+Each example creates its own `.db` file. Delete the file to reset:
+
+```bash
+rm example/data/sample:virtual-currency.db   # Reset game example
+```
 
 ## Web API Example
 

@@ -170,15 +170,15 @@ final class EventDispatchingLedgerTest extends TestCase
         self::assertCount(2, $outputCreatedEvents);
     }
 
-    public function test_transfer_returns_new_event_dispatching_ledger(): void
+    public function test_transfer_returns_same_event_dispatching_ledger(): void
     {
         $eventLedger = $this->createLedgerWithBalance('alice', 100);
 
-        $newLedger = $eventLedger->transfer('alice', 'bob', 50);
+        $result = $eventLedger->transfer('alice', 'bob', 50);
 
-        self::assertInstanceOf(EventDispatchingLedger::class, $newLedger);
-        self::assertNotSame($eventLedger, $newLedger);
-        self::assertSame(50, $newLedger->totalUnspentByOwner('bob'));
+        self::assertInstanceOf(EventDispatchingLedger::class, $result);
+        self::assertSame($eventLedger, $result);
+        self::assertSame(50, $eventLedger->totalUnspentByOwner('bob'));
     }
 
     public function test_debit_returns_new_event_dispatching_ledger(): void
@@ -260,7 +260,7 @@ final class EventDispatchingLedgerTest extends TestCase
         self::assertInstanceOf(InsufficientSpendsException::class, $eventLedger->canApply($tx));
     }
 
-    public function test_apply_returns_new_event_dispatching_ledger(): void
+    public function test_apply_returns_same_event_dispatching_ledger(): void
     {
         $eventLedger = $this->createLedgerWithBalance('alice', 100);
 
@@ -270,10 +270,10 @@ final class EventDispatchingLedgerTest extends TestCase
             signedBy: 'alice',
         );
 
-        $newLedger = $eventLedger->apply($tx);
+        $result = $eventLedger->apply($tx);
 
-        self::assertInstanceOf(EventDispatchingLedger::class, $newLedger);
-        self::assertNotSame($eventLedger, $newLedger);
+        self::assertInstanceOf(EventDispatchingLedger::class, $result);
+        self::assertSame($eventLedger, $result);
     }
 
     public function test_is_tx_applied_returns_false_initially(): void

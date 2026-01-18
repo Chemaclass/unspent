@@ -94,7 +94,7 @@ final class InternalAccountingCommand extends AbstractExampleCommand
         }
         $toSpend = $outputs[0];
 
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: [$toSpend->id->value],
             outputs: [
                 Output::ownedBy($dept, $splitAmount, "{$dept}-split-a-{$txNum}"),
@@ -114,7 +114,7 @@ final class InternalAccountingCommand extends AbstractExampleCommand
         $transfer = min(15_000, (int) ($balance * 0.3));
         $fee = (int) ($transfer * 0.02);
 
-        $ledger = $ledger->transfer($sender, $recipient, $transfer, fee: $fee);
+        $ledger->transfer($sender, $recipient, $transfer, fee: $fee);
 
         $this->io->text("{$sender} transfers \${$transfer} to {$recipient} (fee: \${$fee})");
 

@@ -354,22 +354,22 @@ final class LoggingLedgerTest extends TestCase
         self::assertTrue($loggingLedger->outputExists(new OutputId('alice-funds')));
     }
 
-    public function test_apply_returns_new_logging_ledger_instance(): void
+    public function test_apply_returns_same_logging_ledger_instance(): void
     {
         $ledger = Ledger::withGenesis(Output::open(100, 'a'));
         $logger = $this->createMock(LoggerInterface::class);
 
         $loggingLedger = LoggingLedger::wrap($ledger, $logger);
 
-        $newLoggingLedger = $loggingLedger->apply(new Tx(
+        $result = $loggingLedger->apply(new Tx(
             id: new TxId('tx1'),
             spends: [new OutputId('a')],
             outputs: [Output::open(100, 'b')],
         ));
 
-        self::assertInstanceOf(LoggingLedger::class, $newLoggingLedger);
-        self::assertNotSame($loggingLedger, $newLoggingLedger);
-        self::assertTrue($newLoggingLedger->isTxApplied(new TxId('tx1')));
+        self::assertInstanceOf(LoggingLedger::class, $result);
+        self::assertSame($loggingLedger, $result);
+        self::assertTrue($loggingLedger->isTxApplied(new TxId('tx1')));
     }
 
     public function test_can_apply_delegates_without_logging(): void

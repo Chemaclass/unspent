@@ -139,7 +139,7 @@ final class SqlitePersistenceCommand extends Command
         $this->io->section("Transaction {$txId}");
         $this->io->text("Alice spends: {$outputToSpend->id->value} ({$amount})");
 
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: [$outputToSpend->id->value],
             outputs: [
                 Output::ownedBy('charlie', $toCharlie, "charlie-{$txNum}"),

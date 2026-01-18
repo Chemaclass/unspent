@@ -39,7 +39,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         $txNum = $ledger->unspent()->count() + 1;
 
         // Simple API: mints new value to the customer
-        $ledger = $ledger->credit('customer', $purchaseAmount, "earn-{$txNum}");
+        $ledger->credit('customer', $purchaseAmount, "earn-{$txNum}");
 
         $this->io->text("Customer bought \${$purchaseAmount} -> earned {$purchaseAmount} pts");
         $this->io->text("Total points minted: {$ledger->totalMinted()}");
@@ -70,7 +70,7 @@ final class LoyaltyPointsCommand extends AbstractExampleCommand
         $redeemAmount = (int) ($total * 0.8);
         $change = $total - $redeemAmount;
 
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: array_values(array_map(static fn (Output $o): string => $o->id->value, $toRedeem)),
             outputs: [
                 Output::open($redeemAmount, "voucher-{$txNum}"),

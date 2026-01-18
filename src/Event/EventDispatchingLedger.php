@@ -25,7 +25,7 @@ use Chemaclass\Unspent\UnspentSet;
  * Usage:
  *     $dispatcher = fn(LedgerEvent $event) => $eventBus->dispatch($event);
  *     $ledger = EventDispatchingLedger::wrap(Ledger::inMemory(), $dispatcher);
- *     $ledger = $ledger->credit('alice', 100);
+ *     $ledger->credit('alice', 100);
  *     // Dispatches: CoinbaseApplied, OutputCreated
  */
 final readonly class EventDispatchingLedger implements LedgerInterface
@@ -53,17 +53,19 @@ final readonly class EventDispatchingLedger implements LedgerInterface
 
     public function apply(Tx $tx): static
     {
-        // Calculate input total before applying
+        // Capture output data before mutation
         $inputTotal = 0;
+        $spentOutputs = [];
         foreach ($tx->spends as $spendId) {
             $output = $this->ledger->unspent()->get($spendId);
             if ($output !== null) {
                 $inputTotal += $output->amount;
+                $spentOutputs[$spendId->value] = $output;
             }
         }
 
         try {
-            $newLedger = $this->ledger->apply($tx);
+            $this->ledger->apply($tx);
             $outputTotal = $tx->totalOutputAmount();
             $fee = $inputTotal - $outputTotal;
 
@@ -75,9 +77,9 @@ final readonly class EventDispatchingLedger implements LedgerInterface
                 outputTotal: $outputTotal,
             ));
 
-            // Dispatch output spent events
+            // Dispatch output spent events (using captured data)
             foreach ($tx->spends as $spendId) {
-                $output = $this->ledger->unspent()->get($spendId);
+                $output = $spentOutputs[$spendId->value] ?? null;
                 if ($output !== null) {
                     $this->dispatch(new OutputSpent(
                         outputId: $spendId,
@@ -95,7 +97,7 @@ final readonly class EventDispatchingLedger implements LedgerInterface
                 ));
             }
 
-            return new self($newLedger, $this->dispatcher);
+            return $this;
         } catch (UnspentException $e) {
             $this->dispatch(new ValidationFailed(
                 transaction: $tx,
@@ -107,14 +109,14 @@ final readonly class EventDispatchingLedger implements LedgerInterface
 
     public function applyCoinbase(CoinbaseTx $coinbase): static
     {
-        $newLedger = $this->ledger->applyCoinbase($coinbase);
+        $this->ledger->applyCoinbase($coinbase);
         $mintedAmount = $coinbase->totalOutputAmount();
 
         // Dispatch coinbase applied event
         $this->dispatch(new CoinbaseApplied(
             coinbase: $coinbase,
             mintedAmount: $mintedAmount,
-            totalMinted: $newLedger->totalMinted(),
+            totalMinted: $this->ledger->totalMinted(),
         ));
 
         // Dispatch output created events
@@ -125,28 +127,28 @@ final readonly class EventDispatchingLedger implements LedgerInterface
             ));
         }
 
-        return new self($newLedger, $this->dispatcher);
+        return $this;
     }
 
     public function transfer(string $from, string $to, int $amount, int $fee = 0, ?string $txId = null): static
     {
-        $newLedger = $this->ledger->transfer($from, $to, $amount, $fee, $txId);
+        $this->ledger->transfer($from, $to, $amount, $fee, $txId);
 
-        return new self($newLedger, $this->dispatcher);
+        return $this;
     }
 
     public function debit(string $owner, int $amount, int $fee = 0, ?string $txId = null): static
     {
-        $newLedger = $this->ledger->debit($owner, $amount, $fee, $txId);
+        $this->ledger->debit($owner, $amount, $fee, $txId);
 
-        return new self($newLedger, $this->dispatcher);
+        return $this;
     }
 
     public function credit(string $owner, int $amount, ?string $txId = null): static
     {
-        $newLedger = $this->ledger->credit($owner, $amount, $txId);
+        $this->ledger->credit($owner, $amount, $txId);
 
-        return new self($newLedger, $this->dispatcher);
+        return $this;
     }
 
     // Read-only methods delegate directly

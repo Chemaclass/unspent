@@ -346,29 +346,29 @@ final class LedgerTest extends TestCase
         self::assertSame(10, $fees['tx2']);
     }
 
-    public function test_fees_preserved_through_immutability(): void
+    public function test_fees_accumulate_through_multiple_transactions(): void
     {
-        $ledger1 = Ledger::withGenesis(Output::open(100, 'a'))
-            ->apply(new Tx(
-                id: new TxId('tx1'),
-                spends: [new OutputId('a')],
-                outputs: [Output::open(95, 'b')],
-            ));
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'));
 
-        $ledger2 = $ledger1->apply(new Tx(
+        $ledger->apply(new Tx(
+            id: new TxId('tx1'),
+            spends: [new OutputId('a')],
+            outputs: [Output::open(95, 'b')],
+        ));
+
+        self::assertSame(5, $ledger->totalFeesCollected());
+        self::assertSame(5, $ledger->feeForTx(new TxId('tx1')));
+
+        $ledger->apply(new Tx(
             id: new TxId('tx2'),
             spends: [new OutputId('b')],
             outputs: [Output::open(90, 'c')],
         ));
 
-        // Original ledger unchanged
-        self::assertSame(5, $ledger1->totalFeesCollected());
-        self::assertNull($ledger1->feeForTx(new TxId('tx2')));
-
-        // New ledger has both fees
-        self::assertSame(10, $ledger2->totalFeesCollected());
-        self::assertSame(5, $ledger2->feeForTx(new TxId('tx1')));
-        self::assertSame(5, $ledger2->feeForTx(new TxId('tx2')));
+        // Ledger has accumulated both fees
+        self::assertSame(10, $ledger->totalFeesCollected());
+        self::assertSame(5, $ledger->feeForTx(new TxId('tx1')));
+        self::assertSame(5, $ledger->feeForTx(new TxId('tx2')));
     }
 
     // ========================================================================

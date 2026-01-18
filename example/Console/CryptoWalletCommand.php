@@ -102,7 +102,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
 
         $sig = base64_encode(sodium_crypto_sign_detached($txId, $privKey));
 
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: [$toSpend->id->value],
             outputs: [
                 Output::signedBy($recipientPub, $transfer, "to-{$recipientName}-{$txNum}"),

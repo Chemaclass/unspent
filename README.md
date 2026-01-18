@@ -10,8 +10,8 @@
 
 ```php
 // 3 lines to get started
-$ledger = Ledger::inMemory()->credit('alice', 100);
-$ledger = $ledger->transfer('alice', 'bob', 25);
+$ledger = Ledger::inMemory();
+$ledger->credit('alice', 100)->transfer('alice', 'bob', 25);
 echo $ledger->totalUnspentByOwner('bob'); // 25
 ```
 
@@ -19,8 +19,8 @@ echo $ledger->totalUnspentByOwner('bob'); // 25
 <summary><strong>Full example with all operations</strong></summary>
 
 ```php
-$ledger = Ledger::inMemory()
-    ->credit('alice', 1000)             // Mint 1000 for Alice
+$ledger = Ledger::inMemory();
+$ledger->credit('alice', 1000)          // Mint 1000 for Alice
     ->transfer('alice', 'bob', 300)     // Alice sends 300 to Bob
     ->debit('bob', 50);                 // Bob redeems 50
 
@@ -86,28 +86,49 @@ composer require chemaclass/unspent
 
 ## Quick Start
 
-### Simple API
+### Simple API (In-Memory)
 
-For most use cases, use the convenience methods:
+For quick prototyping and testing:
 
 ```php
 // Create a ledger and mint initial balances
-$ledger = Ledger::inMemory()
-    ->credit('alice', 1000)    // Mint 1000 to alice
-    ->credit('bob', 500);      // Mint 500 to bob
+$ledger = Ledger::inMemory();
+$ledger->credit('alice', 1000)         // Mint 1000 to alice
+    ->credit('bob', 500);              // Mint 500 to bob
 
 // Transfer between users (auto handles change)
-$ledger = $ledger->transfer('alice', 'bob', 200);
+$ledger->transfer('alice', 'bob', 200);
 
 // Transfer with fee (5 units burned)
-$ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
+$ledger->transfer('alice', 'bob', 100, fee: 5);
 
 // Debit/burn value (redemption, purchase, etc.)
-$ledger = $ledger->debit('bob', 50);
+$ledger->debit('bob', 50);
 
 // Check balances
 $ledger->totalUnspentByOwner('alice');  // 695
 $ledger->totalUnspentByOwner('bob');    // 650
+```
+
+### With SQLite Persistence
+
+For production use with data persistence:
+
+```php
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteRepositoryFactory;
+
+// Create repository from file (auto-creates schema)
+$repository = SqliteRepositoryFactory::createFromFile('ledger.db');
+
+// Load existing ledger or create new one
+$ledger = $repository->find('my-ledger')
+    ?? Ledger::withGenesis(Output::ownedBy('alice', 1000));
+
+// Make changes
+$ledger->transfer('alice', 'bob', 200);
+
+// Save to database
+$repository->save('my-ledger', $ledger);
 ```
 
 | Method                                | Description               |
@@ -128,7 +149,7 @@ $ledger = Ledger::withGenesis(
 );
 
 // Explicitly choose which outputs to spend
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['alice-checking'],  // Only spend from checking
     outputs: [
         Output::ownedBy('bob', 200),
@@ -167,58 +188,28 @@ $ledger = $ledger->apply(Tx::create(
 Virtual Currency - In-Game Economy (Flagship Demo)
 ==================================================
 
- Mode: memory
+ [Created new ledger with 3 genesis outputs]
 
- Game started: Alice=1000g, Bob=500g
+ alice bought item for 300g (tax: 50g)
 
-Minting
--------
-
- Admin minted 100g daily bonus for Alice
- Total minted so far: 100g
-
-Purchase
+Balances
 --------
 
- Alice bought sword (-200g), now has 900g total
+   alice: 650g
+   bob: 500g
+   shop: 5300g
 
-Security
---------
+ Total fees collected: 50g
 
- Mallory tries to steal Bob's gold...
- BLOCKED
- Alice tries to spend already-spent gold...
- BLOCKED
+Database Stats
+--------------
 
-Quest Reward
-------------
+ * Database: example/data/sample:virtual-currency.db
+ * Ledger: sample:virtual-currency
+ * Outputs: 5
+ * Transactions: 1
 
- Alice completed quest! Reward: 500g (locked for 1 hour)
- Alice tries to spend locked reward...
- BLOCKED (cooldown active)
-
-Trade
------
-
- Bob paid Alice 450g (50g fee/tax)
- Fee collected: 50g
-
-History Tracing
----------------
-
- alice-change: created by 'buy-sword'
- daily-bonus: created by 'mint-daily-bonus' (minted)
-
-Final State
------------
-
-   alice: 1850g
-   shop: 200g
-
- Total in circulation: 2050g
- Total fees (burned): 50g
- Total minted: 600g
- UTXOs: 5
+ Run again to continue. Delete the DB file to reset.
 ```
 
 </details>
@@ -232,27 +223,26 @@ Final State
 Loyalty Points - Customer Rewards Program
 =========================================
 
- Mode: memory
+ [Created new empty ledger]
 
- Alice bought $50 -> earned 50 pts
- Alice bought $30 -> earned 30 pts
+ Customer bought $75 -> earned 75 pts
+ Total points minted: 75
 
- Total points minted: 80
- Alice's balance: 80 pts
+ Customer balance: 75 pts
 
- Alice redeemed 60 pts for coffee voucher
- Remaining: 80 pts
+Points Breakdown
+----------------
 
-Audit Trail
------------
+   earn-1: 75 pts (customer)
 
- purchase-001: minted in earn-50, spent in redeem-coffee
+Database Stats
+--------------
 
-Final State
------------
+ * Database: example/data/sample:loyalty-points.db
+ * Outputs: 1
+ * Transactions: 1
 
-   coffee-voucher: 60 pts (none)
-   change: 20 pts (owner)
+ Run again to continue. Delete the DB file to reset.
 ```
 
 </details>
@@ -266,39 +256,43 @@ Final State
 Internal Accounting - Department Budgets
 ========================================
 
- FY Budget: Eng=$100k, Mkt=$50k, Ops=$30k
- Total: $180000
+ [Created new ledger with 3 genesis outputs]
 
- Engineering splits: projects=$60k, infra=$40k
+ Total budget: $180,000
+
+ operations transfers $9,000 to marketing (fee: $180)
+
+Security Demonstrations
+-----------------------
 
  Finance tries to reallocate engineering funds...
  BLOCKED
-
- Ops transfers $15k to Marketing (2% admin fee)
- Fee: $600
-
  Marketing tries to overspend...
  BLOCKED
-
-Audit Trail
------------
-
- mkt-campaign: created by ops-to-mkt
-
-Reconciliation
---------------
-
- * Initial: $180000
- * Fees: $600
- * Remaining: $179400
- * Check: BALANCED
 
 Budget by Department
 --------------------
 
-   marketing: $65,000
    engineering: $100,000
-   operations: $14,400
+   marketing: $59,000
+   operations: $20,820
+
+Reconciliation
+--------------
+
+ * Initial: $180,000
+ * Fees: $180
+ * Remaining: $179,820
+ * Check: BALANCED
+
+Database Stats
+--------------
+
+ * Database: example/data/sample:internal-accounting.db
+ * Outputs: 5
+ * Transactions: 1
+
+ Run again to continue. Delete the DB file to reset.
 ```
 
 </details>
@@ -312,33 +306,33 @@ Budget by Department
 Crypto Wallet - Ed25519 Signatures
 ==================================
 
- Mode: memory
+ [Created new ledger with 2 genesis outputs]
 
 Keys Generated
 --------------
 
- * Alice: P2n5f7zT2a3ok8QX...
+ * Alice: mVfG1xZJmK8QqP2n...
  * Bob: Y+U9UIYQmP5FTJM9...
 
- Wallets: Alice=1000, Bob=500
-
- Alice -> Bob: 300 (signed)
+ Alice -> Bob: 356 (signed)
 
  Mallory tries to steal with wrong key...
  BLOCKED
 
- Bob combined 500+300 = 800 (multi-sig)
-
-History
--------
-
- bob-combined: created by tx-002
-
 Final Balances
 --------------
 
-   alice-change: 700
-   bob-combined: 800
+   to-Bob-2: 356
+   change-Alice-2: 634
+
+Database Stats
+--------------
+
+ * Database: example/data/sample:crypto-wallet.db
+ * Outputs: 4
+ * Transactions: 1
+
+ Run again to continue. Delete the DB file to reset.
 ```
 
 </details>
@@ -355,24 +349,34 @@ Event Sourcing - Order Lifecycle
  Order lifecycle: placed -> paid -> shipped -> delivered
  Each transition spends old state, creates new state
 
- Order #1001: placed
- Order #1001: paid
- Order #1001: shipped
- Order #1001: delivered
+ [Created new empty ledger]
 
-Event Chain
------------
+ order-1: placed
+ order-1: paid
+ order-1: shipped
+ order-1: delivered
 
-   order-1001_placed: genesis -> evt_payment
-   order-1001_paid: evt_payment -> evt_shipped
-   order-1001_shipped: evt_shipped -> evt_delivered
-   order-1001_delivered: evt_delivered (current)
+Event Chain for order-1
+-----------------------
 
-Multiple Orders
----------------
+   order-1_placed: create_order-1 -> evt_order-1_payment
+   order-1_paid: evt_order-1_payment -> evt_order-1_shipped
+   order-1_shipped: evt_order-1_shipped -> evt_order-1_delivered
+   order-1_delivered: evt_order-1_delivered (current)
 
-   order-2002: placed
-   order-2001: paid
+All Orders (Current State)
+--------------------------
+
+   order-1: delivered
+
+Database Stats
+--------------
+
+ * Database: example/data/sample:event-sourcing.db
+ * Outputs: 4
+ * Transactions: 4
+
+ Run again to continue. Delete the DB file to reset.
 ```
 
 </details>
@@ -386,35 +390,33 @@ Multiple Orders
 Bitcoin Simulation - Multi-Block Mining
 =======================================
 
- Mode: memory
+ [Created new ledger with 1 genesis outputs]
 
- Block 0: Satoshi mines 50 BTC
- Block 1: Satoshi mines 50 BTC (total: 100 BTC)
+Mining Block #1
+---------------
 
- Block 2: Satoshi sends 10 BTC to Hal
-   Fee: 1.0E-5 BTC
+ Transaction: satoshi-genesis -> recipient-1
+ * Sent: 14.549999 BTC
+ * Change: 33.95 BTC
+ * Fee: 1.5 BTC
+ Mined: 50 BTC -> miner-1
 
- Block 3: Hal buys pizza for 5 BTC
+Blockchain State
+----------------
 
- Block 4: Satoshi consolidates 3 UTXOs into 1
+ * Total minted: 100 BTC
+ * Total fees: 1.5 BTC
+ * In circulation: 98.5 BTC
+ * UTXOs: 3
 
-Final State
------------
+Database Stats
+--------------
 
- * Blocks mined: 5
- * Total minted: 200 BTC
- * Total fees: 0.02001 BTC
- * In circulation: 249.97999 BTC
- * UTXOs: 5
+ * Database: example/data/sample:bitcoin-simulation.db
+ * Outputs: 4
+ * Transactions: 2
 
-UTXOs
------
-
-   laszlo-pizza: 5 BTC
-   hal-change: 4.99999 BTC
-   miner-3: 50 BTC
-   satoshi-consolidated: 139.98 BTC
-   miner-4: 50 BTC
+ Run again to continue. Delete the DB file to reset.
 ```
 
 </details>
@@ -430,13 +432,32 @@ Custom Locks - Time-Locked Outputs
 
  Registered 'timelock' handler
 
- Restored lock type: Example\Console\TimeLock
+ [Created new ledger with 2 genesis outputs]
 
- Alice spent unlocked funds
- Bob tries to spend locked output...
- BLOCKED: Still locked until 2027-01-12
- Eve tries to spend Alice's output...
+ alice spent unlocked funds -> charlie
+
+Security Demonstrations
+-----------------------
+
+ bob tries to spend locked output...
+ BLOCKED: Still locked until 2027-01-18
+ Eve tries to spend alice's output...
  BLOCKED
+
+Time-Locked Outputs
+-------------------
+
+   bob-locked: 500 (bob) - locked until 2027-01-18
+   charlie-from-alice-2: 1000 (charlie)
+
+Database Stats
+--------------
+
+ * Database: example/data/sample:custom-locks.db
+ * Outputs: 3
+ * Transactions: 1
+
+ Run again to continue. Delete the DB file to reset.
 ```
 
 </details>
@@ -504,9 +525,9 @@ Database Stats
 
 ```bash
 php example/run game      # Run any example (loyalty, wallet, btc, etc.)
-composer init-db          # Initialize database for persistence examples
+php example/run game      # Run again to continue from previous state
 ```
-See [example/README.md](example/README.md) for details.
+All examples use SQLite persistence. See [example/README.md](example/README.md) for details.
 
 ## Documentation
 
@@ -562,8 +583,8 @@ Fees are implicit, like in Bitcoin. The difference between inputs and outputs is
 
 ```php
 $ledger->apply(Tx::create(
-    spendIds: ['input-100'],      // Spending 100
-    outputs: [Output::open(95)],  // Creating 95
+    spendIds: ['input-100'],       // Spending 100
+    outputs: [Output::open(95)],   // Creating 95
 ));
 // Fee = 100 - 95 = 5 (implicit)
 ```

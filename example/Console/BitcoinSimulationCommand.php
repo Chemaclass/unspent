@@ -55,7 +55,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
         $change = $amount - $fee - $send;
 
         $txId = "tx-block-{$blockNum}";
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: [$toSpend->id->value],
             outputs: [
                 Output::open($send, "recipient-{$blockNum}"),
@@ -76,7 +76,7 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
 
     private function mineCoinbase(LedgerInterface $ledger, int $blockNum): LedgerInterface
     {
-        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
+        $ledger->applyCoinbase(CoinbaseTx::create(
             [Output::open(self::BLOCK_REWARD, "miner-{$blockNum}")],
             "coinbase-block-{$blockNum}",
         ));

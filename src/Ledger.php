@@ -16,7 +16,7 @@ use Chemaclass\Unspent\Validation\DuplicateValidator;
 use JsonException;
 
 /**
- * Immutable UTXO ledger with pluggable history storage.
+ * Mutable UTXO ledger with pluggable history storage.
  *
  * - Use `Ledger::inMemory()` for development/testing (InMemoryHistoryRepository)
  * - Use `Ledger::withRepository($repo)` for production (SqliteHistoryRepository, etc.)
@@ -24,8 +24,11 @@ use JsonException;
  * Memory usage depends on the HistoryRepository implementation:
  * - InMemoryHistoryRepository: grows with total history
  * - SqliteHistoryRepository: bounded by unspent count only
+ *
+ * Methods return $this to support fluent chaining:
+ *   $ledger->credit('alice', 100)->transfer('alice', 'bob', 50);
  */
-final readonly class Ledger implements LedgerInterface
+final class Ledger implements LedgerInterface
 {
     /** Library version following semver. */
     public const string VERSION = '1.0.0';
@@ -151,6 +154,8 @@ final readonly class Ledger implements LedgerInterface
      *
      * @throws GenesisNotAllowedException If the ledger is not empty
      * @throws DuplicateOutputIdException If any output ID is duplicated
+     *
+     * @return $this
      */
     public function addGenesis(Output ...$outputs): self
     {
@@ -160,15 +165,10 @@ final readonly class Ledger implements LedgerInterface
 
         DuplicateValidator::assertNoDuplicateOutputIds(array_values($outputs));
 
-        $newRepository = $this->historyRepository->withGenesis(array_values($outputs));
+        $this->unspentSet = UnspentSet::fromOutputs(...$outputs);
+        $this->historyRepository = $this->historyRepository->withGenesis(array_values($outputs));
 
-        return new self(
-            UnspentSet::fromOutputs(...$outputs),
-            $this->appliedTxIds,
-            $this->totalFees,
-            $this->totalMinted,
-            $newRepository,
-        );
+        return $this;
     }
 
     /**
@@ -179,6 +179,8 @@ final readonly class Ledger implements LedgerInterface
      * @throws InsufficientSpendsException If the total output amount exceeds the total spend amount
      * @throws DuplicateOutputIdException  If any new output ID already exists in the unspent set
      * @throws AuthorizationException      If authorization fails for any spent output
+     *
+     * @return $this
      */
     public function apply(Tx $tx): static
     {
@@ -202,22 +204,15 @@ final readonly class Ledger implements LedgerInterface
             }
         }
 
-        $unspent = $this->unspentSet
+        $this->unspentSet = $this->unspentSet
             ->removeAll(...$tx->spends)
             ->addAll(...$tx->outputs);
 
-        $appliedTxs = $this->appliedTxIds;
-        $appliedTxs[$tx->id->value] = true;
+        $this->appliedTxIds[$tx->id->value] = true;
+        $this->totalFees += $fee;
+        $this->historyRepository = $this->historyRepository->withTransaction($tx, $fee, $spentOutputData);
 
-        $newRepository = $this->historyRepository->withTransaction($tx, $fee, $spentOutputData);
-
-        return new self(
-            $unspent,
-            $appliedTxs,
-            $this->totalFees + $fee,
-            $this->totalMinted,
-            $newRepository,
-        );
+        return $this;
     }
 
     /**
@@ -225,27 +220,22 @@ final readonly class Ledger implements LedgerInterface
      *
      * @throws DuplicateTxException       If the transaction ID was already used
      * @throws DuplicateOutputIdException If any output ID already exists in the unspent set
+     *
+     * @return $this
      */
     public function applyCoinbase(CoinbaseTx $coinbase): static
     {
         $this->assertTxIdNotAlreadyUsed($coinbase->id);
         $this->assertNoOutputIdConflictsForCoinbase($coinbase);
 
-        $unspent = $this->unspentSet->addAll(...$coinbase->outputs);
+        $this->unspentSet = $this->unspentSet->addAll(...$coinbase->outputs);
         $mintedAmount = $coinbase->totalOutputAmount();
 
-        $appliedTxs = $this->appliedTxIds;
-        $appliedTxs[$coinbase->id->value] = true;
+        $this->appliedTxIds[$coinbase->id->value] = true;
+        $this->totalMinted += $mintedAmount;
+        $this->historyRepository = $this->historyRepository->withCoinbase($coinbase);
 
-        $newRepository = $this->historyRepository->withCoinbase($coinbase);
-
-        return new self(
-            $unspent,
-            $appliedTxs,
-            $this->totalFees,
-            $this->totalMinted + $mintedAmount,
-            $newRepository,
-        );
+        return $this;
     }
 
     public function transfer(string $from, string $to, int $amount, int $fee = 0, ?string $txId = null): static

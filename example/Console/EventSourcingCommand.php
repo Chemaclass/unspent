@@ -42,14 +42,14 @@ final class EventSourcingCommand extends AbstractExampleCommand
         $orderId = "order-{$orderNum}";
 
         // Place order (using coinbase to mint the order state token)
-        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
+        $ledger->applyCoinbase(CoinbaseTx::create(
             outputs: [Output::open(1, "{$orderId}_placed")],
             id: "create_{$orderId}",
         ));
         $this->io->text("{$orderId}: placed");
 
         // Pay
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: ["{$orderId}_placed"],
             outputs: [Output::open(1, "{$orderId}_paid")],
             id: "evt_{$orderId}_payment",
@@ -57,7 +57,7 @@ final class EventSourcingCommand extends AbstractExampleCommand
         $this->io->text("{$orderId}: paid");
 
         // Ship
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: ["{$orderId}_paid"],
             outputs: [Output::open(1, "{$orderId}_shipped")],
             id: "evt_{$orderId}_shipped",
@@ -65,7 +65,7 @@ final class EventSourcingCommand extends AbstractExampleCommand
         $this->io->text("{$orderId}: shipped");
 
         // Deliver
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: ["{$orderId}_shipped"],
             outputs: [Output::open(1, "{$orderId}_delivered")],
             id: "evt_{$orderId}_delivered",

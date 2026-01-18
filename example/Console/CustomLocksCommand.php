@@ -77,13 +77,13 @@ final class CustomLocksCommand extends AbstractExampleCommand
             $unlockTime = random_int(0, 1) === 0 ? strtotime('2020-01-01') : strtotime('+1 year');
             $amount = random_int(100, 500);
 
-            $ledger = $ledger->credit($owner, $amount, "{$owner}-timelock-{$txNum}");
+            $ledger->credit($owner, $amount, "{$owner}-timelock-{$txNum}");
 
             // Convert to time-locked
             $newOutputs = iterator_to_array($ledger->unspentByOwner($owner));
             if ($newOutputs !== []) {
                 $toConvert = $newOutputs[array_key_last($newOutputs)];
-                $ledger = $ledger->apply(Tx::create(
+                $ledger->apply(Tx::create(
                     spendIds: [$toConvert->id->value],
                     outputs: [Output::lockedWith(
                         new TimeLock($unlockTime, $owner),
@@ -109,7 +109,7 @@ final class CustomLocksCommand extends AbstractExampleCommand
         $recipients = array_diff(['alice', 'bob', 'charlie'], [$owner]);
         $recipient = $recipients[array_rand($recipients)];
 
-        $ledger = $ledger->apply(Tx::create(
+        $ledger->apply(Tx::create(
             spendIds: [$toSpend->id->value],
             outputs: [Output::ownedBy($recipient, $toSpend->amount, "{$recipient}-from-{$owner}-{$txNum}")],
             signedBy: $owner,

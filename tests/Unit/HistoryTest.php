@@ -334,27 +334,26 @@ final class HistoryTest extends TestCase
     // Immutability Tests
     // ========================================================================
 
-    public function test_history_tracks_across_immutable_ledgers(): void
+    public function test_history_tracks_across_mutable_ledger(): void
     {
-        $v1 = Ledger::withGenesis(Output::open(1000, 'genesis'));
-        $v2 = $v1->apply(Tx::create(
+        $ledger = Ledger::withGenesis(Output::open(1000, 'genesis'));
+
+        // Initially genesis is unspent
+        self::assertSame('genesis', $ledger->outputCreatedBy(new OutputId('genesis')));
+        self::assertNull($ledger->outputSpentBy(new OutputId('genesis')));
+        self::assertNull($ledger->outputCreatedBy(new OutputId('alice')));
+
+        $ledger->apply(Tx::create(
             spendIds: ['genesis'],
             outputs: [Output::open(1000, 'alice')],
             id: 'tx-001',
         ));
 
-        // v1 shows genesis as unspent
-        self::assertSame('genesis', $v1->outputCreatedBy(new OutputId('genesis')));
-        self::assertNull($v1->outputSpentBy(new OutputId('genesis')));
+        // After applying, genesis is spent
+        self::assertSame('genesis', $ledger->outputCreatedBy(new OutputId('genesis')));
+        self::assertSame('tx-001', $ledger->outputSpentBy(new OutputId('genesis')));
 
-        // v2 shows genesis as spent
-        self::assertSame('genesis', $v2->outputCreatedBy(new OutputId('genesis')));
-        self::assertSame('tx-001', $v2->outputSpentBy(new OutputId('genesis')));
-
-        // v1 doesn't know about alice
-        self::assertNull($v1->outputCreatedBy(new OutputId('alice')));
-
-        // v2 knows about alice
-        self::assertSame('tx-001', $v2->outputCreatedBy(new OutputId('alice')));
+        // And alice is created
+        self::assertSame('tx-001', $ledger->outputCreatedBy(new OutputId('alice')));
     }
 }

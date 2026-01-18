@@ -24,7 +24,7 @@ use Psr\Log\LoggerInterface;
  *
  * Usage:
  *     $ledger = LoggingLedger::wrap(Ledger::inMemory(), $psrLogger);
- *     $ledger = $ledger->credit('alice', 100); // Logs: "Coinbase applied: {txId} minted 100"
+ *     $ledger->credit('alice', 100); // Logs: "Coinbase applied: {txId} minted 100"
  */
 final readonly class LoggingLedger implements LedgerInterface
 {
@@ -48,20 +48,20 @@ final readonly class LoggingLedger implements LedgerInterface
             'signed_by' => $tx->signedBy,
         ]);
 
-        try {
-            $newLedger = $this->ledger->apply($tx);
+        $feesBefore = $this->ledger->totalFeesCollected();
 
-            $fee = $this->ledger->totalFeesCollected() !== $newLedger->totalFeesCollected()
-                ? $newLedger->totalFeesCollected() - $this->ledger->totalFeesCollected()
-                : 0;
+        try {
+            $this->ledger->apply($tx);
+
+            $fee = $this->ledger->totalFeesCollected() - $feesBefore;
 
             $this->logger->info('Transaction applied', [
                 'tx_id' => $tx->id->value,
                 'fee' => $fee,
-                'new_unspent_count' => $newLedger->unspent()->count(),
+                'new_unspent_count' => $this->ledger->unspent()->count(),
             ]);
 
-            return new self($newLedger, $this->logger);
+            return $this;
         } catch (UnspentException $e) {
             $this->logger->warning('Transaction failed', [
                 'tx_id' => $tx->id->value,
@@ -83,15 +83,15 @@ final readonly class LoggingLedger implements LedgerInterface
         ]);
 
         try {
-            $newLedger = $this->ledger->applyCoinbase($coinbase);
+            $this->ledger->applyCoinbase($coinbase);
 
             $this->logger->info('Coinbase applied', [
                 'tx_id' => $coinbase->id->value,
                 'minted' => $mintedAmount,
-                'total_minted' => $newLedger->totalMinted(),
+                'total_minted' => $this->ledger->totalMinted(),
             ]);
 
-            return new self($newLedger, $this->logger);
+            return $this;
         } catch (UnspentException $e) {
             $this->logger->warning('Coinbase failed', [
                 'tx_id' => $coinbase->id->value,
@@ -111,7 +111,7 @@ final readonly class LoggingLedger implements LedgerInterface
         ]);
 
         try {
-            $newLedger = $this->ledger->transfer($from, $to, $amount, $fee, $txId);
+            $this->ledger->transfer($from, $to, $amount, $fee, $txId);
 
             $this->logger->info('Transfer completed', [
                 'from' => $from,
@@ -120,7 +120,7 @@ final readonly class LoggingLedger implements LedgerInterface
                 'fee' => $fee,
             ]);
 
-            return new self($newLedger, $this->logger);
+            return $this;
         } catch (UnspentException $e) {
             $this->logger->warning('Transfer failed', [
                 'from' => $from,
@@ -141,7 +141,7 @@ final readonly class LoggingLedger implements LedgerInterface
         ]);
 
         try {
-            $newLedger = $this->ledger->debit($owner, $amount, $fee, $txId);
+            $this->ledger->debit($owner, $amount, $fee, $txId);
 
             $this->logger->info('Debit completed', [
                 'owner' => $owner,
@@ -149,7 +149,7 @@ final readonly class LoggingLedger implements LedgerInterface
                 'fee' => $fee,
             ]);
 
-            return new self($newLedger, $this->logger);
+            return $this;
         } catch (UnspentException $e) {
             $this->logger->warning('Debit failed', [
                 'owner' => $owner,
@@ -168,15 +168,15 @@ final readonly class LoggingLedger implements LedgerInterface
         ]);
 
         try {
-            $newLedger = $this->ledger->credit($owner, $amount, $txId);
+            $this->ledger->credit($owner, $amount, $txId);
 
             $this->logger->info('Credit completed', [
                 'owner' => $owner,
                 'amount' => $amount,
-                'total_minted' => $newLedger->totalMinted(),
+                'total_minted' => $this->ledger->totalMinted(),
             ]);
 
-            return new self($newLedger, $this->logger);
+            return $this;
         } catch (UnspentException $e) {
             $this->logger->warning('Credit failed', [
                 'owner' => $owner,

@@ -84,7 +84,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         $spend = min(200, (int) ($amount * 0.3));
 
         // Simple API: handles output selection, change, and fees automatically
-        $ledger = $ledger->transfer($owner, 'shop', $spend, fee: $fee);
+        $ledger->transfer($owner, 'shop', $spend, fee: $fee);
 
         $this->io->text("{$owner} bought item for {$spend}g (tax: {$fee}g)");
 
@@ -102,7 +102,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         $send = (int) (($amount - $fee) * 0.5);
 
         // Simple API: handles output selection, change, and fees automatically
-        $ledger = $ledger->transfer($owner, $recipient, $send, fee: $fee);
+        $ledger->transfer($owner, $recipient, $send, fee: $fee);
 
         $this->io->text("{$owner} sent {$send}g to {$recipient} (tax: {$fee}g)");
 

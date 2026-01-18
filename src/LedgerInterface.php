@@ -31,7 +31,7 @@ interface LedgerInterface
      * @throws DuplicateOutputIdException  If any new output ID already exists in the unspent set
      * @throws AuthorizationException      If authorization fails for any spent output
      *
-     * @return static New ledger with the transaction applied
+     * @return static The same ledger instance (mutated)
      */
     public function apply(Tx $tx): static;
 
@@ -44,7 +44,7 @@ interface LedgerInterface
      * @throws DuplicateTxException       If the transaction ID was already used
      * @throws DuplicateOutputIdException If any output ID already exists in the unspent set
      *
-     * @return static New ledger with the coinbase applied
+     * @return static The same ledger instance (mutated)
      */
     public function applyCoinbase(CoinbaseTx $coinbase): static;
 
@@ -90,7 +90,7 @@ interface LedgerInterface
      * @throws OutputAlreadySpentException If outputs have been spent
      * @throws DuplicateOutputIdException  If output ID conflicts
      *
-     * @return static New ledger with transfer applied
+     * @return static The same ledger instance (mutated)
      */
     public function transfer(string $from, string $to, int $amount, int $fee = 0, ?string $txId = null): static;
 
@@ -107,7 +107,7 @@ interface LedgerInterface
      *
      * @throws InsufficientSpendsException If owner has insufficient balance
      *
-     * @return static New ledger with debit applied
+     * @return static The same ledger instance (mutated)
      */
     public function debit(string $owner, int $amount, int $fee = 0, ?string $txId = null): static;
 
@@ -123,7 +123,7 @@ interface LedgerInterface
      *
      * @throws DuplicateOutputIdException If output ID conflicts
      *
-     * @return static New ledger with credit applied
+     * @return static The same ledger instance (mutated)
      */
     public function credit(string $owner, int $amount, ?string $txId = null): static;
 
