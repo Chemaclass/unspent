@@ -6,7 +6,7 @@ Fees are the difference between inputs and outputs:
 
 ```php
 // Input: 1000, Output: 990 = Fee: 10
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['alice-funds'],     // Worth 1000
     outputs: [Output::ownedBy('bob', 990)],
     signedBy: 'alice',
@@ -76,7 +76,7 @@ $ledger->totalUnspentAmount(); // 950
 
 ```php
 foreach ($blocks as $block) {
-    $ledger = $ledger->applyCoinbase(CoinbaseTx::create([
+    $ledger->applyCoinbase(CoinbaseTx::create([
         Output::ownedBy($block->miner, 50),
     ], $block->id));
 }

@@ -8,7 +8,7 @@ The default mode uses `InMemoryHistoryRepository` to store everything in memory:
 
 ```php
 $ledger = Ledger::withGenesis(Output::open(1000));
-$ledger = $ledger->apply($tx);
+$ledger->apply($tx);
 
 // Equivalent to:
 $ledger = Ledger::withRepository(new InMemoryHistoryRepository())
@@ -51,7 +51,7 @@ $repository = new SqliteHistoryRepository($pdo, 'wallet-1');
 $ledger = Ledger::withRepository($repository)->addGenesis(Output::open(1000, 'genesis'));
 
 // Apply transactions (persisted to repository immediately)
-$ledger = $ledger->apply($tx);
+$ledger->apply($tx);
 
 // History queries go to database
 $history = $ledger->outputHistory($outputId);
@@ -114,7 +114,7 @@ $repository = new SqliteHistoryRepository($pdo, 'my-wallet');
 $ledger = Ledger::withRepository($repository)->addGenesis(Output::open(1000, 'initial-funds'));
 
 // Apply transactions
-$ledger = $ledger->apply($tx);
+$ledger->apply($tx);
 ```
 
 ### Loading an Existing Store-backed Ledger
@@ -174,7 +174,7 @@ Both modes share the same `Ledger` class, enabling consistent usage:
 ```php
 function processLedger(Ledger $ledger): void {
     // Works with in-memory or store-backed mode
-    $ledger = $ledger->apply($tx);
+    $ledger->apply($tx);
     echo $ledger->totalUnspentAmount();
 }
 ```

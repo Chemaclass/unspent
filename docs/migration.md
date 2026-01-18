@@ -52,7 +52,7 @@ $bob->balance += 100;
 **After (UTXO) - using convenience methods:**
 ```php
 // One line! Automatic output selection and change handling
-$ledger = $ledger->transfer('alice', 'bob', 100);
+$ledger->transfer('alice', 'bob', 100);
 ```
 
 That's it! The `transfer()` method automatically:
@@ -66,7 +66,7 @@ That's it! The `transfer()` method automatically:
 
 ```php
 // Transfer with a 5-unit fee
-$ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
+$ledger->transfer('alice', 'bob', 100, fee: 5);
 
 // Alice loses 105 total (100 to bob + 5 fee)
 ```
@@ -76,14 +76,14 @@ $ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
 ```php
 // Throws InsufficientSpendsException if alice can't afford it
 try {
-    $ledger = $ledger->transfer('alice', 'bob', 1000000);
+    $ledger->transfer('alice', 'bob', 1000000);
 } catch (InsufficientSpendsException $e) {
     echo "Alice doesn't have enough funds";
 }
 
 // Or check first
 if ($ledger->totalUnspentByOwner('alice') >= $amount) {
-    $ledger = $ledger->transfer('alice', 'bob', $amount);
+    $ledger->transfer('alice', 'bob', $amount);
 }
 ```
 
@@ -117,10 +117,10 @@ $alice->balance -= 100;
 $bob->balance += 100;
 
 // UTXO way
-$ledger = $ledger->transfer('alice', 'bob', 100);
+$ledger->transfer('alice', 'bob', 100);
 
 // With fee
-$ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
+$ledger->transfer('alice', 'bob', 100, fee: 5);
 ```
 
 ### Debit User (Burn Value)
@@ -130,10 +130,10 @@ $ledger = $ledger->transfer('alice', 'bob', 100, fee: 5);
 $user->balance -= $amount;
 
 // UTXO way - burns the amount (e.g., redemption, purchase)
-$ledger = $ledger->debit($userId, $amount);
+$ledger->debit($userId, $amount);
 
 // With additional fee
-$ledger = $ledger->debit($userId, $amount, fee: 10);
+$ledger->debit($userId, $amount, fee: 10);
 ```
 
 ### Credit User (Mint Value)
@@ -143,10 +143,10 @@ $ledger = $ledger->debit($userId, $amount, fee: 10);
 $user->balance += $amount;
 
 // UTXO way - mints new value
-$ledger = $ledger->credit($userId, $amount);
+$ledger->credit($userId, $amount);
 
 // With custom transaction ID
-$ledger = $ledger->credit($userId, $amount, 'daily-bonus-123');
+$ledger->credit($userId, $amount, 'daily-bonus-123');
 ```
 
 ### Chain Operations

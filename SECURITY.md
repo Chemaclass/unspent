@@ -55,9 +55,9 @@ class MyCustomLock implements OutputLock
 
 ### Concurrency
 
-- `Ledger` is immutable and thread-safe for reads
-- Write operations (apply, applyCoinbase) return new instances
+- `Ledger` is mutable; write operations modify the instance in place
 - For concurrent writes, implement external locking or use the SQLite repository with proper transaction isolation
+- Value objects (`Output`, `Tx`, `TxId`, `OutputId`) are immutable and thread-safe
 
 ### Input Validation
 

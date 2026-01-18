@@ -9,7 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- UTXO-based immutable ledger with pluggable history storage
+- UTXO-based ledger with pluggable history storage and fluent API
 - Output types: `Output::open()`, `Output::ownedBy()`, `Output::signedBy()`, `Output::lockedWith()`
 - Lock types: `NoLock`, `Owner`, `PublicKey`, custom locks via `LockFactory`
 - Transaction types: `Tx` (spending transactions), `CoinbaseTx` (minting)
@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `LedgerInterface::unspentByOwner()` convenience method
 - `LedgerInterface::totalUnspentByOwner()` convenience method
 - `LedgerInterface::canApply()` for validating transactions without applying
-- `HistoryRepository::withTransaction()`, `withCoinbase()`, `withGenesis()` immutable methods
+- `HistoryRepository::withTransaction()`, `withCoinbase()`, `withGenesis()` methods for history tracking
 - `@throws` annotations on all public methods in `Ledger`, `Tx`, `Output`
 
 ### Performance

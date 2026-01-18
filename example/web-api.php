@@ -181,7 +181,7 @@ function handleTransfer(Ledger &$ledger): array
         $outputs[] = Output::ownedBy($from, $change);
     }
 
-    $ledger = $ledger->apply(Tx::create(
+    $ledger->apply(Tx::create(
         spendIds: $outputsToSpend,
         outputs: $outputs,
         signedBy: $from,
@@ -223,7 +223,7 @@ function handleMint(Ledger &$ledger): array
         return ['error' => 'Missing to or amount', 'status' => 400];
     }
 
-    $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
+    $ledger->applyCoinbase(CoinbaseTx::create(
         outputs: [Output::ownedBy($to, (int) $amount)],
     ));
 

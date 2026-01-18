@@ -19,7 +19,7 @@ Simple, but problematic. Where did the 500 come from? Can you prove it existed? 
 $ledger = Ledger::withGenesis(Output::open(500, 'bill'));
 
 // Spend it and get change back
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['bill'],
     outputs: [
         Output::open(100, 'payment'),
@@ -105,13 +105,17 @@ Tx::create(
 
 ## Ledger
 
-The **Ledger** holds all state. It's immutable - every operation returns a new ledger.
+The **Ledger** holds all state. Operations mutate the ledger in place and return `$this` for fluent chaining.
 
 ```php
-$v1 = Ledger::inMemory();
-$v2 = $v1->addGenesis(Output::open(1000, 'initial'));
-$v3 = $v2->apply($tx);
-// $v1, $v2, $v3 are separate, immutable snapshots
+$ledger = Ledger::inMemory();
+$ledger->addGenesis(Output::open(1000, 'initial'));
+$ledger->apply($tx);
+
+// Or chain them together
+$ledger = Ledger::inMemory()
+    ->addGenesis(Output::open(1000, 'initial'))
+    ->apply($tx);
 ```
 
 ### Genesis
@@ -150,7 +154,7 @@ The library prevents invalid operations:
 
 ```php
 try {
-    $ledger = $ledger->apply($tx);
+    $ledger->apply($tx);
 } catch (UnspentException $e) {
     // Handle any domain error
 }

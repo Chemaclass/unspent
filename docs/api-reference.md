@@ -111,7 +111,7 @@ $coinbase->totalOutputAmount(): int  // Sum of output amounts
 
 ## Ledger
 
-Immutable state container with two modes:
+Mutable state container with two modes:
 
 - **In-memory mode** - Simple, all-in-memory (< 100k outputs)
 - **Store-backed mode** - Production-ready, bounded memory (100k+ outputs, uses HistoryRepository)
@@ -680,7 +680,7 @@ LedgerNotFoundException::class       // Ledger not found in storage
 
 ```php
 try {
-    $ledger = $ledger->apply($tx);
+    $ledger->apply($tx);
 } catch (UnspentException $e) {
     // Handle any domain error
 }

@@ -20,7 +20,7 @@ $ledger = Ledger::withGenesis(
 );
 
 // Alice spends her funds
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['alice-funds'],
     outputs: [Output::ownedBy('bob', 1000)],
     signedBy: 'alice', // Must match
@@ -53,7 +53,7 @@ $ledger = Ledger::withGenesis(
 $txId = 'tx-001';
 $signature = base64_encode(sodium_crypto_sign_detached($txId, $privateKey));
 
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['secure-funds'],
     outputs: [Output::signedBy($publicKey, 900)],
     proofs: [$signature], // Signature at matching index
@@ -64,7 +64,7 @@ $ledger = $ledger->apply(Tx::create(
 **Multiple inputs** = multiple signatures (one per input, matching order):
 
 ```php
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['alice-funds', 'bob-funds'],
     outputs: [Output::open(800)],
     proofs: [$aliceSig, $bobSig], // Index 0 for alice, index 1 for bob

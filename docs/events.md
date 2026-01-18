@@ -28,7 +28,7 @@ $ledger = EventDispatchingLedger::wrap(
 );
 
 // Apply transaction - events are dispatched automatically
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['genesis'],
     outputs: [Output::open(990, 'alice')],
     id: 'tx-001',
@@ -193,14 +193,14 @@ $orders = Ledger::withGenesis(
 );
 
 // Transition: placed -> paid
-$orders = $orders->apply(Tx::create(
+$orders->apply(Tx::create(
     spendIds: ['order-1001_placed'],
     outputs: [Output::open(1, 'order-1001_paid')],
     id: 'evt_payment',
 ));
 
 // Transition: paid -> shipped
-$orders = $orders->apply(Tx::create(
+$orders->apply(Tx::create(
     spendIds: ['order-1001_paid'],
     outputs: [Output::open(1, 'order-1001_shipped')],
     id: 'evt_shipped',
@@ -228,7 +228,7 @@ $orders = EventDispatchingLedger::wrap(
     $dispatcher,
 );
 
-$orders = $orders->apply(Tx::create(
+$orders->apply(Tx::create(
     spendIds: ['order-1001_placed'],
     outputs: [Output::open(1, 'order-1001_paid')],
     id: 'evt_payment',

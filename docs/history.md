@@ -43,7 +43,7 @@ $ledger = Ledger::withGenesis(
 );
 
 // TX1: Alice -> Bob
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['alice-genesis'],
     outputs: [
         Output::ownedBy('bob', 600, 'bob-funds'),
@@ -54,7 +54,7 @@ $ledger = $ledger->apply(Tx::create(
 ));
 
 // TX2: Bob -> Charlie
-$ledger = $ledger->apply(Tx::create(
+$ledger->apply(Tx::create(
     spendIds: ['bob-funds'],
     outputs: [Output::ownedBy('charlie', 600, 'charlie-funds')],
     signedBy: 'bob',
