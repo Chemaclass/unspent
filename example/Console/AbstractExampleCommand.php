@@ -7,81 +7,42 @@ namespace Example\Console;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
-use Chemaclass\Unspent\Persistence\Sqlite\SqliteLedgerRepository;
+use Chemaclass\Unspent\Persistence\QueryableLedgerRepository;
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteRepositoryFactory;
 use PDO;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 abstract class AbstractExampleCommand extends Command
 {
-    private const string MODE_MEMORY = 'memory';
-    private const string MODE_DB = 'db';
-    private const string DEFAULT_DB_PATH = __DIR__ . '/../../data/ledger.db';
-
     protected SymfonyStyle $io;
-    protected string $mode;
-    protected ?PDO $pdo = null;
-    protected ?SqliteHistoryRepository $repository = null;
-    protected ?SqliteLedgerRepository $repo = null;
-    protected int $runNumber = 1;
+    protected PDO $pdo;
+    protected QueryableLedgerRepository $repository;
+    protected string $ledgerId;
 
-    abstract protected function runMemoryDemo(): int;
-
-    abstract protected function runDatabaseDemo(): int;
-
-    protected function configure(): void
-    {
-        $this->addOption(
-            'run-on',
-            null,
-            InputOption::VALUE_REQUIRED,
-            'Run mode: "memory" or "db"',
-            self::MODE_MEMORY,
-        );
-    }
+    abstract protected function runDemo(): int;
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->io = new SymfonyStyle($input, $output);
-        $this->mode = $input->getOption('run-on');
+        $this->ledgerId = $this->getName() ?? 'example';
+        $this->initDatabase();
 
         $this->displayHeader();
 
-        if ($this->isDatabase()) {
-            if (!$this->initDatabase()) {
-                return Command::FAILURE;
-            }
-            return $this->runDatabaseDemo();
-        }
-
-        return $this->runMemoryDemo();
+        return $this->runDemo();
     }
 
     protected function displayHeader(): void
     {
         $this->io->title($this->getDescription());
-        $modeLabel = $this->isDatabase() ? '<fg=cyan>database</>' : '<fg=yellow>memory</>';
-        $this->io->text("Mode: {$modeLabel}");
-
-        if ($this->isDatabase()) {
-            $this->io->text("Ledger ID: <fg=cyan>{$this->getLedgerId()}</> (Run #{$this->runNumber})");
-        }
-
-        $this->io->newLine();
     }
 
-    protected function isDatabase(): bool
+    protected function getDbPath(): string
     {
-        return $this->mode === self::MODE_DB;
-    }
-
-    protected function getLedgerId(): string
-    {
-        return $this->getName() ?? 'example';
+        return __DIR__ . '/../../data/' . $this->ledgerId . '.db';
     }
 
     /**
@@ -89,128 +50,83 @@ abstract class AbstractExampleCommand extends Command
      */
     protected function loadOrCreate(callable $genesisFactory): LedgerInterface
     {
-        if (!$this->isDatabase()) {
-            return Ledger::withGenesis(...$genesisFactory());
-        }
+        $existing = $this->repository->find($this->ledgerId);
 
-        \assert($this->repo !== null);
-        \assert($this->repository !== null);
-
-        $existingData = $this->repo->findUnspentOnly($this->getLedgerId());
-
-        if ($existingData !== null && $existingData['unspentSet']->count() > 0) {
-            $this->io->text("<fg=yellow>[Loaded existing ledger with {$existingData['unspentSet']->count()} outputs]</>");
+        if ($existing !== null && $existing->unspent()->count() > 0) {
+            $this->io->text("<fg=yellow>[Loaded existing ledger with {$existing->unspent()->count()} outputs]</>");
             $this->io->newLine();
 
-            return Ledger::fromUnspentSet(
-                $existingData['unspentSet'],
-                $this->repository,
-                $existingData['totalFees'],
-                $existingData['totalMinted'],
-            );
+            return $existing;
         }
 
-        $this->createLedgerRecord();
         $outputs = $genesisFactory();
+        $ledger = Ledger::withGenesis(...$outputs);
+        $this->repository->save($this->ledgerId, $ledger);
         $this->io->text('<fg=green>[Created new ledger with ' . \count($outputs) . ' genesis outputs]</>');
         $this->io->newLine();
 
-        \assert($this->repository !== null);
-
-        return Ledger::withRepository($this->repository)->addGenesis(...$outputs);
+        return $ledger;
     }
 
     protected function loadOrCreateEmpty(): LedgerInterface
     {
-        if (!$this->isDatabase()) {
-            return Ledger::inMemory();
-        }
+        $existing = $this->repository->find($this->ledgerId);
 
-        \assert($this->repo !== null);
-        \assert($this->repository !== null);
-
-        $existingData = $this->repo->findUnspentOnly($this->getLedgerId());
-
-        if ($existingData !== null && $existingData['unspentSet']->count() > 0) {
-            $this->io->text("<fg=yellow>[Loaded existing ledger with {$existingData['unspentSet']->count()} outputs]</>");
+        if ($existing !== null && $existing->unspent()->count() > 0) {
+            $this->io->text("<fg=yellow>[Loaded existing ledger with {$existing->unspent()->count()} outputs]</>");
             $this->io->newLine();
 
-            return Ledger::fromUnspentSet(
-                $existingData['unspentSet'],
-                $this->repository,
-                $existingData['totalFees'],
-                $existingData['totalMinted'],
-            );
+            return $existing;
         }
 
-        $this->createLedgerRecord();
         $this->io->text('<fg=green>[Created new empty ledger]</>');
         $this->io->newLine();
 
-        \assert($this->repository !== null);
+        return Ledger::inMemory();
+    }
 
-        return Ledger::withRepository($this->repository);
+    protected function save(LedgerInterface $ledger): void
+    {
+        $this->repository->save($this->ledgerId, $ledger);
     }
 
     protected function showStats(LedgerInterface $ledger): void
     {
-        if (!$this->isDatabase()) {
-            return;
-        }
-
         $this->io->section('Database Stats');
 
-        \assert($this->pdo !== null);
-
-        $ledgerId = $this->getLedgerId();
+        $dbPath = $this->getDbPath();
         $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM outputs WHERE ledger_id = ?');
-        $stmt->execute([$ledgerId]);
+        $stmt->execute([$this->ledgerId]);
         $outputCount = (int) $stmt->fetchColumn();
 
         $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM transactions WHERE ledger_id = ?');
-        $stmt->execute([$ledgerId]);
+        $stmt->execute([$this->ledgerId]);
         $txCount = (int) $stmt->fetchColumn();
 
         $this->io->listing([
-            "Ledger: {$ledgerId}",
+            "Database: {$dbPath}",
+            "Ledger: {$this->ledgerId}",
             "Outputs: {$outputCount}",
             "Transactions: {$txCount}",
-            "Run #: {$this->runNumber}",
         ]);
 
-        $this->io->text("<fg=green>Run again to continue.</> Use 'composer init-db -- --force' to reset.");
+        $this->io->text('<fg=green>Run again to continue.</> Delete the DB file to reset.');
     }
 
-    private function initDatabase(): bool
+    private function initDatabase(): void
     {
-        $dbPath = self::DEFAULT_DB_PATH;
+        $dbPath = $this->getDbPath();
 
-        if (!file_exists($dbPath)) {
-            $this->io->error("Database not found. Run 'composer init-db' first.");
-            return false;
+        // Ensure data directory exists
+        $dir = \dirname($dbPath);
+        if (!is_dir($dir)) {
+            mkdir($dir, 0755, true);
         }
 
         $this->pdo = new PDO("sqlite:{$dbPath}");
         $this->pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
 
-        $ledgerId = $this->getLedgerId();
-        $this->repository = new SqliteHistoryRepository($this->pdo, $ledgerId);
-        $this->repo = new SqliteLedgerRepository($this->pdo);
-
-        $stmt = $this->pdo->prepare('SELECT COUNT(*) FROM transactions WHERE ledger_id = ?');
-        $stmt->execute([$ledgerId]);
-        $this->runNumber = (int) $stmt->fetchColumn() + 1;
-
-        return true;
-    }
-
-    private function createLedgerRecord(): void
-    {
-        \assert($this->pdo !== null);
-
-        $stmt = $this->pdo->prepare(
-            'INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, 1, 0, 0, 0) ON CONFLICT DO NOTHING',
-        );
-        $stmt->execute([$this->getLedgerId()]);
+        // Use factory to ensure schema exists
+        $this->repository = SqliteRepositoryFactory::createFromPdo($this->pdo);
     }
 }

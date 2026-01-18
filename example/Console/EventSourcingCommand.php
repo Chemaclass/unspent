@@ -4,109 +4,111 @@ declare(strict_types=1);
 
 namespace Example\Console;
 
-use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'sample:event-sourcing',
     description: 'Event Sourcing - Order Lifecycle',
     aliases: ['events'],
 )]
-final class EventSourcingCommand extends Command
+final class EventSourcingCommand extends AbstractExampleCommand
 {
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function runDemo(): int
     {
-        $io = new SymfonyStyle($input, $output);
-        $io->title('Event Sourcing - Order Lifecycle');
-        $io->text('Order lifecycle: placed -> paid -> shipped -> delivered');
-        $io->text('Each transition spends old state, creates new state');
-        $io->newLine();
+        $this->io->text('Order lifecycle: placed -> paid -> shipped -> delivered');
+        $this->io->text('Each transition spends old state, creates new state');
+        $this->io->newLine();
 
-        $orders = $this->processOrderLifecycle($io);
-        $this->showEventChain($io, $orders);
-        $this->showMultipleOrders($io);
+        $ledger = $this->loadOrCreateEmpty();
+        $ledger = $this->processNewOrder($ledger);
+
+        $this->save($ledger);
+
+        $this->showAllOrders($ledger);
+        $this->showStats($ledger);
 
         return Command::SUCCESS;
     }
 
-    private function processOrderLifecycle(SymfonyStyle $io): LedgerInterface
+    private function processNewOrder(LedgerInterface $ledger): LedgerInterface
     {
-        $orders = Ledger::withGenesis(
-            Output::open(1, 'order-1001_placed'),
-        );
-        $io->text('Order #1001: placed');
+        $orderNum = $ledger->unspent()->count() + 1;
+        $orderId = "order-{$orderNum}";
 
-        $orders = $orders->apply(Tx::create(
-            spendIds: ['order-1001_placed'],
-            outputs: [Output::open(1, 'order-1001_paid')],
-            id: 'evt_payment',
+        // Place order (using coinbase to mint the order state token)
+        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
+            outputs: [Output::open(1, "{$orderId}_placed")],
+            id: "create_{$orderId}",
         ));
-        $io->text('Order #1001: paid');
+        $this->io->text("{$orderId}: placed");
 
-        $orders = $orders->apply(Tx::create(
-            spendIds: ['order-1001_paid'],
-            outputs: [Output::open(1, 'order-1001_shipped')],
-            id: 'evt_shipped',
+        // Pay
+        $ledger = $ledger->apply(Tx::create(
+            spendIds: ["{$orderId}_placed"],
+            outputs: [Output::open(1, "{$orderId}_paid")],
+            id: "evt_{$orderId}_payment",
         ));
-        $io->text('Order #1001: shipped');
+        $this->io->text("{$orderId}: paid");
 
-        $orders = $orders->apply(Tx::create(
-            spendIds: ['order-1001_shipped'],
-            outputs: [Output::open(1, 'order-1001_delivered')],
-            id: 'evt_delivered',
+        // Ship
+        $ledger = $ledger->apply(Tx::create(
+            spendIds: ["{$orderId}_paid"],
+            outputs: [Output::open(1, "{$orderId}_shipped")],
+            id: "evt_{$orderId}_shipped",
         ));
-        $io->text('Order #1001: delivered');
-        $io->newLine();
+        $this->io->text("{$orderId}: shipped");
 
-        return $orders;
+        // Deliver
+        $ledger = $ledger->apply(Tx::create(
+            spendIds: ["{$orderId}_shipped"],
+            outputs: [Output::open(1, "{$orderId}_delivered")],
+            id: "evt_{$orderId}_delivered",
+        ));
+        $this->io->text("{$orderId}: delivered");
+        $this->io->newLine();
+
+        // Show event chain for this order
+        $this->showEventChain($ledger, $orderId);
+
+        return $ledger;
     }
 
-    private function showEventChain(SymfonyStyle $io, LedgerInterface $orders): void
+    private function showEventChain(LedgerInterface $ledger, string $orderId): void
     {
-        $io->section('Event Chain');
+        $this->io->section("Event Chain for {$orderId}");
 
         $states = [
-            'order-1001_placed',
-            'order-1001_paid',
-            'order-1001_shipped',
-            'order-1001_delivered',
+            "{$orderId}_placed",
+            "{$orderId}_paid",
+            "{$orderId}_shipped",
+            "{$orderId}_delivered",
         ];
 
         foreach ($states as $state) {
             $id = new OutputId($state);
-            $created = $orders->outputCreatedBy($id);
-            $spent = $orders->outputSpentBy($id);
+            $created = $ledger->outputCreatedBy($id);
+            $spent = $ledger->outputSpentBy($id);
             $status = $spent ? "-> {$spent}" : '(current)';
-            $io->text("  {$state}: {$created} {$status}");
+            $this->io->text("  {$state}: {$created} {$status}");
         }
     }
 
-    private function showMultipleOrders(SymfonyStyle $io): void
+    private function showAllOrders(LedgerInterface $ledger): void
     {
-        $io->section('Multiple Orders');
+        $this->io->section('All Orders (Current State)');
 
-        $multi = Ledger::withGenesis(
-            Output::open(1, 'order-2001_placed'),
-            Output::open(1, 'order-2002_placed'),
-        );
-
-        $multi = $multi->apply(Tx::create(
-            spendIds: ['order-2001_placed'],
-            outputs: [Output::open(1, 'order-2001_paid')],
-            id: 'evt_2001_pay',
-        ));
-
-        foreach ($multi->unspent() as $id => $output) {
-            [$orderId, $state] = explode('_', $id);
-            $io->text("  {$orderId}: {$state}");
+        foreach ($ledger->unspent() as $id => $output) {
+            $parts = explode('_', $id);
+            if (\count($parts) === 2) {
+                [$orderId, $state] = $parts;
+                $this->io->text("  {$orderId}: {$state}");
+            }
         }
     }
 }

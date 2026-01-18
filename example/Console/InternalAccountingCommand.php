@@ -6,154 +6,178 @@ namespace Example\Console;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\Exception\InsufficientSpendsException;
-use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Tx;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
-use Symfony\Component\Console\Input\InputInterface;
-use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'sample:internal-accounting',
     description: 'Internal Accounting - Department Budgets',
     aliases: ['accounting'],
 )]
-final class InternalAccountingCommand extends Command
+final class InternalAccountingCommand extends AbstractExampleCommand
 {
-    protected function execute(InputInterface $input, OutputInterface $output): int
+    protected function runDemo(): int
     {
-        $io = new SymfonyStyle($input, $output);
-        $io->title('Internal Accounting - Department Budgets');
+        $ledger = $this->loadOrCreate(static fn (): array => [
+            Output::ownedBy('engineering', 100_000, 'eng-budget'),
+            Output::ownedBy('marketing', 50_000, 'mkt-budget'),
+            Output::ownedBy('operations', 30_000, 'ops-budget'),
+        ]);
 
-        $company = $this->allocateBudget($io);
-        $company = $this->splitEngineeringBudget($io, $company);
-        $this->demonstrateUnauthorizedBlocked($io, $company);
-        $company = $this->interDepartmentTransfer($io, $company);
-        $this->demonstrateOverspendBlocked($io, $company);
-        $this->showAuditTrail($io, $company);
-        $this->showReconciliation($io, $company);
-        $this->showCurrentState($io, $company);
+        $this->io->text("Total budget: \${$ledger->totalUnspentAmount()}");
+        $this->io->newLine();
+
+        $ledger = $this->processRandomAction($ledger);
+
+        $this->save($ledger);
+
+        $this->demonstrateSecurityBlocks($ledger);
+        $this->showCurrentState($ledger);
+        $this->showReconciliation($ledger);
+        $this->showStats($ledger);
 
         return Command::SUCCESS;
     }
 
-    private function allocateBudget(SymfonyStyle $io): LedgerInterface
+    private function processRandomAction(LedgerInterface $ledger): LedgerInterface
     {
-        $company = Ledger::withGenesis(
-            Output::ownedBy('engineering', 100_000, 'eng-budget'),
-            Output::ownedBy('marketing', 50_000, 'mkt-budget'),
-            Output::ownedBy('operations', 30_000, 'ops-budget'),
-        );
+        // Find departments with available budget
+        $departments = ['engineering', 'marketing', 'operations'];
+        $availableDepts = [];
 
-        $io->text('FY Budget: Eng=$100k, Mkt=$50k, Ops=$30k');
-        $io->text("Total: \${$company->totalUnspentAmount()}");
-        $io->newLine();
+        foreach ($departments as $dept) {
+            $balance = $ledger->totalUnspentByOwner($dept);
+            if ($balance >= 5_000) {
+                $availableDepts[$dept] = $balance;
+            }
+        }
 
-        return $company;
+        if ($availableDepts === []) {
+            $this->io->text('No department has enough budget for transfers!');
+
+            return $ledger;
+        }
+
+        // Pick random sender and action
+        $depts = array_keys($availableDepts);
+        $sender = $depts[array_rand($depts)];
+        $balance = $availableDepts[$sender];
+        $action = random_int(0, 1);
+
+        if ($action === 0) {
+            return $this->splitBudget($ledger, $sender, $balance);
+        }
+
+        $otherDepts = array_diff($depts, [$sender]);
+        if ($otherDepts === []) {
+            return $this->splitBudget($ledger, $sender, $balance);
+        }
+
+        $recipient = $otherDepts[array_rand($otherDepts)];
+
+        return $this->transferBudget($ledger, $sender, $recipient, $balance);
     }
 
-    private function splitEngineeringBudget(SymfonyStyle $io, LedgerInterface $company): LedgerInterface
+    private function splitBudget(LedgerInterface $ledger, string $dept, int $balance): LedgerInterface
     {
-        $company = $company->apply(Tx::create(
-            spendIds: ['eng-budget'],
+        $txNum = $ledger->unspent()->count();
+        $splitAmount = (int) ($balance * 0.4);
+        $remaining = $balance - $splitAmount;
+
+        // Get the output to spend
+        $outputs = array_values(iterator_to_array($ledger->unspentByOwner($dept)));
+        if ($outputs === []) {
+            return $ledger;
+        }
+        $toSpend = $outputs[0];
+
+        $ledger = $ledger->apply(Tx::create(
+            spendIds: [$toSpend->id->value],
             outputs: [
-                Output::ownedBy('engineering', 60_000, 'eng-projects'),
-                Output::ownedBy('engineering', 40_000, 'eng-infra'),
+                Output::ownedBy($dept, $splitAmount, "{$dept}-split-a-{$txNum}"),
+                Output::ownedBy($dept, $remaining, "{$dept}-split-b-{$txNum}"),
             ],
-            signedBy: 'engineering',
-            id: 'eng-split',
+            signedBy: $dept,
+            id: "{$dept}-split-{$txNum}",
         ));
 
-        $io->text('Engineering splits: projects=$60k, infra=$40k');
+        $this->io->text("{$dept} splits budget: \${$splitAmount} + \${$remaining}");
 
-        return $company;
+        return $ledger;
     }
 
-    private function demonstrateUnauthorizedBlocked(SymfonyStyle $io, LedgerInterface $company): void
+    private function transferBudget(LedgerInterface $ledger, string $sender, string $recipient, int $balance): LedgerInterface
     {
-        $io->newLine();
-        $io->text('Finance tries to reallocate engineering funds... ');
+        $transfer = min(15_000, (int) ($balance * 0.3));
+        $fee = (int) ($transfer * 0.02);
 
-        try {
-            $company->apply(Tx::create(
-                spendIds: ['eng-projects'],
-                outputs: [Output::ownedBy('marketing', 60_000)],
-                signedBy: 'finance',
-            ));
-        } catch (AuthorizationException) {
-            $io->text('<fg=green>BLOCKED</>');
+        $ledger = $ledger->transfer($sender, $recipient, $transfer, fee: $fee);
+
+        $this->io->text("{$sender} transfers \${$transfer} to {$recipient} (fee: \${$fee})");
+
+        return $ledger;
+    }
+
+    private function demonstrateSecurityBlocks(LedgerInterface $ledger): void
+    {
+        $this->io->section('Security Demonstrations');
+
+        // Unauthorized access attempt
+        $this->io->text('Finance tries to reallocate engineering funds... ');
+        $engOutputs = array_values(iterator_to_array($ledger->unspentByOwner('engineering')));
+        if ($engOutputs !== []) {
+            try {
+                $ledger->apply(Tx::create(
+                    spendIds: [$engOutputs[0]->id->value],
+                    outputs: [Output::ownedBy('marketing', $engOutputs[0]->amount)],
+                    signedBy: 'finance',
+                ));
+            } catch (AuthorizationException) {
+                $this->io->text('<fg=green>BLOCKED</>');
+            }
         }
-    }
 
-    private function interDepartmentTransfer(SymfonyStyle $io, LedgerInterface $company): LedgerInterface
-    {
-        // Simple API: handles output selection and change automatically
-        $company = $company->transfer('operations', 'marketing', 15_000, fee: 600);
-
-        $io->newLine();
-        $io->text('Ops transfers $15k to Marketing (2% admin fee)');
-        $io->text('Fee: $600');
-
-        return $company;
-    }
-
-    private function demonstrateOverspendBlocked(SymfonyStyle $io, LedgerInterface $company): void
-    {
-        $io->newLine();
-        $io->text('Marketing tries to overspend... ');
-
-        // Marketing has $65k total (50k original + 15k from ops)
-        // Trying to spend $100k should fail
+        // Overspend attempt
+        $this->io->text('Marketing tries to overspend... ');
         try {
-            $company->transfer('marketing', 'vendor', 100_000);
+            $ledger->transfer('marketing', 'vendor', 1_000_000);
         } catch (InsufficientSpendsException) {
-            $io->text('<fg=green>BLOCKED</>');
+            $this->io->text('<fg=green>BLOCKED</>');
         }
     }
 
-    private function showAuditTrail(SymfonyStyle $io, LedgerInterface $company): void
+    private function showReconciliation(LedgerInterface $ledger): void
     {
-        $io->section('Audit Trail');
+        $this->io->section('Reconciliation');
 
-        // Find a marketing output to trace (transfer from operations)
-        foreach ($company->unspentByOwner('marketing') as $output) {
-            $createdBy = $company->outputCreatedBy($output->id);
-            $io->text("{$output->id->value}: created by {$createdBy}");
-            break;
-        }
-    }
-
-    private function showReconciliation(SymfonyStyle $io, LedgerInterface $company): void
-    {
-        $io->section('Reconciliation');
-
+        // Initial budget comes from genesis (180k), not from minting
         $initial = 180_000;
-        $fees = $company->totalFeesCollected();
-        $remaining = $company->totalUnspentAmount();
+        $fees = $ledger->totalFeesCollected();
+        $remaining = $ledger->totalUnspentAmount();
 
-        $io->listing([
-            "Initial: \${$initial}",
-            "Fees: \${$fees}",
-            "Remaining: \${$remaining}",
+        $this->io->listing([
+            'Initial: $' . number_format($initial),
+            'Fees: $' . number_format($fees),
+            'Remaining: $' . number_format($remaining),
             'Check: ' . ($fees + $remaining === $initial ? 'BALANCED' : 'DISCREPANCY'),
         ]);
     }
 
-    private function showCurrentState(SymfonyStyle $io, LedgerInterface $company): void
+    private function showCurrentState(LedgerInterface $ledger): void
     {
-        $io->section('Budget by Department');
+        $this->io->section('Budget by Department');
 
         $budgets = [];
-        foreach ($company->unspent() as $output) {
+        foreach ($ledger->unspent() as $output) {
             $dept = $output->lock->toArray()['name'] ?? 'unassigned';
             $budgets[$dept] = ($budgets[$dept] ?? 0) + $output->amount;
         }
 
         foreach ($budgets as $dept => $amount) {
-            $io->text("  {$dept}: \$" . number_format($amount));
+            $this->io->text("  {$dept}: \$" . number_format($amount));
         }
     }
 }

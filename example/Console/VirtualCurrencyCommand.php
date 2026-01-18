@@ -4,12 +4,9 @@ declare(strict_types=1);
 
 namespace Example\Console;
 
-use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\Exception\AuthorizationException;
-use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\OutputLock;
 use Chemaclass\Unspent\Tx;
 use RuntimeException;
@@ -26,42 +23,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
     /** @var list<string> */
     private array $players = ['alice', 'bob', 'charlie', 'shop'];
 
-    protected function runMemoryDemo(): int
-    {
-        $ledger = $this->loadOrCreate(static fn (): array => [
-            Output::ownedBy('alice', 1000, 'alice-gold'),
-            Output::ownedBy('bob', 500, 'bob-gold'),
-        ]);
-        $this->io->text('Game started: Alice=1000g, Bob=500g');
-        $this->io->newLine();
-
-        // Minting demo
-        $ledger = $this->mintDailyBonus($ledger);
-
-        // Purchase demo
-        $ledger = $this->aliceBuysSword($ledger);
-
-        // Security demos
-        $this->demonstrateTheftBlocked($ledger);
-        $this->demonstrateDoubleSpendBlocked($ledger);
-
-        // Quest reward with timelock
-        $ledger = $this->grantQuestReward($ledger);
-        $this->demonstrateTimelockBlocked($ledger);
-
-        // Trade with fee
-        $ledger = $this->bobPaysAlice($ledger);
-
-        // History tracing
-        $this->demonstrateHistoryTracing($ledger);
-
-        // Final state
-        $this->showFinalBalances($ledger);
-
-        return Command::SUCCESS;
-    }
-
-    protected function runDatabaseDemo(): int
+    protected function runDemo(): int
     {
         $ledger = $this->loadOrCreate(static fn (): array => [
             Output::ownedBy('alice', 1000, 'alice-start'),
@@ -70,138 +32,13 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         ]);
 
         $ledger = $this->processRandomAction($ledger);
+
+        $this->save($ledger);
+
         $this->showBalances($ledger);
         $this->showStats($ledger);
 
         return Command::SUCCESS;
-    }
-
-    private function mintDailyBonus(LedgerInterface $ledger): LedgerInterface
-    {
-        $this->io->section('Minting');
-
-        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
-            outputs: [Output::ownedBy('alice', 100, 'daily-bonus')],
-            id: 'mint-daily-bonus',
-        ));
-
-        $this->io->text('Admin minted 100g daily bonus for Alice');
-        $this->io->text("Total minted so far: {$ledger->totalMinted()}g");
-
-        return $ledger;
-    }
-
-    private function aliceBuysSword(LedgerInterface $ledger): LedgerInterface
-    {
-        $this->io->section('Purchase');
-
-        $ledger = $ledger->apply(Tx::create(
-            spendIds: ['alice-gold'],
-            outputs: [
-                Output::ownedBy('shop', 200, 'shop-payment'),
-                Output::ownedBy('alice', 800, 'alice-change'),
-            ],
-            signedBy: 'alice',
-            id: 'buy-sword',
-        ));
-
-        $this->io->text('Alice bought sword (-200g), now has 900g total');
-
-        return $ledger;
-    }
-
-    private function demonstrateTheftBlocked(LedgerInterface $ledger): void
-    {
-        $this->io->section('Security');
-        $this->io->text("Mallory tries to steal Bob's gold... ");
-
-        try {
-            $ledger->apply(Tx::create(
-                spendIds: ['bob-gold'],
-                outputs: [Output::ownedBy('mallory', 500)],
-                signedBy: 'mallory',
-            ));
-        } catch (AuthorizationException) {
-            $this->io->text('<fg=green>BLOCKED</>');
-        }
-    }
-
-    private function demonstrateDoubleSpendBlocked(LedgerInterface $ledger): void
-    {
-        $this->io->text('Alice tries to spend already-spent gold... ');
-
-        try {
-            $ledger->apply(Tx::create(
-                spendIds: ['alice-gold'],
-                outputs: [Output::ownedBy('alice', 1000)],
-                signedBy: 'alice',
-            ));
-        } catch (OutputAlreadySpentException) {
-            $this->io->text('<fg=green>BLOCKED</>');
-        }
-    }
-
-    private function grantQuestReward(LedgerInterface $ledger): LedgerInterface
-    {
-        $this->io->section('Quest Reward');
-
-        $ledger = $ledger->applyCoinbase(CoinbaseTx::create(
-            outputs: [
-                Output::lockedWith(
-                    new GameTimeLock(time() + 3600, 'alice'),
-                    500,
-                    'quest-reward',
-                ),
-            ],
-            id: 'quest-complete',
-        ));
-
-        $this->io->text('Alice completed quest! Reward: 500g (locked for 1 hour)');
-
-        return $ledger;
-    }
-
-    private function demonstrateTimelockBlocked(LedgerInterface $ledger): void
-    {
-        $this->io->text('Alice tries to spend locked reward... ');
-
-        try {
-            $ledger->apply(Tx::create(
-                spendIds: ['quest-reward'],
-                outputs: [Output::ownedBy('alice', 500)],
-                signedBy: 'alice',
-            ));
-        } catch (RuntimeException) {
-            $this->io->text('<fg=green>BLOCKED</> (cooldown active)');
-        }
-    }
-
-    private function bobPaysAlice(LedgerInterface $ledger): LedgerInterface
-    {
-        $this->io->section('Trade');
-
-        // Simple API: auto-selects Bob's outputs, handles change, applies fee
-        $ledger = $ledger->transfer('bob', 'alice', 450, fee: 50);
-
-        $this->io->text('Bob paid Alice 450g (50g fee/tax)');
-        $this->io->text('Fee collected: 50g');
-
-        return $ledger;
-    }
-
-    private function demonstrateHistoryTracing(LedgerInterface $ledger): void
-    {
-        $this->io->section('History Tracing');
-
-        $history = $ledger->outputHistory(new OutputId('alice-change'));
-        if ($history !== null) {
-            $this->io->text("alice-change: created by '{$history->createdBy}'");
-        }
-
-        $history2 = $ledger->outputHistory(new OutputId('daily-bonus'));
-        if ($history2 !== null) {
-            $this->io->text("daily-bonus: created by '{$history2->createdBy}' (minted)");
-        }
     }
 
     private function processRandomAction(LedgerInterface $ledger): LedgerInterface
@@ -285,30 +122,6 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
         $this->io->newLine();
         $this->io->text("Total fees collected: {$ledger->totalFeesCollected()}g");
-    }
-
-    private function showFinalBalances(LedgerInterface $ledger): void
-    {
-        $this->io->section('Final State');
-
-        // Calculate balances by owner
-        $balances = [];
-        foreach ($ledger->unspent() as $output) {
-            $lockData = $output->lock->toArray();
-            /** @var string $owner */
-            $owner = $lockData['name'] ?? $lockData['owner'] ?? 'unknown'; // @phpstan-ignore nullCoalesce.offset
-            $balances[$owner] = ($balances[$owner] ?? 0) + $output->amount;
-        }
-
-        foreach ($balances as $player => $balance) {
-            $this->io->text("  {$player}: {$balance}g");
-        }
-
-        $this->io->newLine();
-        $this->io->text("Total in circulation: {$ledger->totalUnspentAmount()}g");
-        $this->io->text("Total fees (burned): {$ledger->totalFeesCollected()}g");
-        $this->io->text("Total minted: {$ledger->totalMinted()}g");
-        $this->io->text("UTXOs: {$ledger->unspent()->count()}");
     }
 }
 

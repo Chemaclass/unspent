@@ -7,9 +7,7 @@ namespace Example\Console;
 use Chemaclass\Unspent\CoinbaseTx;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
-use Chemaclass\Unspent\TxId;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 
@@ -23,94 +21,22 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
     private const int SATOSHIS_PER_BTC = 100_000_000;
     private const int BLOCK_REWARD = 50 * self::SATOSHIS_PER_BTC;
 
-    protected function runMemoryDemo(): int
-    {
-        $ledger = $this->loadOrCreate(static fn (): array => [Output::open(self::BLOCK_REWARD, 'satoshi-0')]);
-        $this->io->text('Block 0: Satoshi mines 50 BTC');
-
-        $ledger = $this->mineBlock($ledger, 1);
-        $this->io->text('Block 1: Satoshi mines 50 BTC (total: 100 BTC)');
-        $this->io->newLine();
-
-        $ledger = $this->applyTransaction($ledger, 'satoshi-0', 'hal-funds', 10 * self::SATOSHIS_PER_BTC);
-        $ledger = $this->mineBlock($ledger, 2);
-        $this->io->text('Block 2: Satoshi sends 10 BTC to Hal');
-        $this->io->text('  Fee: ' . $this->formatBtc($ledger->feeForTx(new TxId('tx-to-hal')) ?? 0));
-        $this->io->newLine();
-
-        $ledger = $this->applyTransaction($ledger, 'hal-funds', 'laszlo-pizza', 5 * self::SATOSHIS_PER_BTC, 'tx-pizza', 'hal-change');
-        $ledger = $this->mineBlock($ledger, 3);
-        $this->io->text('Block 3: Hal buys pizza for 5 BTC');
-        $this->io->newLine();
-
-        $ledger = $this->consolidateOutputs($ledger);
-        $ledger = $this->mineBlock($ledger, 4);
-        $this->io->text('Block 4: Satoshi consolidates 3 UTXOs into 1');
-        $this->io->newLine();
-
-        $this->displayFinalState($ledger);
-
-        return Command::SUCCESS;
-    }
-
-    protected function runDatabaseDemo(): int
+    protected function runDemo(): int
     {
         $ledger = $this->loadOrCreate(static fn (): array => [Output::open(self::BLOCK_REWARD, 'satoshi-genesis')]);
 
-        $blockNum = $this->runNumber;
+        $blockNum = $ledger->unspent()->count();
         $this->io->section("Mining Block #{$blockNum}");
 
         $ledger = $this->processTransaction($ledger, $blockNum);
         $ledger = $this->mineCoinbase($ledger, $blockNum);
 
+        $this->save($ledger);
+
         $this->displayBlockchainState($ledger);
         $this->showStats($ledger);
 
         return Command::SUCCESS;
-    }
-
-    private function mineBlock(LedgerInterface $ledger, int $blockNum, string $prefix = 'satoshi'): LedgerInterface
-    {
-        $outputId = $blockNum >= 2 ? "miner-{$blockNum}" : "{$prefix}-{$blockNum}";
-        return $ledger->applyCoinbase(CoinbaseTx::create(
-            [Output::open(self::BLOCK_REWARD, $outputId)],
-            "block-{$blockNum}",
-        ));
-    }
-
-    private function applyTransaction(
-        LedgerInterface $ledger,
-        string $fromId,
-        string $toId,
-        int $amount,
-        string $txId = 'tx-to-hal',
-        string $changeId = 'satoshi-change',
-    ): LedgerInterface {
-        $output = $ledger->unspent()->get(new OutputId($fromId));
-        if ($output === null) {
-            return $ledger;
-        }
-
-        $fromAmount = $output->amount;
-        $change = $fromAmount - $amount - 1000; // small fee
-
-        return $ledger->apply(Tx::create(
-            spendIds: [$fromId],
-            outputs: [
-                Output::open($amount, $toId),
-                Output::open($change, $changeId),
-            ],
-            id: $txId,
-        ));
-    }
-
-    private function consolidateOutputs(LedgerInterface $ledger): LedgerInterface
-    {
-        return $ledger->apply(Tx::create(
-            spendIds: ['satoshi-1', 'satoshi-change', 'miner-2'],
-            outputs: [Output::open(139_98000000, 'satoshi-consolidated')],
-            id: 'tx-consolidate',
-        ));
     }
 
     private function processTransaction(LedgerInterface $ledger, int $blockNum): LedgerInterface
@@ -170,23 +96,6 @@ final class BitcoinSimulationCommand extends AbstractExampleCommand
             'In circulation: ' . $this->formatBtc($ledger->totalUnspentAmount()),
             'UTXOs: ' . $ledger->unspent()->count(),
         ]);
-    }
-
-    private function displayFinalState(LedgerInterface $ledger): void
-    {
-        $this->io->section('Final State');
-        $this->io->listing([
-            'Blocks mined: 5',
-            'Total minted: ' . $this->formatBtc($ledger->totalMinted()),
-            'Total fees: ' . $this->formatBtc($ledger->totalFeesCollected()),
-            'In circulation: ' . $this->formatBtc($ledger->totalUnspentAmount()),
-            'UTXOs: ' . $ledger->unspent()->count(),
-        ]);
-
-        $this->io->section('UTXOs');
-        foreach ($ledger->unspent() as $id => $output) {
-            $this->io->text("  {$id}: " . $this->formatBtc($output->amount));
-        }
     }
 
     private function formatBtc(int $satoshis): string

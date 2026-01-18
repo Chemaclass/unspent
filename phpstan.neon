@@ -5,6 +5,8 @@ parameters:
         - src
         - example
         - tests
+    excludePaths:
+        - tests/Benchmark
     ignoreErrors:
         # Test files intentionally verify type relationships that are always true
         - message: '#will always evaluate to true#'

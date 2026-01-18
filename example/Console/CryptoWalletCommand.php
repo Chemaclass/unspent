@@ -7,7 +7,6 @@ namespace Example\Console;
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
@@ -31,27 +30,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
     /** @var non-empty-string */
     private string $bobPriv;
 
-    protected function runMemoryDemo(): int
-    {
-        $this->generateKeys();
-
-        $ledger = $this->loadOrCreate(fn (): array => [
-            Output::signedBy($this->alicePub, 1000, 'alice-wallet'),
-            Output::signedBy($this->bobPub, 500, 'bob-wallet'),
-        ]);
-        $this->io->text('Wallets: Alice=1000, Bob=500');
-        $this->io->newLine();
-
-        $ledger = $this->aliceSendsToBob($ledger);
-        $this->demonstrateMalloryAttack($ledger);
-        $ledger = $this->bobCombinesOutputs($ledger);
-        $this->showHistory($ledger);
-        $this->showFinalBalances($ledger);
-
-        return Command::SUCCESS;
-    }
-
-    protected function runDatabaseDemo(): int
+    protected function runDemo(): int
     {
         $this->generateKeys();
 
@@ -61,6 +40,10 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         ]);
 
         $ledger = $this->processRandomTransfer($ledger);
+        $this->demonstrateMalloryAttack($ledger);
+
+        $this->save($ledger);
+
         $this->showFinalBalances($ledger);
         $this->showStats($ledger);
 
@@ -84,71 +67,12 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         ]);
     }
 
-    private function aliceSendsToBob(LedgerInterface $ledger): LedgerInterface
-    {
-        $txId = 'tx-001';
-        $sig = base64_encode(sodium_crypto_sign_detached($txId, $this->alicePriv));
-
-        $ledger = $ledger->apply(Tx::create(
-            spendIds: ['alice-wallet'],
-            outputs: [
-                Output::signedBy($this->bobPub, 300, 'bob-received'),
-                Output::signedBy($this->alicePub, 700, 'alice-change'),
-            ],
-            id: $txId,
-            proofs: [$sig],
-        ));
-
-        $this->io->text('Alice -> Bob: 300 (signed)');
-
-        return $ledger;
-    }
-
-    private function demonstrateMalloryAttack(LedgerInterface $ledger): void
-    {
-        $this->io->newLine();
-        $this->io->text('Mallory tries to steal with wrong key... ');
-
-        $malloryKp = sodium_crypto_sign_keypair();
-        $malloryPriv = sodium_crypto_sign_secretkey($malloryKp);
-        $fakeSig = base64_encode(sodium_crypto_sign_detached('tx-steal', $malloryPriv));
-
-        try {
-            $ledger->apply(Tx::create(
-                spendIds: ['bob-wallet'],
-                outputs: [Output::open(500)],
-                id: 'tx-steal',
-                proofs: [$fakeSig],
-            ));
-        } catch (AuthorizationException) {
-            $this->io->text('<fg=green>BLOCKED</>');
-        }
-    }
-
-    private function bobCombinesOutputs(LedgerInterface $ledger): LedgerInterface
-    {
-        $txId2 = 'tx-002';
-        $bobSig1 = base64_encode(sodium_crypto_sign_detached($txId2, $this->bobPriv));
-        $bobSig2 = base64_encode(sodium_crypto_sign_detached($txId2, $this->bobPriv));
-
-        $ledger = $ledger->apply(Tx::create(
-            spendIds: ['bob-wallet', 'bob-received'],
-            outputs: [Output::signedBy($this->bobPub, 800, 'bob-combined')],
-            id: $txId2,
-            proofs: [$bobSig1, $bobSig2],
-        ));
-
-        $this->io->newLine();
-        $this->io->text('Bob combined 500+300 = 800 (multi-sig)');
-
-        return $ledger;
-    }
-
     private function processRandomTransfer(LedgerInterface $ledger): LedgerInterface
     {
         $outputs = iterator_to_array($ledger->unspent());
         if ($outputs === []) {
             $this->io->text('No outputs to spend!');
+
             return $ledger;
         }
 
@@ -157,6 +81,7 @@ final class CryptoWalletCommand extends AbstractExampleCommand
 
         if ($amount < 100) {
             $this->io->text('Output too small to split.');
+
             return $ledger;
         }
 
@@ -164,7 +89,8 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         $transfer = (int) (($amount - $fee) * 0.4);
         $change = $amount - $fee - $transfer;
 
-        $txId = "tx-{$this->runNumber}";
+        $txNum = $ledger->unspent()->count();
+        $txId = "tx-{$txNum}";
         $lockData = $toSpend->lock->toArray();
         /** @var string $pubKey */
         $pubKey = $lockData['key'] ?? ''; // @phpstan-ignore nullCoalesce.offset
@@ -179,8 +105,8 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         $ledger = $ledger->apply(Tx::create(
             spendIds: [$toSpend->id->value],
             outputs: [
-                Output::signedBy($recipientPub, $transfer, "to-{$recipientName}-{$this->runNumber}"),
-                Output::signedBy($pubKey, $change, "change-{$ownerName}-{$this->runNumber}"),
+                Output::signedBy($recipientPub, $transfer, "to-{$recipientName}-{$txNum}"),
+                Output::signedBy($pubKey, $change, "change-{$ownerName}-{$txNum}"),
             ],
             id: $txId,
             proofs: [$sig],
@@ -195,11 +121,34 @@ final class CryptoWalletCommand extends AbstractExampleCommand
         return $ledger;
     }
 
-    private function showHistory(LedgerInterface $ledger): void
+    private function demonstrateMalloryAttack(LedgerInterface $ledger): void
     {
-        $this->io->section('History');
-        $history = $ledger->outputHistory(new OutputId('bob-combined'));
-        $this->io->text("bob-combined: created by {$history?->createdBy}");
+        $this->io->newLine();
+        $this->io->text('Mallory tries to steal with wrong key... ');
+
+        $malloryKp = sodium_crypto_sign_keypair();
+        $malloryPriv = sodium_crypto_sign_secretkey($malloryKp);
+
+        $outputs = iterator_to_array($ledger->unspent());
+        if ($outputs === []) {
+            $this->io->text('No outputs available');
+
+            return;
+        }
+
+        $targetOutput = $outputs[array_rand($outputs)];
+        $fakeSig = base64_encode(sodium_crypto_sign_detached('tx-steal', $malloryPriv));
+
+        try {
+            $ledger->apply(Tx::create(
+                spendIds: [$targetOutput->id->value],
+                outputs: [Output::open($targetOutput->amount)],
+                id: 'tx-steal',
+                proofs: [$fakeSig],
+            ));
+        } catch (AuthorizationException) {
+            $this->io->text('<fg=green>BLOCKED</>');
+        }
     }
 
     private function showFinalBalances(LedgerInterface $ledger): void
