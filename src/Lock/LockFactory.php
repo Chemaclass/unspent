@@ -178,6 +178,9 @@ class LockFactory
             LockType::NONE => new NoLock(),
             LockType::OWNER => new Owner((string) ($data['name'] ?? throw new InvalidArgumentException('Name is required for owner lock'))),
             LockType::PUBLIC_KEY => new PublicKey((string) ($data['key'] ?? throw new InvalidArgumentException('Key is required for pubkey lock'))),
+            LockType::TIMELOCK => TimeLock::fromArray($data),
+            LockType::MULTISIG => MultisigLock::fromArray($data),
+            LockType::HASHLOCK => HashLock::fromArray($data),
             null => throw new InvalidArgumentException("Unknown lock type: {$type}"),
         };
     }

@@ -15,6 +15,9 @@ enum LockType: string
     case NONE = 'none';
     case OWNER = 'owner';
     case PUBLIC_KEY = 'pubkey';
+    case TIMELOCK = 'timelock';
+    case MULTISIG = 'multisig';
+    case HASHLOCK = 'hashlock';
 
     /**
      * Check if a string is a known built-in lock type.

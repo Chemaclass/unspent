@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent;
 
+use Chemaclass\Unspent\Lock\HashLock;
+use Chemaclass\Unspent\Lock\MultisigLock;
 use Chemaclass\Unspent\Lock\NoLock;
 use Chemaclass\Unspent\Lock\Owner;
 use Chemaclass\Unspent\Lock\PublicKey;
+use Chemaclass\Unspent\Lock\TimeLock;
 use InvalidArgumentException;
 
 final readonly class Output
@@ -87,6 +90,58 @@ final readonly class Output
             id: new OutputId($id ?? IdGenerator::forOutput($amount)),
             amount: $amount,
             lock: $lock,
+        );
+    }
+
+    /**
+     * Creates an output that can only be spent after a specific timestamp.
+     *
+     * @param int $unlockTime Unix timestamp when the output becomes spendable
+     *
+     * @throws InvalidArgumentException If amount is not positive or unlock time is in the past
+     */
+    public static function timelocked(string $owner, int $amount, int $unlockTime, ?string $id = null): self
+    {
+        return new self(
+            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            amount: $amount,
+            lock: new TimeLock(new Owner($owner), $unlockTime),
+        );
+    }
+
+    /**
+     * Creates an output requiring M-of-N signatures to spend.
+     *
+     * @param int          $threshold Minimum signatures required
+     * @param list<string> $signers   Authorized signer names
+     *
+     * @throws InvalidArgumentException If amount is not positive or multisig config is invalid
+     */
+    public static function multisig(int $threshold, array $signers, int $amount, ?string $id = null): self
+    {
+        return new self(
+            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            amount: $amount,
+            lock: new MultisigLock($threshold, $signers),
+        );
+    }
+
+    /**
+     * Creates an output requiring knowledge of a hash preimage to spend.
+     *
+     * @param string $hash      The hash that the preimage must match
+     * @param string $algorithm Hash algorithm (sha256, sha512, ripemd160)
+     *
+     * @throws InvalidArgumentException If amount is not positive or hash config is invalid
+     */
+    public static function hashlocked(string $hash, int $amount, string $algorithm = 'sha256', ?string $owner = null, ?string $id = null): self
+    {
+        $innerLock = $owner !== null ? new Owner($owner) : null;
+
+        return new self(
+            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            amount: $amount,
+            lock: HashLock::fromHash($hash, $algorithm, $innerLock),
         );
     }
 }
