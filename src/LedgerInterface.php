@@ -10,6 +10,7 @@ use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Persistence\HistoryRepository;
+use InvalidArgumentException;
 
 /**
  * Core interface for the UTXO ledger.
@@ -126,6 +127,37 @@ interface LedgerInterface
      * @return static The same ledger instance (mutated)
      */
     public function credit(string $owner, int $amount, ?string $txId = null): static;
+
+    /**
+     * Consolidate all outputs for an owner into a single output.
+     *
+     * Useful for cleaning up many small outputs ("dust") into one larger output.
+     * Does nothing if owner has 0 or 1 outputs.
+     *
+     * @param string      $owner Owner whose outputs to consolidate
+     * @param int         $fee   Optional consolidation fee (burned)
+     * @param string|null $txId  Optional transaction ID
+     *
+     * @return static The same ledger instance (mutated)
+     */
+    public function consolidate(string $owner, int $fee = 0, ?string $txId = null): static;
+
+    /**
+     * Transfer to multiple recipients in a single transaction.
+     *
+     * More efficient than multiple transfer() calls as it uses a single transaction.
+     *
+     * @param string             $from       Owner to transfer from
+     * @param array<string, int> $recipients Map of recipient => amount
+     * @param int                $fee        Optional fee (burned)
+     * @param string|null        $txId       Optional transaction ID
+     *
+     * @throws InsufficientSpendsException If sender has insufficient balance
+     * @throws InvalidArgumentException    If recipients is empty or contains invalid amounts
+     *
+     * @return static The same ledger instance (mutated)
+     */
+    public function batchTransfer(string $from, array $recipients, int $fee = 0, ?string $txId = null): static;
 
     /**
      * Checks if a transaction can be applied without actually applying it.

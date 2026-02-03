@@ -13,6 +13,7 @@ use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Persistence\HistoryRepository;
 use Chemaclass\Unspent\Persistence\InMemoryHistoryRepository;
 use Chemaclass\Unspent\Validation\DuplicateValidator;
+use InvalidArgumentException;
 use JsonException;
 
 /**
@@ -306,6 +307,85 @@ final class Ledger implements LedgerInterface
     {
         return $this->applyCoinbase(CoinbaseTx::create(
             outputs: [Output::ownedBy($owner, $amount)],
+            id: $txId,
+        ));
+    }
+
+    public function consolidate(string $owner, int $fee = 0, ?string $txId = null): static
+    {
+        $outputs = iterator_to_array($this->unspentByOwner($owner));
+
+        // Nothing to consolidate if 0 or 1 outputs
+        if (\count($outputs) <= 1) {
+            return $this;
+        }
+
+        $outputIds = array_values(array_map(
+            static fn (Output $output): string => $output->id->value,
+            $outputs,
+        ));
+
+        $total = array_sum(array_map(
+            static fn (Output $output): int => $output->amount,
+            $outputs,
+        ));
+
+        $consolidatedAmount = $total - $fee;
+        if ($consolidatedAmount <= 0) {
+            throw InsufficientSpendsException::create($total, $fee);
+        }
+
+        return $this->apply(Tx::create(
+            spendIds: $outputIds,
+            outputs: [Output::ownedBy($owner, $consolidatedAmount)],
+            signedBy: $owner,
+            id: $txId,
+        ));
+    }
+
+    public function batchTransfer(string $from, array $recipients, int $fee = 0, ?string $txId = null): static
+    {
+        if ($recipients === []) {
+            throw new InvalidArgumentException('At least one recipient is required');
+        }
+
+        $totalRequired = $fee;
+        $outputs = [];
+
+        foreach ($recipients as $recipient => $amount) {
+            if ($amount <= 0) {
+                throw new InvalidArgumentException("Amount for {$recipient} must be positive");
+            }
+            $totalRequired += $amount;
+            $outputs[] = Output::ownedBy($recipient, $amount);
+        }
+
+        // Select inputs
+        $outputsToSpend = [];
+        $accumulated = 0;
+
+        foreach ($this->unspentByOwner($from) as $output) {
+            $outputsToSpend[] = $output->id->value;
+            $accumulated += $output->amount;
+            if ($accumulated >= $totalRequired) {
+                break;
+            }
+        }
+
+        if ($accumulated < $totalRequired) {
+            throw InsufficientSpendsException::create($accumulated, $totalRequired);
+        }
+
+        // Add change output if needed
+        $change = $accumulated - $totalRequired;
+        if ($change > 0) {
+            $outputs[] = Output::ownedBy($from, $change);
+        }
+
+        return $this->apply(Tx::create(
+            spendIds: $outputsToSpend,
+            outputs: $outputs,
+            signedBy: $from,
             id: $txId,
         ));
     }

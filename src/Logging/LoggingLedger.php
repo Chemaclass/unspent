@@ -15,6 +15,7 @@ use Chemaclass\Unspent\Persistence\HistoryRepository;
 use Chemaclass\Unspent\Tx;
 use Chemaclass\Unspent\TxId;
 use Chemaclass\Unspent\UnspentSet;
+use InvalidArgumentException;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -181,6 +182,65 @@ final readonly class LoggingLedger implements LedgerInterface
             $this->logger->warning('Credit failed', [
                 'owner' => $owner,
                 'amount' => $amount,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    public function consolidate(string $owner, int $fee = 0, ?string $txId = null): static
+    {
+        $outputCount = $this->ledger->unspentByOwner($owner)->count();
+        $this->logger->info('Consolidating', [
+            'owner' => $owner,
+            'output_count' => $outputCount,
+            'fee' => $fee,
+        ]);
+
+        try {
+            $this->ledger->consolidate($owner, $fee, $txId);
+
+            $this->logger->info('Consolidation completed', [
+                'owner' => $owner,
+                'new_output_count' => $this->ledger->unspentByOwner($owner)->count(),
+                'fee' => $fee,
+            ]);
+
+            return $this;
+        } catch (UnspentException $e) {
+            $this->logger->warning('Consolidation failed', [
+                'owner' => $owner,
+                'error' => $e->getMessage(),
+            ]);
+            throw $e;
+        }
+    }
+
+    public function batchTransfer(string $from, array $recipients, int $fee = 0, ?string $txId = null): static
+    {
+        $totalAmount = array_sum($recipients);
+        $this->logger->info('Batch transferring', [
+            'from' => $from,
+            'recipient_count' => \count($recipients),
+            'total_amount' => $totalAmount,
+            'fee' => $fee,
+        ]);
+
+        try {
+            $this->ledger->batchTransfer($from, $recipients, $fee, $txId);
+
+            $this->logger->info('Batch transfer completed', [
+                'from' => $from,
+                'recipient_count' => \count($recipients),
+                'total_amount' => $totalAmount,
+                'fee' => $fee,
+            ]);
+
+            return $this;
+        } catch (UnspentException|InvalidArgumentException $e) {
+            $this->logger->warning('Batch transfer failed', [
+                'from' => $from,
+                'recipient_count' => \count($recipients),
                 'error' => $e->getMessage(),
             ]);
             throw $e;

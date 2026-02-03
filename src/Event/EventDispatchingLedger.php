@@ -151,6 +151,20 @@ final readonly class EventDispatchingLedger implements LedgerInterface
         return $this;
     }
 
+    public function consolidate(string $owner, int $fee = 0, ?string $txId = null): static
+    {
+        $this->ledger->consolidate($owner, $fee, $txId);
+
+        return $this;
+    }
+
+    public function batchTransfer(string $from, array $recipients, int $fee = 0, ?string $txId = null): static
+    {
+        $this->ledger->batchTransfer($from, $recipients, $fee, $txId);
+
+        return $this;
+    }
+
     // Read-only methods delegate directly
 
     public function unspent(): UnspentSet
