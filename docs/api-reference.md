@@ -41,6 +41,31 @@ Output::lockedWith(
     int $amount,
     ?string $id = null
 ): Output
+
+// Time-locked output (spendable after timestamp)
+Output::timelocked(
+    string $owner,
+    int $amount,
+    int $unlockTime,    // Unix timestamp
+    ?string $id = null
+): Output
+
+// Multisig output (M-of-N signatures required)
+Output::multisig(
+    int $threshold,      // Minimum signatures required (M)
+    array $signers,      // list<string> - Authorized signers (N)
+    int $amount,
+    ?string $id = null
+): Output
+
+// Hash-locked output (preimage required)
+Output::hashlocked(
+    string $hash,        // Hash that preimage must match
+    int $amount,
+    string $algorithm = 'sha256',  // sha256, sha512, ripemd160, sha3-256
+    ?string $owner = null,         // Optional inner owner lock
+    ?string $id = null
+): Output
 ```
 
 ### Properties
@@ -156,6 +181,55 @@ $ledger->apply(Tx $tx): Ledger
 
 // Apply a coinbase (creates new value)
 $ledger->applyCoinbase(CoinbaseTx $coinbase): Ledger
+```
+
+### Simple API
+
+Convenience methods for common operations:
+
+```php
+// Transfer from one owner to another
+$ledger->transfer(
+    string $from,
+    string $to,
+    int $amount,
+    int $fee = 0,
+    ?string $txId = null
+): Ledger
+
+// Debit (burn) value from an owner
+$ledger->debit(
+    string $owner,
+    int $amount,
+    int $fee = 0,
+    ?string $txId = null
+): Ledger
+
+// Credit (mint) value to an owner
+$ledger->credit(
+    string $owner,
+    int $amount,
+    ?string $txId = null
+): Ledger
+```
+
+### Batch Operations
+
+```php
+// Consolidate all outputs for an owner into one
+$ledger->consolidate(
+    string $owner,
+    int $fee = 0,
+    ?string $txId = null
+): Ledger
+
+// Transfer to multiple recipients in one transaction
+$ledger->batchTransfer(
+    string $from,
+    array $recipients,  // ['recipient' => amount, ...]
+    int $fee = 0,
+    ?string $txId = null
+): Ledger
 ```
 
 ### Query - Unspent
@@ -427,6 +501,72 @@ $lock->validate(Tx $tx, int $inputIndex): void  // Always passes
 $lock->toArray(): array  // ['type' => 'none']
 ```
 
+### TimeLock
+
+Time-based restriction with inner lock.
+
+```php
+new TimeLock(OutputLock $innerLock, int $unlockTime)
+
+$lock->innerLock;    // OutputLock
+$lock->unlockTime;   // int (Unix timestamp)
+$lock->isLocked(): bool
+$lock->remainingTime(): int  // Seconds until unlock (0 if unlocked)
+$lock->validate(Tx $tx, int $inputIndex): void
+$lock->toArray(): array  // ['type' => 'timelock', 'unlockTime' => ..., 'innerLock' => [...]]
+
+// Create already-unlocked lock (for testing/persistence)
+TimeLock::alreadyUnlocked(OutputLock $innerLock, int $unlockTime): TimeLock
+
+// Deserialize from array
+TimeLock::fromArray(array $data): TimeLock
+```
+
+### MultisigLock
+
+M-of-N signature scheme.
+
+```php
+new MultisigLock(int $threshold, array $signers)  // $signers is list<string>
+
+$lock->threshold;   // int - Minimum signatures required
+$lock->signers;     // list<string> - Authorized signer names
+$lock->description(): string  // "2-of-3 multisig"
+$lock->validate(Tx $tx, int $inputIndex): void
+$lock->toArray(): array  // ['type' => 'multisig', 'threshold' => ..., 'signers' => [...]]
+
+// Deserialize from array
+MultisigLock::fromArray(array $data): MultisigLock
+```
+
+**Proof format:** Comma-separated signer names (e.g., `'alice,bob'`)
+
+### HashLock
+
+Hash preimage verification with optional inner lock.
+
+```php
+new HashLock(string $hash, string $algorithm, ?OutputLock $innerLock = null)
+
+$lock->hash;       // string - Expected hash
+$lock->algorithm;  // string - Hash algorithm
+$lock->innerLock;  // ?OutputLock
+$lock->verifyPreimage(string $preimage): bool
+$lock->validate(Tx $tx, int $inputIndex): void
+$lock->toArray(): array
+
+// Create from secret (hashes automatically)
+HashLock::sha256(string $secret, ?OutputLock $innerLock = null): HashLock
+
+// Create from existing hash
+HashLock::fromHash(string $hash, string $algorithm, ?OutputLock $innerLock = null): HashLock
+
+// Deserialize from array
+HashLock::fromArray(array $data): HashLock
+```
+
+**Supported algorithms:** `sha256`, `sha512`, `ripemd160`, `sha3-256`
+
 ### OutputLock Interface
 
 ```php
@@ -660,6 +800,110 @@ SqliteSchema::SCHEMA_VERSION  // 1
 PersistenceException::class       // Base persistence error
 LedgerNotFoundException::class    // Requested ledger not found
 ```
+
+## UtxoAnalytics
+
+Static utility class for analyzing UTXO sets.
+
+```php
+use Chemaclass\Unspent\UtxoAnalytics;
+
+// Find outputs below a threshold ("dust")
+UtxoAnalytics::findDust(
+    LedgerInterface $ledger,
+    string $owner,
+    int $threshold
+): array  // list<Output>
+
+// Get oldest unspent output (first in iteration order)
+UtxoAnalytics::oldestUnspent(
+    LedgerInterface $ledger,
+    string $owner
+): ?Output
+
+// Get largest unspent output by amount
+UtxoAnalytics::largestUnspent(
+    LedgerInterface $ledger,
+    string $owner
+): ?Output
+
+// Get smallest unspent output by amount
+UtxoAnalytics::smallestUnspent(
+    LedgerInterface $ledger,
+    string $owner
+): ?Output
+
+// Get comprehensive statistics
+UtxoAnalytics::stats(
+    LedgerInterface $ledger,
+    string $owner,
+    int $dustThreshold = 10
+): array
+// Returns: [
+//     'count' => int,
+//     'total' => int,
+//     'average' => int,
+//     'min' => int,
+//     'max' => int,
+//     'dustCount' => int,
+//     'dustTotal' => int,
+// ]
+
+// Get number of outputs for an owner
+UtxoAnalytics::outputCountByOwner(
+    LedgerInterface $ledger,
+    string $owner
+): int
+
+// Check if consolidation is recommended
+UtxoAnalytics::shouldConsolidate(
+    LedgerInterface $ledger,
+    string $owner,
+    int $threshold = 10  // Output count threshold
+): bool
+```
+
+## Mempool
+
+Transaction staging area for validation before commit.
+
+```php
+use Chemaclass\Unspent\Mempool;
+
+$mempool = new Mempool(LedgerInterface $ledger);
+
+// Add transaction (validates against ledger + checks for double-spend)
+$mempool->add(Tx $tx): string  // Returns transaction ID
+
+// Remove transaction from mempool
+$mempool->remove(string $txId): void
+
+// Replace transaction (RBF - Replace-By-Fee)
+$mempool->replace(string $oldTxId, Tx $newTx): void
+
+// Apply all pending transactions to ledger
+$mempool->commit(): int  // Returns number committed
+
+// Apply single transaction
+$mempool->commitOne(string $txId): void
+
+// Clear all pending transactions (discard)
+$mempool->clear(): void
+
+// Query methods
+$mempool->has(string $txId): bool
+$mempool->get(string $txId): ?Tx
+$mempool->all(): array  // ['txId' => Tx, ...]
+$mempool->count(): int
+
+// Fee methods
+$mempool->totalPendingFees(): int
+$mempool->feeFor(string $txId): ?int
+```
+
+**Double-spend detection:**
+
+The mempool tracks which outputs are being spent by pending transactions. If you try to add a transaction that spends an output already claimed by another pending transaction, it throws `OutputAlreadySpentException` with details about the conflicting transaction.
 
 ## Exceptions
 

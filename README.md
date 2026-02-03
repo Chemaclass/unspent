@@ -39,6 +39,7 @@ Traditional balance tracking (`balance: 500`) is just a number you mutate. There
 - **Double-spend prevention** - A unit can only be spent once, ever
 - **Complete audit trail** - Trace any value back to its origin
 - **Immutable history** - State changes are additive, never mutated
+- **Advanced locks** - Timelocks, multisig, hash-locked outputs (HTLCs)
 - **Zero external dependencies** - Pure PHP 8.4+
 
 Inspired by Bitcoin's UTXO model, decoupled as a standalone library.
@@ -162,6 +163,40 @@ $ledger->apply(Tx::create(
 // alice-change (100) is the new output
 ```
 
+### Batch Operations
+
+Consolidate many small outputs or pay multiple recipients in one transaction:
+
+```php
+// Consolidate dust into a single output
+$ledger->consolidate('alice', fee: 10);
+
+// Pay multiple recipients at once
+$ledger->batchTransfer('alice', [
+    'bob' => 100,
+    'charlie' => 200,
+    'dave' => 300,
+], fee: 5);
+```
+
+### Transaction Mempool
+
+Stage transactions for validation before committing:
+
+```php
+$mempool = new Mempool($ledger);
+
+// Add validated transactions
+$mempool->add($tx1);
+$mempool->add($tx2);
+
+// Detect double-spend attempts
+// $mempool->add($conflictingTx); // Throws OutputAlreadySpentException
+
+// Commit all at once
+$mempool->commit();
+```
+
 **Use coin control when you need:**
 - Specific output selection (spend oldest first, consolidate dust, etc.)
 - Custom output IDs for tracking
@@ -170,12 +205,15 @@ $ledger->apply(Tx::create(
 
 ### Output types
 
-| Method                           | Use case                          |
-|----------------------------------|-----------------------------------|
-| `Output::open(100)`              | No lock - pure bookkeeping        |
-| `Output::ownedBy('alice', 100)`  | Server-side auth (sessions, JWT)  |
-| `Output::signedBy($pubKey, 100)` | Ed25519 crypto (trustless)        |
-| `Output::lockedWith($lock, 100)` | Custom locks (multisig, timelock) |
+| Method                              | Use case                          |
+|-------------------------------------|-----------------------------------|
+| `Output::open(100)`                 | No lock - pure bookkeeping        |
+| `Output::ownedBy('alice', 100)`     | Server-side auth (sessions, JWT)  |
+| `Output::signedBy($pubKey, 100)`    | Ed25519 crypto (trustless)        |
+| `Output::timelocked('alice', 100, $time)` | Vesting, delayed payments   |
+| `Output::multisig(2, ['a','b','c'], 100)` | Joint accounts, escrow      |
+| `Output::hashlocked($hash, 100)`    | Atomic swaps, HTLCs               |
+| `Output::lockedWith($lock, 100)`    | Custom lock implementations       |
 
 ## Use Cases
 
@@ -534,7 +572,7 @@ All examples use SQLite persistence. See [example/README.md](example/README.md) 
 | Topic | What you'll learn |
 |-|-|
 | [Core Concepts](docs/concepts.md) | How outputs, transactions, and the ledger work |
-| [Ownership](docs/ownership.md) | Locks, authorization, custom lock types |
+| [Ownership](docs/ownership.md) | Locks (owner, timelock, multisig, hashlock), authorization |
 | [History](docs/history.md) | Tracing value through transactions |
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees, coinbase transactions |
 | [Selection Strategies](docs/selection-strategies.md) | FIFO, largest-first, exact-match, custom strategies |
@@ -542,7 +580,7 @@ All examples use SQLite persistence. See [example/README.md](example/README.md) 
 | [Scalability](docs/scalability.md) | In-memory mode vs store-backed mode for large datasets |
 | [Migration Guide](docs/migration.md) | Moving from balance-based systems to UTXO |
 | [Troubleshooting](docs/troubleshooting.md) | Common issues and solutions |
-| [API Reference](docs/api-reference.md) | Complete method reference |
+| [API Reference](docs/api-reference.md) | Ledger, Output, Tx, Mempool, UtxoAnalytics |
 
 ## FAQ
 
@@ -601,7 +639,8 @@ See [Fees & Minting docs](docs/fees-and-minting.md).
 | 2. Ownership | Locks, authorization | [Ownership](docs/ownership.md) | `php example/run wallet` |
 | 3. Persistence | SQLite storage | [Persistence](docs/persistence.md) | `php example/run sqlite` |
 | 4. Scale | Mode selection | [Scalability](docs/scalability.md) | - |
-| 5. Advanced | Events, custom locks | [Custom Locks](docs/ownership.md#custom-locks) | `php example/run locks` |
+| 5. Advanced | Timelocks, multisig, HTLC | [Ownership](docs/ownership.md#timelock) | `php example/run locks` |
+| 6. Operations | Batch, mempool, analytics | [API Reference](docs/api-reference.md) | - |
 
 ## Development
 

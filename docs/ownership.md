@@ -9,6 +9,9 @@ Every output has a **lock** that determines who can spend it.
 | Owner | `Output::ownedBy()` | `signedBy: 'name'` | Server-side apps |
 | PublicKey | `Output::signedBy()` | Ed25519 signature | Trustless systems |
 | NoLock | `Output::open()` | Anyone | Burn addresses, public pools |
+| TimeLock | `Output::timelocked()` | After timestamp | Vesting, escrow |
+| MultisigLock | `Output::multisig()` | M-of-N signatures | Joint accounts, governance |
+| HashLock | `Output::hashlocked()` | Preimage proof | Atomic swaps, HTLCs |
 
 ## Owner Lock
 
@@ -116,9 +119,110 @@ $ledger->apply(Tx::create(
 ));
 ```
 
+## TimeLock
+
+Outputs that can only be spent after a certain time. Perfect for vesting, escrow timeouts, or delayed payments.
+
+```php
+// Lock until 30 days from now
+$ledger = Ledger::withGenesis(
+    Output::timelocked('alice', 1000, strtotime('+30 days'), 'vesting-funds'),
+);
+
+// Before unlock time: AuthorizationException
+// After unlock time: works if signed by alice
+$ledger->apply(Tx::create(
+    spendIds: ['vesting-funds'],
+    outputs: [Output::ownedBy('alice', 1000)],
+    signedBy: 'alice',
+));
+```
+
+**Advanced usage with custom inner lock:**
+
+```php
+use Chemaclass\Unspent\Lock\TimeLock;
+use Chemaclass\Unspent\Lock\MultisigLock;
+
+// Time-locked multisig (escrow with timeout)
+$lock = new TimeLock(
+    innerLock: new MultisigLock(2, ['alice', 'bob', 'arbitrator']),
+    unlockTime: strtotime('+7 days'),
+);
+Output::lockedWith($lock, 1000);
+```
+
+## MultisigLock
+
+M-of-N signature schemes. Ideal for joint accounts, escrow, or governance.
+
+```php
+// 2-of-3 multisig
+$ledger = Ledger::withGenesis(
+    Output::multisig(2, ['alice', 'bob', 'charlie'], 1000, 'joint-funds'),
+);
+
+// Spend requires signatures from at least 2 of the 3 signers
+$ledger->apply(Tx::create(
+    spendIds: ['joint-funds'],
+    outputs: [Output::ownedBy('recipient', 1000)],
+    proofs: ['alice,bob'], // Comma-separated signers
+));
+```
+
+**Common patterns:**
+
+```php
+// 1-of-1: equivalent to Owner lock
+Output::multisig(1, ['alice'], 1000);
+
+// 2-of-2: both parties must agree
+Output::multisig(2, ['alice', 'bob'], 1000);
+
+// 2-of-3: any two of three (escrow with arbitrator)
+Output::multisig(2, ['buyer', 'seller', 'arbitrator'], 1000);
+```
+
+## HashLock
+
+Spend requires revealing the preimage of a hash. Used for atomic swaps and Hash Time-Locked Contracts (HTLCs).
+
+```php
+$secret = 'my-secret-preimage';
+$hash = hash('sha256', $secret);
+
+// Create hash-locked output
+$ledger = Ledger::withGenesis(
+    Output::hashlocked($hash, 1000, 'sha256', 'alice', 'htlc-output'),
+);
+
+// Spend by revealing the preimage
+$ledger->apply(Tx::create(
+    spendIds: ['htlc-output'],
+    outputs: [Output::ownedBy('bob', 1000)],
+    signedBy: 'alice',
+    proofs: [$secret], // The preimage
+));
+```
+
+**Supported algorithms:** `sha256`, `sha512`, `ripemd160`, `sha3-256`
+
+**HTLC pattern (atomic swap):**
+
+```php
+use Chemaclass\Unspent\Lock\HashLock;
+use Chemaclass\Unspent\Lock\TimeLock;
+
+// Alice creates HTLC: Bob can claim with secret, or Alice refunds after timeout
+$htlc = new TimeLock(
+    innerLock: HashLock::sha256($secret, new Owner('bob')),
+    unlockTime: strtotime('+24 hours'),
+);
+```
+
 ## Custom Locks
 
-Implement `OutputLock` for advanced scenarios (time locks, multi-sig, etc.).
+Implement `OutputLock` for advanced scenarios beyond the built-in locks.
 
 ```php
 final readonly class TimeLock implements OutputLock
