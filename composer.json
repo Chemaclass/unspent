@@ -70,6 +70,9 @@
         "install-hooks": "[ ! -d .git ] || ln -sf ../../bin/pre-commit .git/hooks/pre-commit",
         "init-db": "bin/init-ledger-db",
         "phpunit": "vendor/bin/phpunit",
+        "test:unit": "vendor/bin/phpunit --testsuite=Unit --no-coverage",
+        "test:feature": "vendor/bin/phpunit --testsuite=Feature --no-coverage",
+        "test:fast": "vendor/bin/phpunit --testsuite=Unit --no-coverage --stop-on-failure",
         "coverage:build": "docker build -t unspent-coverage -f docker/Dockerfile.coverage .",
         "coverage": "docker run --rm -v $(pwd):/app unspent-coverage php vendor/bin/phpunit --coverage-html coverage",
         "coverage:local": "XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-html coverage",
@@ -84,6 +87,16 @@
         "fix": [
             "@csfix",
             "@rector"
+        ],
+        "check:quick": [
+            "@csrun",
+            "@phpunit"
+        ],
+        "check:full": [
+            "@csrun",
+            "@rector-dry",
+            "@stan",
+            "@phpunit"
         ],
         "test": [
             "@csrun",

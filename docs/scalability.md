@@ -78,6 +78,27 @@ $history = $ledger->outputHistory($outputId);
 
 ## Choosing a Mode
 
+```
+Which mode should I use?
+│
+├─ < 100k outputs?
+│   │
+│   ├─ Yes → Ledger::inMemory() or Ledger::withGenesis()
+│   │         Simple, fast, all in memory
+│   │
+│   └─ No ──┐
+│           │
+├─ >= 100k outputs?
+│   │
+│   └─ Yes → Ledger::withRepository($historyRepo)
+│             Memory bounded by unspent count only
+│
+└─ Memory constrained?
+    │
+    └─ Yes → Ledger::withRepository($historyRepo)
+              Even with fewer outputs
+```
+
 | Factor | In-memory Mode | Store-backed Mode |
 |--------|----------------|-------------------|
 | Setup complexity | Simple | Requires HistoryRepository |

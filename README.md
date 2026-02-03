@@ -537,6 +537,7 @@ All examples use SQLite persistence. See [example/README.md](example/README.md) 
 | [Ownership](docs/ownership.md) | Locks, authorization, custom lock types |
 | [History](docs/history.md) | Tracing value through transactions |
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees, coinbase transactions |
+| [Selection Strategies](docs/selection-strategies.md) | FIFO, largest-first, exact-match, custom strategies |
 | [Persistence](docs/persistence.md) | JSON, SQLite, custom storage |
 | [Scalability](docs/scalability.md) | In-memory mode vs store-backed mode for large datasets |
 | [Migration Guide](docs/migration.md) | Moving from balance-based systems to UTXO |
@@ -591,6 +592,16 @@ $ledger->apply(Tx::create(
 
 See [Fees & Minting docs](docs/fees-and-minting.md).
 </details>
+
+## Learning Path
+
+| Level | Topic | Docs | Example |
+|-------|-------|------|---------|
+| 1. Basics | Outputs, transactions | [Concepts](docs/concepts.md) | `php example/run game` |
+| 2. Ownership | Locks, authorization | [Ownership](docs/ownership.md) | `php example/run wallet` |
+| 3. Persistence | SQLite storage | [Persistence](docs/persistence.md) | `php example/run sqlite` |
+| 4. Scale | Mode selection | [Scalability](docs/scalability.md) | - |
+| 5. Advanced | Events, custom locks | [Custom Locks](docs/ownership.md#custom-locks) | `php example/run locks` |
 
 ## Development
 

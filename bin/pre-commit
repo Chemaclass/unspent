@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
 #
-# Pre-commit hook that runs composer test (csrun, rector-dry, stan, phpunit)
-# to ensure code quality before committing.
+# Pre-commit hook - fast feedback for local development.
+#
+# Runs CS-Fixer and PHPUnit only (~2s cached).
+# Rector and PHPStan run in CI for thoroughness.
 #
 # Install by running:
 #   ln -sf ../../bin/pre-commit .git/hooks/pre-commit
@@ -9,6 +11,7 @@
 # Or run manually:
 #   bin/pre-commit
 #
+# Bypass with: git commit --no-verify
 
 set -e
 
@@ -22,11 +25,21 @@ cd "$PROJECT_ROOT"
 echo "Running pre-commit checks..."
 echo ""
 
-if ! composer test; then
+# Fast checks only - CS-Fixer and PHPUnit
+# Rector and PHPStan deferred to CI for speed
+if ! composer check:quick; then
     echo ""
     echo "Pre-commit checks failed. Please fix the issues above before committing."
+    echo ""
+    echo "To run full checks (including Rector and PHPStan):"
+    echo "  composer test"
+    echo ""
+    echo "To bypass this hook (not recommended):"
+    echo "  git commit --no-verify"
     exit 1
 fi
 
 echo ""
-echo "All checks passed!"
+echo "Pre-commit checks passed!"
+echo ""
+echo "Note: Rector and PHPStan run in CI. For local full check: composer test"
