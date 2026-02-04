@@ -39,7 +39,7 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.92",
-        "infection/infection": "^0.32",
+        "infection/infection": "^0.32.3",
         "phpbench/phpbench": "^1.4",
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^12.5",
@@ -73,9 +73,8 @@
         "test:unit": "vendor/bin/phpunit --testsuite=Unit --no-coverage",
         "test:feature": "vendor/bin/phpunit --testsuite=Feature --no-coverage",
         "test:fast": "vendor/bin/phpunit --testsuite=Unit --no-coverage --stop-on-failure",
-        "coverage:build": "docker build -t unspent-coverage -f docker/Dockerfile.coverage .",
-        "coverage": "docker run --rm -v $(pwd):/app unspent-coverage php vendor/bin/phpunit --coverage-html coverage",
-        "coverage:local": "XDEBUG_MODE=coverage vendor/bin/phpunit --coverage-html coverage",
+        "coverage": "vendor/bin/phpunit --coverage-html coverage",
+        "coverage:text": "vendor/bin/phpunit --coverage-text",
         "stan": "vendor/bin/phpstan analyse --memory-limit=512M",
         "csfix": "vendor/bin/php-cs-fixer fix",
         "csrun": "vendor/bin/php-cs-fixer fix --dry-run --diff",
@@ -83,7 +82,7 @@
         "rector-dry": "vendor/bin/rector --dry-run",
         "bashunit": "lib/bashunit tests/bash",
         "benchmark": "vendor/bin/phpbench run --report=aggregate",
-        "infection": "vendor/bin/infection --min-msi=80 --min-covered-msi=80 --threads=4",
+        "infection": "vendor/bin/infection --min-msi=90 --min-covered-msi=90 --threads=4",
         "fix": [
             "@csfix",
             "@rector"

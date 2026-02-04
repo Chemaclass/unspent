@@ -228,4 +228,27 @@ final class MultisigLockTest extends TestCase
 
         self::assertSame('2-of-3 multisig', $lock->description());
     }
+
+    public function test_throws_on_whitespace_only_signer_name(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Signer names cannot be empty');
+
+        new MultisigLock(1, ['alice', '   ']);
+    }
+
+    public function test_validate_handles_whitespace_in_proof(): void
+    {
+        $lock = new MultisigLock(2, ['alice', 'bob', 'charlie']);
+        $tx = new Tx(
+            id: new TxId('tx1'),
+            spends: [new OutputId('a')],
+            outputs: [Output::open(100, 'b')],
+            proofs: [' alice , bob '], // Whitespace around names
+        );
+
+        $this->expectNotToPerformAssertions();
+
+        $lock->validate($tx, 0);
+    }
 }

@@ -1,0 +1,66 @@
+services:
+  php:
+    build:
+      context: .
+      target: dev
+    container_name: unspent-dev
+    volumes:
+      # Mount source code
+      - .:/app:cached
+      # Persist composer cache
+      - composer-cache:/home/dev/.composer/cache
+    environment:
+      # Xdebug off by default (use 'debug' for debugging, 'coverage' for coverage)
+      XDEBUG_MODE: "off"
+    working_dir: /app
+    # Keep container running for exec commands
+    stdin_open: true
+    tty: true
+
+  # Shortcut service for running tests
+  test:
+    build:
+      context: .
+      target: dev
+    volumes:
+      - .:/app:cached
+      - composer-cache:/home/dev/.composer/cache
+    environment:
+      XDEBUG_MODE: "off"
+    working_dir: /app
+    command: composer test
+    profiles:
+      - tools
+
+  # Coverage service (uses PCOV)
+  coverage:
+    build:
+      context: .
+      target: dev
+    volumes:
+      - .:/app:cached
+      - composer-cache:/home/dev/.composer/cache
+    environment:
+      XDEBUG_MODE: "off"
+    working_dir: /app
+    command: composer coverage
+    profiles:
+      - tools
+
+  # Mutation testing service
+  infection:
+    build:
+      context: .
+      target: dev
+    volumes:
+      - .:/app:cached
+      - composer-cache:/home/dev/.composer/cache
+    environment:
+      XDEBUG_MODE: "off"
+    working_dir: /app
+    command: composer infection
+    profiles:
+      - tools
+
+volumes:
+  composer-cache:

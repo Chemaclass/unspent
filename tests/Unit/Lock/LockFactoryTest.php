@@ -180,6 +180,45 @@ final class LockFactoryTest extends TestCase
 
         self::assertTrue(LockFactory::hasHandler('valid-custom'));
     }
+
+    public function test_from_array_creates_timelock(): void
+    {
+        $data = [
+            'type' => 'timelock',
+            'unlockTime' => time() + 3600,
+            'innerLock' => ['type' => 'owner', 'name' => 'alice'],
+        ];
+
+        $lock = LockFactory::fromArray($data);
+
+        self::assertSame('timelock', $lock->type());
+    }
+
+    public function test_from_array_creates_multisig(): void
+    {
+        $data = [
+            'type' => 'multisig',
+            'threshold' => 2,
+            'signers' => ['alice', 'bob', 'charlie'],
+        ];
+
+        $lock = LockFactory::fromArray($data);
+
+        self::assertSame('multisig', $lock->type());
+    }
+
+    public function test_from_array_creates_hashlock(): void
+    {
+        $data = [
+            'type' => 'hashlock',
+            'hash' => hash('sha256', 'secret'),
+            'algorithm' => 'sha256',
+        ];
+
+        $lock = LockFactory::fromArray($data);
+
+        self::assertSame('hashlock', $lock->type());
+    }
 }
 
 #[LockTypeAttribute('valid-custom')]

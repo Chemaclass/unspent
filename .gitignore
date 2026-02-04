@@ -1,7 +1,9 @@
 .claude/settings.local.json
 .idea/
 vendor/
+.infection-cache/
+coverage/
 lib/bashunit
 *cache
 data/*.db
-coverage/
+*.log

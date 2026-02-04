@@ -227,4 +227,42 @@ final class HashLockTest extends TestCase
 
         self::assertFalse($lock->verifyPreimage('wrong'));
     }
+
+    public function test_throws_on_whitespace_only_hash(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Hash cannot be empty');
+
+        HashLock::fromHash('   ', 'sha256', new Owner('alice'));
+    }
+
+    public function test_from_array_without_inner_lock(): void
+    {
+        LockFactory::registerFromClass(HashLock::class);
+
+        $hash = hash('sha256', self::SECRET);
+        $data = [
+            'type' => 'hashlock',
+            'hash' => $hash,
+            'algorithm' => 'sha256',
+        ];
+
+        $lock = LockFactory::fromArray($data);
+
+        self::assertInstanceOf(HashLock::class, $lock);
+        self::assertNull($lock->innerLock);
+    }
+
+    public function test_to_array_without_inner_lock(): void
+    {
+        $lock = HashLock::sha256(self::SECRET);
+
+        $expected = [
+            'type' => 'hashlock',
+            'hash' => hash('sha256', self::SECRET),
+            'algorithm' => 'sha256',
+        ];
+
+        self::assertSame($expected, $lock->toArray());
+    }
 }

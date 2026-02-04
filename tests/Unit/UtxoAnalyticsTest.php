@@ -229,4 +229,111 @@ final class UtxoAnalyticsTest extends TestCase
 
         self::assertFalse(UtxoAnalytics::shouldConsolidate($ledger, 'alice', threshold: 3));
     }
+
+    // ========================================
+    // Boundary condition tests
+    // ========================================
+
+    public function test_find_dust_excludes_outputs_exactly_at_threshold(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 10, 'a1'),
+            Output::ownedBy('alice', 9, 'a2'),
+            Output::ownedBy('alice', 11, 'a3'),
+        );
+
+        $dust = UtxoAnalytics::findDust($ledger, 'alice', threshold: 10);
+
+        self::assertCount(1, $dust);
+        self::assertSame('a2', $dust[0]->id->value);
+    }
+
+    public function test_largest_unspent_returns_first_when_equal_amounts(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 100, 'first'),
+            Output::ownedBy('alice', 100, 'second'),
+        );
+
+        $largest = UtxoAnalytics::largestUnspent($ledger, 'alice');
+
+        self::assertNotNull($largest);
+        self::assertSame('first', $largest->id->value);
+    }
+
+    public function test_smallest_unspent_returns_first_when_equal_amounts(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 50, 'first'),
+            Output::ownedBy('alice', 50, 'second'),
+        );
+
+        $smallest = UtxoAnalytics::smallestUnspent($ledger, 'alice');
+
+        self::assertNotNull($smallest);
+        self::assertSame('first', $smallest->id->value);
+    }
+
+    public function test_stats_with_default_dust_threshold(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 9, 'a1'),
+            Output::ownedBy('alice', 10, 'a2'),
+            Output::ownedBy('alice', 11, 'a3'),
+        );
+
+        $stats = UtxoAnalytics::stats($ledger, 'alice');
+
+        self::assertSame(1, $stats['dustCount']);
+        self::assertSame(9, $stats['dustTotal']);
+    }
+
+    public function test_stats_average_is_rounded_integer(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 10, 'a1'),
+            Output::ownedBy('alice', 11, 'a2'),
+            Output::ownedBy('alice', 12, 'a3'),
+        );
+
+        $stats = UtxoAnalytics::stats($ledger, 'alice');
+
+        // Average of 10+11+12=33 / 3 = 11
+        self::assertSame(11, $stats['average']);
+    }
+
+    public function test_should_consolidate_at_exact_threshold(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 10, 'a1'),
+            Output::ownedBy('alice', 10, 'a2'),
+            Output::ownedBy('alice', 10, 'a3'),
+        );
+
+        self::assertFalse(UtxoAnalytics::shouldConsolidate($ledger, 'alice', threshold: 3));
+    }
+
+    public function test_should_consolidate_with_default_threshold(): void
+    {
+        $outputs = [];
+        for ($i = 0; $i < 11; ++$i) {
+            $outputs[] = Output::ownedBy('alice', 10, "a{$i}");
+        }
+
+        $ledger = Ledger::withGenesis(...$outputs);
+
+        self::assertTrue(UtxoAnalytics::shouldConsolidate($ledger, 'alice'));
+    }
+
+    public function test_should_consolidate_returns_false_at_default_threshold(): void
+    {
+        $outputs = [];
+        for ($i = 0; $i < 10; ++$i) {
+            $outputs[] = Output::ownedBy('alice', 10, "a{$i}");
+        }
+
+        $ledger = Ledger::withGenesis(...$outputs);
+
+        self::assertFalse(UtxoAnalytics::shouldConsolidate($ledger, 'alice'));
+    }
 }

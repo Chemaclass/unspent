@@ -833,4 +833,127 @@ final class LedgerTest extends TestCase
         self::assertSame(1200, $ledger->totalMinted());
         self::assertSame(100, $ledger->totalFeesCollected());
     }
+
+    // ========================================
+    // isTxApplied tests
+    // ========================================
+
+    public function test_is_tx_applied_returns_true_for_applied_tx(): void
+    {
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'));
+        $ledger->apply(Tx::create(
+            spendIds: ['a'],
+            outputs: [Output::open(100, 'b')],
+            id: 'tx-1',
+        ));
+
+        self::assertTrue($ledger->isTxApplied(new TxId('tx-1')));
+    }
+
+    public function test_is_tx_applied_returns_true_for_applied_coinbase(): void
+    {
+        $ledger = Ledger::inMemory();
+        $ledger->applyCoinbase(CoinbaseTx::create(
+            outputs: [Output::open(100, 'a')],
+            id: 'coinbase-1',
+        ));
+
+        self::assertTrue($ledger->isTxApplied(new TxId('coinbase-1')));
+    }
+
+    public function test_is_tx_applied_returns_false_for_unknown_tx(): void
+    {
+        $ledger = Ledger::withGenesis(Output::open(100, 'a'));
+
+        self::assertFalse($ledger->isTxApplied(new TxId('unknown-tx')));
+    }
+
+    // ========================================
+    // Boundary condition tests
+    // ========================================
+
+    public function test_transfer_exact_balance_succeeds(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 100, 'a'));
+
+        $ledger->transfer('alice', 'bob', 100);
+
+        self::assertSame(0, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(100, $ledger->totalUnspentByOwner('bob'));
+    }
+
+    public function test_transfer_exact_balance_with_fee_succeeds(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 100, 'a'));
+
+        $ledger->transfer('alice', 'bob', 90, fee: 10);
+
+        self::assertSame(0, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(90, $ledger->totalUnspentByOwner('bob'));
+        self::assertSame(10, $ledger->totalFeesCollected());
+    }
+
+    public function test_debit_almost_exact_balance_leaves_minimal_change(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 100, 'a'));
+
+        $ledger->debit('alice', 99);
+
+        self::assertSame(1, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(99, $ledger->totalFeesCollected());
+    }
+
+    public function test_debit_with_fee_leaves_change(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 100, 'a'));
+
+        $ledger->debit('alice', 80, fee: 10);
+
+        self::assertSame(10, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(90, $ledger->totalFeesCollected());
+    }
+
+    public function test_consolidate_combines_all_outputs(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 30, 'a1'),
+            Output::ownedBy('alice', 40, 'a2'),
+            Output::ownedBy('alice', 30, 'a3'),
+        );
+
+        $ledger->consolidate('alice', fee: 10);
+
+        self::assertSame(90, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(1, $ledger->unspentByOwner('alice')->count());
+    }
+
+    public function test_batch_transfer_pays_multiple_recipients(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 1000, 'a1'));
+
+        $ledger->batchTransfer('alice', [
+            'bob' => 100,
+            'charlie' => 200,
+            'dave' => 300,
+        ], fee: 10);
+
+        self::assertSame(390, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(100, $ledger->totalUnspentByOwner('bob'));
+        self::assertSame(200, $ledger->totalUnspentByOwner('charlie'));
+        self::assertSame(300, $ledger->totalUnspentByOwner('dave'));
+    }
+
+    public function test_batch_transfer_exact_amount_no_change(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 600, 'a1'));
+
+        $ledger->batchTransfer('alice', [
+            'bob' => 300,
+            'charlie' => 300,
+        ]);
+
+        self::assertSame(0, $ledger->totalUnspentByOwner('alice'));
+        self::assertSame(300, $ledger->totalUnspentByOwner('bob'));
+        self::assertSame(300, $ledger->totalUnspentByOwner('charlie'));
+    }
 }

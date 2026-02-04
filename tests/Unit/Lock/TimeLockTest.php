@@ -167,4 +167,37 @@ final class TimeLockTest extends TestCase
 
         self::assertSame(0, $lock->remainingTime());
     }
+
+    public function test_throws_on_unlock_time_equal_to_now(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Unlock time must be in the future');
+
+        new TimeLock(new Owner('alice'), time());
+    }
+
+    public function test_from_array_with_past_time_creates_unlocked(): void
+    {
+        LockFactory::registerFromClass(TimeLock::class);
+
+        $pastTime = time() - 100;
+        $data = [
+            'type' => 'timelock',
+            'unlockTime' => $pastTime,
+            'innerLock' => ['type' => 'owner', 'name' => 'alice'],
+        ];
+
+        $lock = LockFactory::fromArray($data);
+
+        self::assertInstanceOf(TimeLock::class, $lock);
+        self::assertFalse($lock->isLocked());
+    }
+
+    public function test_is_locked_at_exact_unlock_time(): void
+    {
+        $unlockTime = time() + 1;
+        $lock = new TimeLock(new Owner('alice'), $unlockTime);
+
+        self::assertTrue($lock->isLocked());
+    }
 }

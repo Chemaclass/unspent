@@ -1,0 +1,32 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build artifacts
+vendor
+coverage
+.infection-cache
+.phpunit.cache
+.php-cs-fixer.cache
+infection.log
+
+# Docker (prevent recursive copy)
+Dockerfile
+docker-compose.yml
+
+# Documentation
+*.md
+!docker/README.md
+
+# Example data
+example/data/*.db
+
+# OS files
+.DS_Store
+Thumbs.db
