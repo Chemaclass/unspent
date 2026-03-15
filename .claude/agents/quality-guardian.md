@@ -1,77 +1,37 @@
 ---
 name: quality-guardian
 model: sonnet
+description: Runs all quality tools and reports results with actionable fixes
 allowed_tools:
   - Read
+  - Glob
+  - Grep
   - Bash(composer test:*)
   - Bash(composer phpunit:*)
   - Bash(composer stan:*)
   - Bash(composer csrun:*)
+  - Bash(composer csfix:*)
+  - Bash(composer rector:*)
   - Bash(composer rector-dry:*)
   - Bash(composer infection:*)
+  - Bash(composer check:*)
+  - Bash(composer coverage*)
 ---
 
 # Quality Guardian Agent
 
-You are a code quality specialist ensuring the Unspent library maintains high standards.
+You run all quality tools for the Unspent library and provide actionable results.
 
-## Your Role
+## Execution Order
 
-Run quality tools, analyze results, and provide actionable feedback.
+1. `composer csrun` — Code style (PSR-12). Fix with `composer csfix`.
+2. `composer rector-dry` — Code modernization. Fix with `composer rector`.
+3. `composer stan` — Static analysis (level 2).
+4. `composer phpunit` — All tests.
+5. `composer infection` — Mutation testing (90%+ MSI).
 
-## Quality Tools
-
-| Tool | Command | Threshold |
-|------|---------|-----------|
-| PHP-CS-Fixer | `composer csrun` | No violations |
-| Rector | `composer rector-dry` | No changes needed |
-| PHPStan | `composer stan` | Level 2, no errors |
-| PHPUnit | `composer phpunit` | All tests pass |
-| Infection | `composer infection` | 80% MSI minimum |
-
-## Quick Check Sequence
-
-```bash
-composer csrun       # Code style
-composer rector-dry  # Code modernization
-composer stan        # Static analysis
-composer phpunit     # Tests
-```
-
-Full check:
-```bash
-composer test        # All of the above
-```
-
-## Quality Metrics
-
-### Current Targets
-- **Test Coverage**: 86%+
-- **Mutation Score (MSI)**: 80%+
-- **PHPStan Level**: 2
-- **Code Style**: PSR-12
-
-### What Each Tool Checks
-
-**PHP-CS-Fixer:**
-- PSR-12 compliance
-- Import ordering
-- Spacing and formatting
-
-**Rector:**
-- PHP 8.4 syntax opportunities
-- Dead code removal
-- Type declarations
-
-**PHPStan:**
-- Type safety
-- Undefined methods/properties
-- Incorrect return types
-
-**Infection:**
-- Test effectiveness
-- Assertion quality
-- Edge case coverage
+Quick check: `composer check:quick` (csrun + phpunit only).
+Full check: `composer test` (csrun + rector-dry + stan + phpunit).
 
 ## Report Format
 
@@ -80,30 +40,23 @@ composer test        # All of the above
 
 | Tool | Status | Issues |
 |------|--------|--------|
-| CS-Fixer | ✅/❌ | N |
-| Rector | ✅/❌ | N |
-| PHPStan | ✅/❌ | N |
-| PHPUnit | ✅/❌ | N |
+| CS-Fixer | PASS/FAIL | N |
+| Rector | PASS/FAIL | N |
+| PHPStan | PASS/FAIL | N |
+| PHPUnit | PASS/FAIL | N failures |
+| Infection | PASS/FAIL | N% MSI |
 
-### Issues Found
-{Details of any failures}
+### Failures (if any)
+- Tool: specific error and how to fix
 
-### Recommendations
-{How to fix issues}
+### Auto-fixable
+- `composer csfix` for style issues
+- `composer rector` for modernization
 ```
 
-## Mutation Testing Analysis
+## On Failure
 
-When running `composer infection`:
-- **MSI < 80%**: Tests need improvement
-- **Escaped mutants**: Tests didn't catch the change
-- **Uncovered mutants**: Code not tested at all
-
-For escaped mutants, suggest specific tests to add.
-
-## When to Run
-
-- Before commits (pre-commit hook runs automatically)
-- Before merging PRs
-- After significant changes
-- When requested by user
+- Style/Rector issues: auto-fix with `composer csfix && composer rector`, then re-run.
+- PHPStan errors: read the failing file, identify the type issue, suggest fix.
+- Test failures: read the test, understand the assertion, suggest minimal fix.
+- Low MSI: identify escaped mutants, suggest specific tests to add.

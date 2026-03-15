@@ -1,57 +1,42 @@
-# TDD Workflow Skill
+# TDD Workflow
 
-## Activation Triggers
-- Creating or modifying test files
-- Running PHPUnit tests
-- Discussing testing strategy
-- Implementing new features (test first!)
+Follow the Red-Green-Refactor cycle strictly for the Unspent UTXO library.
 
-## The TDD Cycle
+## Instructions
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                                                             │
-│    ┌─────────┐      ┌─────────┐      ┌──────────┐         │
-│    │   RED   │ ───► │  GREEN  │ ───► │ REFACTOR │ ──┐     │
-│    │  Write  │      │  Write  │      │ Improve  │   │     │
-│    │ Failing │      │ Minimal │      │   Code   │   │     │
-│    │  Test   │      │  Code   │      │          │   │     │
-│    └─────────┘      └─────────┘      └──────────┘   │     │
-│         ▲                                           │     │
-│         └───────────────────────────────────────────┘     │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
-```
+When invoked with `$ARGUMENTS`, use them as the feature/bug description. Otherwise ask the user what to implement.
 
-## Test Directory Structure
+### 1. RED — Write failing test
 
-```
-tests/
-├── Unit/
-│   ├── LedgerTest.php              # Core ledger behavior
-│   ├── OutputTest.php              # Output immutability
-│   ├── TxTest.php                  # Transaction building
-│   ├── UnspentSetTest.php          # UnspentSet operations
-│   ├── Lock/
-│   │   ├── OwnerTest.php
-│   │   ├── PublicKeyTest.php
-│   │   └── NoLockTest.php
-│   ├── Selection/
-│   │   ├── FifoStrategyTest.php
-│   │   ├── LargestFirstStrategyTest.php
-│   │   └── SmallestFirstStrategyTest.php
-│   ├── Persistence/
-│   │   └── Sqlite/
-│   └── Event/
-└── Feature/
-    ├── LedgerIntegrationTest.php
-    ├── CustomLockIntegrationTest.php
-    └── EventDispatchingLedgerIntegrationTest.php
-```
+- Create test in the appropriate location (see table below)
+- Name: `test_<action>_<scenario>_<expected_outcome>()`
+- Use Arrange-Act-Assert pattern
+- Run `composer phpunit` to confirm it fails for the right reason
 
-## Test Templates
+### 2. GREEN — Minimal implementation
 
-### Unit Test - Domain Entity
+- Write the simplest code that makes the test pass
+- No premature optimization
+- Run `composer phpunit` to confirm it passes
+
+### 3. REFACTOR — Clean up
+
+- Improve code while keeping tests green
+- Run `composer test` for full quality check
+
+## Test Locations
+
+| Component | Location |
+|-----------|----------|
+| Ledger | `tests/Unit/LedgerTest.php` |
+| Output | `tests/Unit/OutputTest.php` |
+| Lock | `tests/Unit/Lock/{Name}Test.php` |
+| Selection | `tests/Unit/Selection/{Name}Test.php` |
+| Persistence | `tests/Unit/Persistence/{Adapter}/` |
+| Events | `tests/Unit/Event/` |
+| Integration | `tests/Feature/{Feature}IntegrationTest.php` |
+
+## Template
 
 ```php
 <?php
@@ -60,163 +45,24 @@ declare(strict_types=1);
 
 namespace Chemaclass\UnspentTests\Unit;
 
-use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputId;
 use PHPUnit\Framework\TestCase;
 
-final class OutputTest extends TestCase
+final class {ClassName}Test extends TestCase
 {
-    public function test_creates_output_with_owner_and_amount(): void
+    public function test_{action}_{scenario}_{expected_outcome}(): void
     {
-        $output = Output::ownedBy('alice', 1000);
-
-        self::assertSame(1000, $output->amount());
+        // Arrange
+        // Act
+        // Assert
+        self::assertSame($expected, $actual);
     }
 }
 ```
 
-### Unit Test - Lock Implementation
+## Rules
 
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Chemaclass\UnspentTests\Unit\Lock;
-
-use Chemaclass\Unspent\Lock\Owner;
-use Chemaclass\Unspent\Tx;
-use Chemaclass\Unspent\Exception\AuthorizationException;
-use PHPUnit\Framework\TestCase;
-
-final class OwnerTest extends TestCase
-{
-    public function test_validates_correct_owner(): void
-    {
-        $lock = new Owner('alice');
-        $tx = $this->createTxSignedBy('alice');
-
-        $lock->validate($tx, 0); // Should not throw
-
-        $this->expectNotToPerformAssertions();
-    }
-
-    public function test_rejects_incorrect_owner(): void
-    {
-        $lock = new Owner('alice');
-        $tx = $this->createTxSignedBy('bob');
-
-        $this->expectException(AuthorizationException::class);
-        $lock->validate($tx, 0);
-    }
-}
-```
-
-### Unit Test - Selection Strategy
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Chemaclass\UnspentTests\Unit\Selection;
-
-use Chemaclass\Unspent\Selection\FifoStrategy;
-use Chemaclass\Unspent\UnspentSet;
-use Chemaclass\Unspent\Output;
-use PHPUnit\Framework\TestCase;
-
-final class FifoStrategyTest extends TestCase
-{
-    public function test_selects_oldest_outputs_first(): void
-    {
-        $strategy = new FifoStrategy();
-        $unspent = UnspentSet::from([
-            Output::ownedBy('alice', 100), // oldest
-            Output::ownedBy('alice', 200),
-            Output::ownedBy('alice', 300), // newest
-        ]);
-
-        $selected = $strategy->select($unspent, 150);
-
-        self::assertCount(2, $selected);
-        // First two outputs selected (100 + 200 = 300)
-    }
-}
-```
-
-### Feature Test - Integration
-
-```php
-<?php
-
-declare(strict_types=1);
-
-namespace Chemaclass\UnspentTests\Feature;
-
-use Chemaclass\Unspent\Ledger;
-use Chemaclass\Unspent\Output;
-use PHPUnit\Framework\TestCase;
-
-final class LedgerIntegrationTest extends TestCase
-{
-    public function test_complete_transfer_workflow(): void
-    {
-        // Arrange: Create ledger with initial state
-        $ledger = Ledger::withGenesis(
-            Output::ownedBy('alice', 1000),
-            Output::ownedBy('bob', 500),
-        );
-
-        // Act: Execute transfers
-        $ledger
-            ->transfer('alice', 'bob', 300)
-            ->transfer('bob', 'alice', 100);
-
-        // Assert: Verify final state
-        self::assertSame(800, $ledger->totalUnspentByOwner('alice'));
-        self::assertSame(700, $ledger->totalUnspentByOwner('bob'));
-    }
-}
-```
-
-## Running Tests
-
-```bash
-composer phpunit                           # All tests
-composer phpunit -- --filter LedgerTest    # By class name
-composer phpunit -- tests/Unit/Lock/       # By directory
-composer test                              # Full quality suite
-```
-
-## Best Practices
-
-| Practice | Description |
-|----------|-------------|
-| Descriptive names | `test_transfer_with_insufficient_balance_throws_exception` |
-| One concept per test | Don't test multiple behaviors |
-| AAA pattern | Arrange → Act → Assert |
-| Use factories | `Output::ownedBy()`, `Ledger::withGenesis()` |
-| Assert strictly | Use `assertSame()` over `assertEquals()` |
-| Test edge cases | Zero amounts, empty sets, boundary conditions |
-
-## Common Assertions
-
-```php
-// Value assertions
-self::assertSame(expected, actual);      // Strict comparison
-self::assertEquals(expected, actual);    // For objects
-self::assertTrue(condition);
-self::assertFalse(condition);
-self::assertNull(value);
-self::assertInstanceOf(Class::class, obj);
-
-// Exception assertions
-$this->expectException(SpecificException::class);
-$this->expectExceptionMessage('Expected message');
-
-// Collection assertions
-self::assertCount(3, $collection);
-self::assertEmpty($collection);
-self::assertContains($item, $collection);
-```
+- Never write production code without a failing test
+- One failing test at a time
+- Test behavior (public API), not implementation
+- Use `assertSame()` for strict comparison
+- Provide conventional commit message at the end
