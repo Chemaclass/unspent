@@ -69,6 +69,21 @@ $ledger = Ledger::inMemory(strategy: new ExactMatchStrategy());
 - Considers up to 100 outputs for performance
 - Falls back to `LargestFirstStrategy` if no exact match found
 
+### RandomStrategy
+
+Shuffles outputs randomly before selecting, making spending patterns unpredictable.
+
+```php
+use Chemaclass\Unspent\Selection\RandomStrategy;
+
+$ledger = Ledger::inMemory(strategy: new RandomStrategy());
+```
+
+**Best for:**
+- Privacy — prevents observers from predicting which outputs will be spent
+- Avoiding deterministic patterns
+- Scenarios where spending order should not be predictable
+
 ## Comparison
 
 | Strategy | Priority | Inputs | Change | Use Case |
@@ -77,6 +92,7 @@ $ledger = Ledger::inMemory(strategy: new ExactMatchStrategy());
 | Largest First | Fewest inputs | Minimal | Likely | Reduce complexity |
 | Smallest First | Most inputs | Maximal | Likely | Consolidate dust |
 | Exact Match | No change | Variable | None* | Precise amounts |
+| Random | Unpredictable | Variable | Likely | Privacy |
 
 *Falls back to Largest First if no exact match found.
 
@@ -104,6 +120,7 @@ $ledger->transfer('alice', 'bob', 60);
 | Largest First | out-4 (100) | 100 | 40 |
 | Smallest First | out-1 (10), out-5 (15), out-3 (25), out-2 (50) | 100 | 40 |
 | Exact Match | out-2 (50), out-1 (10) | 60 | 0 |
+| Random | (varies each time) | ≥60 | varies |
 
 ## Custom Strategies
 
@@ -114,17 +131,20 @@ use Chemaclass\Unspent\Selection\SelectionStrategy;
 use Chemaclass\Unspent\UnspentSet;
 use Chemaclass\Unspent\Output;
 
-final readonly class RandomStrategy implements SelectionStrategy
+/** Select only outputs above a minimum threshold. */
+final readonly class MinimumAmountStrategy implements SelectionStrategy
 {
+    public function __construct(private int $minimumAmount = 10) {}
+
     public function select(UnspentSet $available, int $target): array
     {
-        $outputs = iterator_to_array($available);
-        shuffle($outputs);
-
         $selected = [];
         $sum = 0;
 
-        foreach ($outputs as $output) {
+        foreach ($available as $output) {
+            if ($output->amount < $this->minimumAmount) {
+                continue; // Skip dust
+            }
             $selected[] = $output;
             $sum += $output->amount;
 
@@ -138,12 +158,12 @@ final readonly class RandomStrategy implements SelectionStrategy
 
     public function name(): string
     {
-        return 'random';
+        return 'minimum-amount';
     }
 }
 
 // Use it
-$ledger = Ledger::inMemory(strategy: new RandomStrategy());
+$ledger = Ledger::inMemory(strategy: new MinimumAmountStrategy(minimumAmount: 50));
 ```
 
 ## Using with Coin Control

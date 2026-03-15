@@ -575,7 +575,7 @@ All examples use SQLite persistence. See [example/README.md](example/README.md) 
 | [Ownership](docs/ownership.md) | Locks (owner, timelock, multisig, hashlock), authorization |
 | [History](docs/history.md) | Tracing value through transactions |
 | [Fees & Minting](docs/fees-and-minting.md) | Implicit fees, coinbase transactions |
-| [Selection Strategies](docs/selection-strategies.md) | FIFO, largest-first, exact-match, custom strategies |
+| [Selection Strategies](docs/selection-strategies.md) | FIFO, largest-first, exact-match, random, custom strategies |
 | [Persistence](docs/persistence.md) | JSON, SQLite, custom storage |
 | [Scalability](docs/scalability.md) | In-memory mode vs store-backed mode for large datasets |
 | [Migration Guide](docs/migration.md) | Moving from balance-based systems to UTXO |
