@@ -16,7 +16,7 @@ Zero-dependency PHP library implementing the UTXO model for value tracking and l
 |------|---------|---------------|
 | PHP-CS-Fixer | `composer csrun` | No violations |
 | Rector | `composer rector-dry` | No changes |
-| PHPStan | `composer stan` | Level 2, 0 errors |
+| PHPStan | `composer stan` | Level 8, 0 errors |
 | PHPUnit | `composer phpunit` | All pass |
 | Infection | `composer infection` | 90%+ MSI |
 | Quick check | `composer check:quick` | csrun + phpunit |

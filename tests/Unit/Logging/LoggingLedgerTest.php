@@ -22,7 +22,7 @@ final class LoggingLedgerTest extends TestCase
     public function test_wrap_creates_logging_ledger(): void
     {
         $ledger = Ledger::inMemory();
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $loggingLedger = LoggingLedger::wrap($ledger, $logger);
 
@@ -32,7 +32,7 @@ final class LoggingLedgerTest extends TestCase
     public function test_unwrap_returns_underlying_ledger(): void
     {
         $ledger = Ledger::inMemory();
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $loggingLedger = LoggingLedger::wrap($ledger, $logger);
 
@@ -336,7 +336,7 @@ final class LoggingLedgerTest extends TestCase
             Output::ownedBy('alice', 1000, 'alice-funds'),
             Output::ownedBy('bob', 500, 'bob-funds'),
         );
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $loggingLedger = LoggingLedger::wrap($ledger, $logger);
 
@@ -357,7 +357,7 @@ final class LoggingLedgerTest extends TestCase
     public function test_apply_returns_same_logging_ledger_instance(): void
     {
         $ledger = Ledger::withGenesis(Output::open(100, 'a'));
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $loggingLedger = LoggingLedger::wrap($ledger, $logger);
 
@@ -395,7 +395,7 @@ final class LoggingLedgerTest extends TestCase
     public function test_can_apply_returns_exception_for_invalid_tx(): void
     {
         $ledger = Ledger::withGenesis(Output::open(100, 'a'));
-        $logger = $this->createMock(LoggerInterface::class);
+        $logger = $this->createStub(LoggerInterface::class);
 
         $loggingLedger = LoggingLedger::wrap($ledger, $logger);
 

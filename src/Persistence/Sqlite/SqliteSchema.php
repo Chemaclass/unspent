@@ -6,20 +6,13 @@ namespace Chemaclass\Unspent\Persistence\Sqlite;
 
 use Chemaclass\Unspent\Persistence\AbstractLedgerRepository;
 use Chemaclass\Unspent\Persistence\DatabaseSchema;
-use Deprecated;
 use PDO;
 
 /**
  * SQLite schema management for the ledger persistence layer.
  *
- * Implements DatabaseSchema for instance-based usage:
- *
  *     $schema = new SqliteSchema($pdo);
  *     $schema->create();
- *
- * Also provides static methods for convenience:
- *
- *     SqliteSchema::createSchema($pdo);
  */
 final readonly class SqliteSchema implements DatabaseSchema
 {
@@ -55,30 +48,6 @@ final readonly class SqliteSchema implements DatabaseSchema
     public function getVersion(): int
     {
         return AbstractLedgerRepository::SCHEMA_VERSION;
-    }
-
-    #[Deprecated(message: 'Use instance method: (new SqliteSchema($pdo))->create()')]
-    public static function createSchema(PDO $pdo): void
-    {
-        new self($pdo)->create();
-    }
-
-    /**
-     * Check schema exists using static method.
-     */
-    #[Deprecated(message: 'Use instance method: (new SqliteSchema($pdo))->exists()')]
-    public static function schemaExists(PDO $pdo): bool
-    {
-        return new self($pdo)->exists();
-    }
-
-    /**
-     * Drop schema using static method.
-     */
-    #[Deprecated(message: 'Use instance method: (new SqliteSchema($pdo))->drop()')]
-    public static function dropSchema(PDO $pdo): void
-    {
-        new self($pdo)->drop();
     }
 
     private function ledgersTable(): string

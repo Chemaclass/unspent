@@ -15,6 +15,7 @@ use Chemaclass\Unspent\UnspentSet;
  * - Largest first: Minimize number of inputs (reduce fragmentation)
  * - Smallest first: Consolidate dust outputs
  * - Exact match: Find outputs that exactly match the target amount
+ * - Random: Shuffle before selecting (privacy)
  */
 interface SelectionStrategy
 {

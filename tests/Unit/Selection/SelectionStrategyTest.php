@@ -8,6 +8,7 @@ use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Selection\ExactMatchStrategy;
 use Chemaclass\Unspent\Selection\FifoStrategy;
 use Chemaclass\Unspent\Selection\LargestFirstStrategy;
+use Chemaclass\Unspent\Selection\RandomStrategy;
 use Chemaclass\Unspent\Selection\SmallestFirstStrategy;
 use Chemaclass\Unspent\UnspentSet;
 use PHPUnit\Framework\Attributes\Test;
@@ -101,6 +102,69 @@ final class SelectionStrategyTest extends TestCase
         self::assertSame('largest-first', new LargestFirstStrategy()->name());
         self::assertSame('smallest-first', new SmallestFirstStrategy()->name());
         self::assertSame('exact-match', new ExactMatchStrategy()->name());
+        self::assertSame('random', new RandomStrategy()->name());
+    }
+
+    #[Test]
+    public function random_selects_enough_to_cover_target(): void
+    {
+        $strategy = new RandomStrategy();
+        $selected = $strategy->select($this->outputs, 150);
+
+        $total = array_sum(array_map(static fn (Output $o): int => $o->amount, $selected));
+        self::assertGreaterThanOrEqual(150, $total);
+        self::assertNotEmpty($selected);
+    }
+
+    #[Test]
+    public function random_selects_all_if_needed(): void
+    {
+        $strategy = new RandomStrategy();
+        $selected = $strategy->select($this->outputs, 425);
+
+        self::assertCount(4, $selected);
+    }
+
+    #[Test]
+    public function random_returns_empty_for_empty_set(): void
+    {
+        $strategy = new RandomStrategy();
+        $selected = $strategy->select(UnspentSet::fromOutputs(), 100);
+
+        self::assertSame([], $selected);
+    }
+
+    #[Test]
+    public function random_has_name(): void
+    {
+        self::assertSame('random', new RandomStrategy()->name());
+    }
+
+    #[Test]
+    public function random_produces_varied_orderings(): void
+    {
+        $outputs = UnspentSet::fromOutputs(
+            Output::ownedBy('alice', 10, 'a'),
+            Output::ownedBy('alice', 20, 'b'),
+            Output::ownedBy('alice', 30, 'c'),
+            Output::ownedBy('alice', 40, 'd'),
+            Output::ownedBy('alice', 50, 'e'),
+            Output::ownedBy('alice', 60, 'f'),
+            Output::ownedBy('alice', 70, 'g'),
+            Output::ownedBy('alice', 80, 'h'),
+        );
+
+        $strategy = new RandomStrategy();
+        $orderings = [];
+
+        for ($i = 0; $i < 20; ++$i) {
+            $selected = $strategy->select($outputs, 380);
+            $ids = array_map(static fn (Output $o): string => $o->id->value, $selected);
+            $orderings[implode(',', $ids)] = true;
+        }
+
+        // With 8 outputs, random shuffling should produce more than 1 unique ordering
+        self::assertGreaterThan(1, \count($orderings));
     }
 
     #[Test]
