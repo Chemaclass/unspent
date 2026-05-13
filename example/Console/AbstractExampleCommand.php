@@ -12,6 +12,7 @@ use Chemaclass\Unspent\Persistence\Sqlite\SqliteRepositoryFactory;
 use PDO;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
@@ -24,10 +25,25 @@ abstract class AbstractExampleCommand extends Command
 
     abstract protected function runDemo(): int;
 
+    protected function configure(): void
+    {
+        $this->addOption(
+            'reset',
+            null,
+            InputOption::VALUE_NONE,
+            'Delete the example database file before running',
+        );
+    }
+
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $this->io = new SymfonyStyle($input, $output);
         $this->ledgerId = $this->getName() ?? 'example';
+
+        if ($input->getOption('reset')) {
+            $this->resetDatabase();
+        }
+
         $this->initDatabase();
 
         $this->displayHeader();
@@ -111,6 +127,16 @@ abstract class AbstractExampleCommand extends Command
         ]);
 
         $this->io->text('<fg=green>Run again to continue.</> Delete the DB file to reset.');
+    }
+
+    private function resetDatabase(): void
+    {
+        $dbPath = $this->getDbPath();
+        if (is_file($dbPath)) {
+            unlink($dbPath);
+            $this->io->text("<fg=yellow>[Reset: deleted {$dbPath}]</>");
+            $this->io->newLine();
+        }
     }
 
     private function initDatabase(): void

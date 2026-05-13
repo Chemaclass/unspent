@@ -80,7 +80,6 @@
         "csrun": "vendor/bin/php-cs-fixer fix --dry-run --diff",
         "rector": "vendor/bin/rector",
         "rector-dry": "vendor/bin/rector --dry-run",
-        "bashunit": "lib/bashunit tests/bash",
         "benchmark": "vendor/bin/phpbench run --report=aggregate",
         "infection": "vendor/bin/infection --min-msi=90 --min-covered-msi=90 --threads=4",
         "fix": [
@@ -103,5 +102,26 @@
             "@stan",
             "@phpunit"
         ]
+    },
+    "scripts-descriptions": {
+        "test": "Run full quality gate (csrun + rector-dry + stan + phpunit)",
+        "check:quick": "Fast pre-commit gate (csrun + phpunit, ~2s cached)",
+        "check:full": "Same as test — full quality gate",
+        "fix": "Apply CS-Fixer and Rector auto-fixes",
+        "test:fast": "Unit tests only, stop on first failure",
+        "test:unit": "All unit tests",
+        "test:feature": "All feature/integration tests",
+        "phpunit": "Run PHPUnit with coverage",
+        "coverage": "Generate HTML coverage report under coverage/",
+        "coverage:text": "Print text coverage summary",
+        "stan": "Run PHPStan (level 8)",
+        "csfix": "Apply PHP-CS-Fixer changes",
+        "csrun": "PHP-CS-Fixer dry-run",
+        "rector": "Apply Rector changes",
+        "rector-dry": "Rector dry-run",
+        "infection": "Mutation testing (min 90% MSI)",
+        "benchmark": "Run PHPBench benchmarks",
+        "init-db": "Initialize the example ledger SQLite database",
+        "install-hooks": "Symlink bin/pre-commit into .git/hooks"
     }
 }

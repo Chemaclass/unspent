@@ -175,3 +175,5 @@ $ledger->getOutput(new OutputId('x'));       // Output data (even if spent)
 - [Ownership](ownership.md) - How locks and authorization work
 - [History](history.md) - Full provenance tracking
 - [Fees & Minting](fees-and-minting.md) - Fees and creating new value
+- [Events](events.md) - React to ledger state changes
+- [Documentation Index](README.md) - All docs

@@ -1,83 +1,113 @@
-.PHONY: help build up down shell test coverage infection stan csfix rector clean
+.PHONY: help \
+	build up down shell install \
+	test test-fast test-unit test-feature phpunit coverage infection benchmark \
+	check check-quick fix stan csfix csrun rector rector-dry \
+	examples examples-list examples-reset \
+	clean
 
-# Default target
-help:
-	@echo "Unspent Development Commands"
-	@echo "============================"
-	@echo ""
-	@echo "Setup:"
-	@echo "  make build      Build Docker image"
-	@echo "  make install    Install dependencies"
-	@echo ""
-	@echo "Development:"
-	@echo "  make shell      Open shell in container"
-	@echo "  make up         Start container in background"
-	@echo "  make down       Stop container"
-	@echo ""
-	@echo "Testing:"
-	@echo "  make test       Run all quality checks"
-	@echo "  make phpunit    Run PHPUnit tests only"
-	@echo "  make coverage   Generate code coverage report"
-	@echo "  make infection  Run mutation testing"
-	@echo ""
-	@echo "Code Quality:"
-	@echo "  make stan       Run PHPStan"
-	@echo "  make csfix      Run PHP CS Fixer"
-	@echo "  make rector     Run Rector"
-	@echo ""
-	@echo "Cleanup:"
-	@echo "  make clean      Remove build artifacts"
+# ----------------------------------------------------------------------------
+# Defaults
+# ----------------------------------------------------------------------------
 
-# Docker commands
-build:
+# DOCKER=0 to run composer/php on the host instead of through docker compose.
+DOCKER ?= 1
+COMPOSE = docker compose run --rm php
+
+ifeq ($(DOCKER),0)
+	RUN =
+else
+	RUN = $(COMPOSE)
+endif
+
+# ----------------------------------------------------------------------------
+# Help
+# ----------------------------------------------------------------------------
+
+help:  ## Show this help
+	@echo "Unspent — Development Commands"
+	@echo "=============================="
+	@echo ""
+	@echo "Override DOCKER=0 to run on host (e.g. \`make test DOCKER=0\`)."
+	@echo ""
+	@awk 'BEGIN {FS = ":.*?## "} \
+		/^# ==/ {next} \
+		/^[a-zA-Z0-9_-]+:.*?## / {printf "  \033[36m%-18s\033[0m %s\n", $$1, $$2} \
+		/^##@/ {printf "\n\033[1m%s\033[0m\n", substr($$0, 5)}' $(MAKEFILE_LIST)
+
+##@ Setup
+build:  ## Build the Docker image
 	docker compose build
 
-up:
+up:  ## Start the container in background
 	docker compose up -d php
 
-down:
+down:  ## Stop the container
 	docker compose down
 
-shell:
+shell:  ## Open an interactive shell in the container
 	docker compose run --rm php /bin/sh
 
-install:
-	docker compose run --rm php composer install
+install:  ## Install composer dependencies
+	$(RUN) composer install
 
-# Testing commands
-test:
-	docker compose run --rm php composer test
+##@ Quality gates
+test:  ## Full quality gate (csrun + rector-dry + stan + phpunit)
+	$(RUN) composer test
 
-phpunit:
-	docker compose run --rm php composer phpunit
+check: test  ## Alias for test
 
-coverage:
-	docker compose run --rm php composer coverage
+check-quick:  ## Fast pre-commit gate (csrun + phpunit)
+	$(RUN) composer check:quick
 
-infection:
-	docker compose run --rm php composer infection
+fix:  ## Apply CS-Fixer and Rector auto-fixes
+	$(RUN) composer fix
 
-# Code quality commands
-stan:
-	docker compose run --rm php composer stan
+stan:  ## Run PHPStan
+	$(RUN) composer stan
 
-csfix:
-	docker compose run --rm php composer csfix
+csfix:  ## Apply CS-Fixer changes
+	$(RUN) composer csfix
 
-csrun:
-	docker compose run --rm php composer csrun
+csrun:  ## CS-Fixer dry-run
+	$(RUN) composer csrun
 
-rector:
-	docker compose run --rm php composer rector
+rector:  ## Apply Rector changes
+	$(RUN) composer rector
 
-rector-dry:
-	docker compose run --rm php composer rector-dry
+rector-dry:  ## Rector dry-run
+	$(RUN) composer rector-dry
 
-# Cleanup
-clean:
-	docker compose down -v
-	rm -rf .infection-cache
-	rm -rf .php-cs-fixer.cache
-	rm -rf .phpunit.cache
+##@ Tests
+phpunit:  ## Run PHPUnit (with coverage)
+	$(RUN) composer phpunit
+
+test-fast:  ## Unit tests, stop on first failure
+	$(RUN) composer test:fast
+
+test-unit:  ## All unit tests
+	$(RUN) composer test:unit
+
+test-feature:  ## Integration tests
+	$(RUN) composer test:feature
+
+coverage:  ## Generate HTML coverage report under coverage/
+	$(RUN) composer coverage
+
+infection:  ## Run mutation testing
+	$(RUN) composer infection
+
+benchmark:  ## Run PHPBench benchmarks
+	$(RUN) composer benchmark
+
+##@ Examples
+examples:  ## List runnable examples
+	$(RUN) php example/run
+
+examples-list: examples  ## Alias for examples
+
+##@ Cleanup
+clean:  ## Remove caches, coverage, and stop containers
+	-docker compose down -v
+	rm -rf .infection-cache .php-cs-fixer.cache .phpunit.cache .phpstan-cache .rector-cache
 	rm -rf coverage
 	rm -f infection.log

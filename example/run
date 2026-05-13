@@ -4,14 +4,16 @@
 declare(strict_types=1);
 
 /**
- * Unspent Examples Runner
+ * Unspent Examples Runner.
  *
- * Run any example with optional --run-on=db|memory flag.
+ * Each example uses SQLite persistence under example/data/ and resumes
+ * between runs. Pass --reset to start fresh.
  *
  * Usage:
- *   php example/run                    # List all examples
- *   php example/run game               # Run in memory mode
- *   php example/run game --run-on=db   # Run in database mode
+ *   php example/run                  # List all examples
+ *   php example/run game             # Run the 'game' demo (alias)
+ *   php example/run game --reset     # Delete db and rerun
+ *   php example/run game --help      # Show options
  */
 
 require_once __DIR__ . '/../vendor/autoload.php';
@@ -30,7 +32,7 @@ use Example\Console\SqlitePersistenceCommand;
 use Example\Console\VirtualCurrencyCommand;
 use Symfony\Component\Console\Application;
 
-$app = new Application('Unspent Examples', '0.0.1');
+$app = new Application('Unspent Examples', '1.0.0');
 
 $app->addCommand(new BitcoinSimulationCommand());
 $app->addCommand(new CryptoWalletCommand());
