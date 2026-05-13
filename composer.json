@@ -42,7 +42,7 @@
         "infection/infection": "^0.32.3",
         "phpbench/phpbench": "^1.4",
         "phpstan/phpstan": "^2.1",
-        "phpunit/phpunit": "^12.5",
+        "phpunit/phpunit": "^12.5.8",
         "rector/rector": "^2.3",
         "symfony/console": "^8.0",
         "symfony/var-dumper": "^8.0"
