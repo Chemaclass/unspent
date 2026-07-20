@@ -30,6 +30,26 @@ use Chemaclass\Unspent\OutputId;
  *             // Use: Ledger::fromArray($this->buildLedgerDataArray(...))
  *         }
  *     }
+ *
+ * @phpstan-type TOutputRow array{
+ *     id: string,
+ *     amount: int|string,
+ *     lock_type: string,
+ *     lock_owner: string|null,
+ *     lock_pubkey: string|null,
+ *     lock_custom_data: string|null,
+ *     is_spent: int|string,
+ *     created_by: string,
+ *     spent_by: string|null,
+ *     ...
+ * }
+ * @phpstan-type TTransactionRow array{
+ *     id: string,
+ *     is_coinbase: int|string,
+ *     fee: int|string|null,
+ *     coinbase_amount: int|string|null,
+ *     ...
+ * }
  */
 abstract class AbstractLedgerRepository implements QueryableLedgerRepository
 {
@@ -61,20 +81,20 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
      * - amount: Integer amount
      * - lock_type, lock_owner, lock_pubkey, lock_custom_data: Lock columns
      *
-     * @param array<int, array<string, mixed>> $rows Database rows
+     * @param list<TOutputRow> $rows Database rows
      *
      * @return list<Output>
      */
     protected function rowsToOutputs(array $rows): array
     {
-        return array_values(array_map(
+        return array_map(
             static fn (array $row): Output => new Output(
                 new OutputId($row['id']),
                 (int) $row['amount'],
                 LockFactory::fromArray(LockData::toArrayFromRow($row)),
             ),
             $rows,
-        ));
+        );
     }
 
     /**
@@ -82,9 +102,9 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
      *
      * This helper constructs the array format expected by Ledger::fromArray().
      *
-     * @param array<int, array<string, mixed>> $unspentRows     Rows for unspent outputs
-     * @param array<int, array<string, mixed>> $spentRows       Rows for spent outputs
-     * @param array<int, array<string, mixed>> $transactionRows Rows for transactions
+     * @param list<TOutputRow>      $unspentRows     Rows for unspent outputs
+     * @param list<TOutputRow>      $spentRows       Rows for spent outputs
+     * @param list<TTransactionRow> $transactionRows Rows for transactions
      *
      * @return array{
      *     version: int,

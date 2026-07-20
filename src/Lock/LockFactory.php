@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Chemaclass\Unspent\Lock;
 
 use Chemaclass\Unspent\OutputLock;
+use Closure;
 use InvalidArgumentException;
 use ReflectionClass;
 
@@ -37,7 +38,13 @@ use ReflectionClass;
  */
 class LockFactory
 {
-    /** @var array<string, callable> */
+    /**
+     * Handler return type is intentionally `mixed`, not `OutputLock`: handlers are
+     * user-supplied closures whose actual runtime return value cannot be trusted
+     * statically, so `fromArray()` below validates it defensively at runtime.
+     *
+     * @var array<string, Closure(array<string, mixed>): mixed>
+     */
     private static array $handlers = [];
 
     /**
@@ -45,10 +52,10 @@ class LockFactory
      *
      * The handler receives the full lock data array and must return an OutputLock.
      *
-     * @param string   $type    The lock type (matches 'type' field in serialized data)
-     * @param callable $handler Factory callable: fn(array $data): OutputLock
+     * @param string                               $type    The lock type (matches 'type' field in serialized data)
+     * @param Closure(array<string, mixed>): mixed $handler Factory closure: fn(array $data): OutputLock
      */
-    public static function register(string $type, callable $handler): void
+    public static function register(string $type, Closure $handler): void
     {
         self::$handlers[$type] = $handler;
     }
@@ -178,10 +185,58 @@ class LockFactory
             LockType::NONE => new NoLock(),
             LockType::OWNER => new Owner((string) ($data['name'] ?? throw new InvalidArgumentException('Name is required for owner lock'))),
             LockType::PUBLIC_KEY => new PublicKey((string) ($data['key'] ?? throw new InvalidArgumentException('Key is required for pubkey lock'))),
-            LockType::TIMELOCK => TimeLock::fromArray($data),
-            LockType::MULTISIG => MultisigLock::fromArray($data),
-            LockType::HASHLOCK => HashLock::fromArray($data),
+            LockType::TIMELOCK => self::createTimeLock($data),
+            LockType::MULTISIG => self::createMultisigLock($data),
+            LockType::HASHLOCK => self::createHashLock($data),
             null => throw new InvalidArgumentException("Unknown lock type: {$type}"),
         };
+    }
+
+    /**
+     * Narrows the generic lock data to the shape required by TimeLock::fromArray().
+     *
+     * The 'innerLock' and 'unlockTime' keys are guaranteed by the 'timelock'
+     * serialization format produced by TimeLock::toArray().
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function createTimeLock(array $data): TimeLock
+    {
+        /** @var array{innerLock: array<string, mixed>, unlockTime: int|string} $shaped */
+        $shaped = $data;
+
+        return TimeLock::fromArray($shaped);
+    }
+
+    /**
+     * Narrows the generic lock data to the shape required by MultisigLock::fromArray().
+     *
+     * The 'threshold' and 'signers' keys are guaranteed by the 'multisig'
+     * serialization format produced by MultisigLock::toArray().
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function createMultisigLock(array $data): MultisigLock
+    {
+        /** @var array{threshold: int|string, signers: list<string>} $shaped */
+        $shaped = $data;
+
+        return MultisigLock::fromArray($shaped);
+    }
+
+    /**
+     * Narrows the generic lock data to the shape required by HashLock::fromArray().
+     *
+     * The 'hash' and 'algorithm' keys are guaranteed by the 'hashlock'
+     * serialization format produced by HashLock::toArray().
+     *
+     * @param array<string, mixed> $data
+     */
+    private static function createHashLock(array $data): HashLock
+    {
+        /** @var array{hash: string, algorithm: string, innerLock?: array<string, mixed>} $shaped */
+        $shaped = $data;
+
+        return HashLock::fromArray($shaped);
     }
 }

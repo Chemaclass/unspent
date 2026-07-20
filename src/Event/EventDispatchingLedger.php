@@ -15,6 +15,7 @@ use Chemaclass\Unspent\Persistence\HistoryRepository;
 use Chemaclass\Unspent\Tx;
 use Chemaclass\Unspent\TxId;
 use Chemaclass\Unspent\UnspentSet;
+use Closure;
 
 /**
  * Event-dispatching decorator for Ledger.
@@ -30,23 +31,17 @@ use Chemaclass\Unspent\UnspentSet;
  */
 final readonly class EventDispatchingLedger implements LedgerInterface
 {
-    /** @var callable(LedgerEvent): void */
-    private mixed $dispatcher;
-
     /**
-     * @param callable(LedgerEvent): void $dispatcher
+     * @param Closure(LedgerEvent): void $dispatcher
      */
-    private function __construct(
-        private Ledger $ledger,
-        callable $dispatcher,
-    ) {
-        $this->dispatcher = $dispatcher;
+    private function __construct(private Ledger $ledger, private Closure $dispatcher)
+    {
     }
 
     /**
-     * @param callable(LedgerEvent): void $dispatcher
+     * @param Closure(LedgerEvent): void $dispatcher
      */
-    public static function wrap(Ledger $ledger, callable $dispatcher): self
+    public static function wrap(Ledger $ledger, Closure $dispatcher): self
     {
         return new self($ledger, $dispatcher);
     }

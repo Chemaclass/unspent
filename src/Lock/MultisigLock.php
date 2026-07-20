@@ -66,7 +66,7 @@ final readonly class MultisigLock implements OutputLock
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array{threshold: int|string, signers: list<string>} $data
      */
     public static function fromArray(array $data): self
     {
@@ -111,6 +111,9 @@ final readonly class MultisigLock implements OutputLock
         }
     }
 
+    /**
+     * @return array{type: string, threshold: int, signers: list<string>}
+     */
     public function toArray(): array
     {
         return [
