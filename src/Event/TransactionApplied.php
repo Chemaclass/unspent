@@ -12,11 +12,8 @@ use Chemaclass\Unspent\Tx;
 final readonly class TransactionApplied extends LedgerEvent
 {
     /**
-     * @param Tx    $transaction The applied transaction
-     * @param int   $fee         Fee paid (difference between inputs and outputs)
-     * @param int   $inputTotal  Total amount of spent outputs
-     * @param int   $outputTotal Total amount of created outputs
-     * @param float $timestamp   Unix timestamp with microseconds
+     * @param int   $fee       Fee paid (difference between inputs and outputs)
+     * @param float $timestamp Unix timestamp with microseconds
      */
     public function __construct(
         public Tx $transaction,

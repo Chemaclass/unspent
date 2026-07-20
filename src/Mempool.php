@@ -56,18 +56,15 @@ final class Mempool
     {
         $txId = $tx->id->value;
 
-        // Check for duplicate
         if (isset($this->pending[$txId])) {
             throw DuplicateTxException::forId($txId);
         }
 
-        // Validate against ledger
         $error = $this->ledger->canApply($tx);
         if ($error !== null) {
             throw $error;
         }
 
-        // Check for double-spend within mempool
         foreach ($tx->spends as $spendId) {
             $spendIdValue = $spendId->value;
             if (isset($this->spentBy[$spendIdValue])) {
@@ -82,15 +79,12 @@ final class Mempool
             }
         }
 
-        // Calculate and cache fee
         $inputTotal = $this->calculateInputTotal($tx);
         $outputTotal = $tx->totalOutputAmount();
         $this->fees[$txId] = $inputTotal - $outputTotal;
 
-        // Add to mempool
         $this->pending[$txId] = $tx;
 
-        // Track spent outputs
         foreach ($tx->spends as $spendId) {
             $this->spentBy[$spendId->value] = $txId;
         }
@@ -111,7 +105,6 @@ final class Mempool
 
         $tx = $this->pending[$txId];
 
-        // Remove spent output tracking
         foreach ($tx->spends as $spendId) {
             unset($this->spentBy[$spendId->value]);
         }

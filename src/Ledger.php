@@ -193,7 +193,6 @@ final class Ledger implements LedgerInterface
 
         $fee = $spendAmount - $outputAmount;
 
-        // Collect spent output data
         $spentOutputData = [];
         foreach ($tx->spends as $spendId) {
             $output = $this->unspentSet->get($spendId);
@@ -315,7 +314,6 @@ final class Ledger implements LedgerInterface
     {
         $outputs = iterator_to_array($this->unspentByOwner($owner));
 
-        // Nothing to consolidate if 0 or 1 outputs
         if (\count($outputs) <= 1) {
             return $this;
         }
@@ -360,7 +358,6 @@ final class Ledger implements LedgerInterface
             $outputs[] = Output::ownedBy($recipient, $amount);
         }
 
-        // Select inputs
         $outputsToSpend = [];
         $accumulated = 0;
 
@@ -376,7 +373,6 @@ final class Ledger implements LedgerInterface
             throw InsufficientSpendsException::create($accumulated, $totalRequired);
         }
 
-        // Add change output if needed
         $change = $accumulated - $totalRequired;
         if ($change > 0) {
             $outputs[] = Output::ownedBy($from, $change);

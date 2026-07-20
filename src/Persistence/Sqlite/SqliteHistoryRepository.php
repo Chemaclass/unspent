@@ -56,7 +56,6 @@ final class SqliteHistoryRepository implements HistoryRepository
 
             $this->insertOutputs($tx->outputs, $tx->id->value);
 
-            // Mark spent outputs
             $spentStmt = $this->prepare(self::SQL_OUTPUT_MARK_SPENT);
             foreach ($tx->spends as $spendId) {
                 $spentStmt->execute([
@@ -66,7 +65,6 @@ final class SqliteHistoryRepository implements HistoryRepository
                 ]);
             }
 
-            // Insert transaction record
             $txStmt = $this->prepare(self::SQL_TX_INSERT);
             $txStmt->execute([
                 $tx->id->value,
@@ -76,7 +74,6 @@ final class SqliteHistoryRepository implements HistoryRepository
                 null, // coinbase_amount
             ]);
 
-            // Update ledger totals
             $outputAmount = $tx->totalOutputAmount();
             $spentAmount = array_sum(array_column($spentOutputData, 'amount'));
             $unspentDelta = $outputAmount - $spentAmount;
@@ -103,7 +100,6 @@ final class SqliteHistoryRepository implements HistoryRepository
 
             $this->insertOutputs($coinbase->outputs, $coinbase->id->value);
 
-            // Insert transaction record
             $txStmt = $this->prepare(self::SQL_TX_INSERT);
             $mintedAmount = $coinbase->totalOutputAmount();
             $txStmt->execute([
@@ -114,7 +110,6 @@ final class SqliteHistoryRepository implements HistoryRepository
                 $mintedAmount,
             ]);
 
-            // Update ledger totals
             $updateStmt = $this->prepare(self::SQL_LEDGER_UPDATE_TOTALS);
             $updateStmt->execute([
                 $mintedAmount, // unspent delta
@@ -142,7 +137,6 @@ final class SqliteHistoryRepository implements HistoryRepository
                 $outputs,
             ));
 
-            // Update ledger totals
             $updateStmt = $this->prepare(self::SQL_LEDGER_UPDATE_TOTALS);
             $updateStmt->execute([
                 $totalAmount, // unspent delta
