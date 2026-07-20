@@ -13,10 +13,7 @@ use Chemaclass\Unspent\TxId;
 final readonly class OutputSpent extends LedgerEvent
 {
     /**
-     * @param OutputId $outputId  The spent output ID
-     * @param int      $amount    Amount that was spent
-     * @param TxId     $spentBy   Transaction that spent this output
-     * @param float    $timestamp Unix timestamp with microseconds
+     * @param float $timestamp Unix timestamp with microseconds
      */
     public function __construct(
         public OutputId $outputId,

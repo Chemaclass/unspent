@@ -12,10 +12,8 @@ use Chemaclass\Unspent\CoinbaseTx;
 final readonly class CoinbaseApplied extends LedgerEvent
 {
     /**
-     * @param CoinbaseTx $coinbase     The coinbase transaction
-     * @param int        $mintedAmount Total amount minted
-     * @param int        $totalMinted  New total minted in ledger
-     * @param float      $timestamp    Unix timestamp with microseconds
+     * @param int   $totalMinted Ledger-wide running total after this mint (vs. $mintedAmount, this tx's own amount)
+     * @param float $timestamp   Unix timestamp with microseconds
      */
     public function __construct(
         public CoinbaseTx $coinbase,

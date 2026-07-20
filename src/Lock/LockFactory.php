@@ -92,7 +92,6 @@ class LockFactory
         /** @var LockTypeAttribute $attribute */
         $attribute = $attributes[0]->newInstance();
 
-        // Check for fromArray method
         if ($reflection->hasMethod('fromArray')) {
             $method = $reflection->getMethod('fromArray');
             if ($method->isStatic() && $method->isPublic()) {
@@ -163,7 +162,6 @@ class LockFactory
     {
         $type = $data['type'] ?? throw new InvalidArgumentException('Lock type is required');
 
-        // Custom handlers take precedence
         if (isset(self::$handlers[$type])) {
             $lock = (self::$handlers[$type])($data);
 
@@ -180,7 +178,6 @@ class LockFactory
             return $lock;
         }
 
-        // Built-in types using enum
         return match (LockType::tryFrom($type)) {
             LockType::NONE => new NoLock(),
             LockType::OWNER => new Owner((string) ($data['name'] ?? throw new InvalidArgumentException('Name is required for owner lock'))),

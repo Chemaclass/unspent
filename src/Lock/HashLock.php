@@ -95,7 +95,6 @@ final readonly class HashLock implements OutputLock
             throw AuthorizationException::missingProof($spendIndex);
         }
 
-        // Verify preimage hashes to expected value
         if (!$this->verifyPreimage($preimage)) {
             throw new AuthorizationException(
                 'Invalid hash preimage',
@@ -103,7 +102,6 @@ final readonly class HashLock implements OutputLock
             );
         }
 
-        // Also check inner lock if present
         $this->innerLock?->validate($tx, $spendIndex);
     }
 

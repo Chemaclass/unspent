@@ -38,7 +38,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     use PdoStatementCache;
     use PdoTransactionalWrite;
 
-    // SQL Query Constants
     private const string SQL_LEDGER_EXISTS = 'SELECT 1 FROM ledgers WHERE id = ?';
     private const string SQL_LEDGER_SELECT = 'SELECT id FROM ledgers WHERE id = ?';
     private const string SQL_LEDGER_DELETE = 'DELETE FROM ledgers WHERE id = ?';
@@ -118,7 +117,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     public function findUnspentOnly(string $id): ?array
     {
         try {
-            // Check if ledger exists and get totals
             $stmt = $this->prepare(self::SQL_LEDGER_TOTALS);
             $stmt->execute([$id]);
             $totalsRow = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -127,7 +125,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
                 return null;
             }
 
-            // Get only unspent outputs
             $stmt = $this->prepare(self::SQL_OUTPUT_SELECT_UNSPENT);
             $stmt->execute([$id]);
             /** @var list<TOutputRow> $rows */
@@ -323,13 +320,11 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         $outputCreatedBy = $ledgerArray['outputCreatedBy'];
         $outputSpentBy = $ledgerArray['outputSpentBy'];
 
-        // Insert unspent outputs
         foreach ($ledger->unspent() as $outputId => $output) {
             $createdBy = $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS;
             $this->executeOutputInsert($stmt, $id, $outputId, $output, $createdBy, null);
         }
 
-        // Insert spent outputs
         foreach ($ledgerArray['spentOutputs'] as $outputId => $outputData) {
             $output = new Output(
                 new OutputId($outputId),
@@ -391,13 +386,13 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
      */
     private function fetchLedgerData(string $id): array
     {
-        // Single query for all outputs, partitioned by is_spent
+        // Single query for all outputs, partitioned below by is_spent,
+        // avoiding two separate round trips for unspent vs. spent rows.
         $stmt = $this->prepare(self::SQL_OUTPUT_SELECT_ALL);
         $stmt->execute([$id]);
         /** @var list<TOutputRow> $allOutputs */
         $allOutputs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Partition outputs by spent status
         $unspentRows = [];
         $spentRows = [];
         foreach ($allOutputs as $row) {
@@ -408,7 +403,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             }
         }
 
-        // Get transactions
         $stmt = $this->prepare(self::SQL_TX_SELECT_ALL);
         $stmt->execute([$id]);
         /** @var list<TTransactionRow> $txRows */
