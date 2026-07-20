@@ -402,16 +402,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     /**
      * Fetch ledger data using optimized combined query.
      *
-     * @return array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy: array<string, string>,
-     *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
-     * }
+     * @return TLedgerArray
      */
     private function fetchLedgerData(string $id): array
     {

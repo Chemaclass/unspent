@@ -73,16 +73,7 @@ final class Ledger implements LedgerInterface
     /**
      * Creates a Ledger from a serialized array (in-memory mode).
      *
-     * @param array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy?: array<string, string>,
-     *     outputSpentBy?: array<string, string>,
-     *     spentOutputs?: array<string, array{amount: int, lock: array<string, mixed>}>
-     * } $data
+     * @param TLedgerArrayInput $data
      */
     public static function fromArray(array $data): self
     {
@@ -530,16 +521,7 @@ final class Ledger implements LedgerInterface
     }
 
     /**
-     * @return array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy: array<string, string>,
-     *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
-     * }
+     * @return TLedgerArray
      */
     public function toArray(): array
     {

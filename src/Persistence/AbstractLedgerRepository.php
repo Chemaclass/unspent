@@ -86,16 +86,7 @@ abstract class AbstractLedgerRepository implements QueryableLedgerRepository
      * @param array<int, array<string, mixed>> $spentRows       Rows for spent outputs
      * @param array<int, array<string, mixed>> $transactionRows Rows for transactions
      *
-     * @return array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy: array<string, string>,
-     *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
-     * }
+     * @return TLedgerArray
      */
     protected function buildLedgerDataArray(
         array $unspentRows,
