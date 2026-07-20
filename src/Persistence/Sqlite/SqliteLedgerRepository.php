@@ -28,6 +28,9 @@ use PDOStatement;
  * - Prepared statement caching for repeated queries
  * - Combined queries to reduce N+1 patterns
  * - Match expressions for query building
+ *
+ * @phpstan-import-type TOutputRow from AbstractLedgerRepository
+ * @phpstan-import-type TTransactionRow from AbstractLedgerRepository
  */
 final class SqliteLedgerRepository extends AbstractLedgerRepository
 {
@@ -127,6 +130,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             // Get only unspent outputs
             $stmt = $this->prepare(self::SQL_OUTPUT_SELECT_UNSPENT);
             $stmt->execute([$id]);
+            /** @var list<TOutputRow> $rows */
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $outputs = $this->rowsToOutputs($rows);
@@ -222,17 +226,17 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
-            return array_values(array_map(
-                TransactionInfo::fromRow(...),
-                $stmt->fetchAll(PDO::FETCH_ASSOC),
-            ));
+            /** @var list<array{id: string, fee: int|string, ...}> $rows */
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return array_map(TransactionInfo::fromRow(...), $rows);
         });
     }
 
     /**
      * Execute a query that returns Output objects.
      *
-     * @param list<mixed> $params
+     * @param list<int|string> $params
      *
      * @return list<Output>
      */
@@ -242,14 +246,17 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
-            return $this->rowsToOutputs($stmt->fetchAll(PDO::FETCH_ASSOC));
+            /** @var list<TOutputRow> $rows */
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $this->rowsToOutputs($rows);
         });
     }
 
     /**
      * Execute a query that returns a single integer value.
      *
-     * @param list<mixed> $params
+     * @param list<int|string> $params
      */
     private function executeScalarQuery(string $sql, array $params): int
     {
@@ -264,7 +271,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     /**
      * Build a range query with optional max bound.
      *
-     * @return array{0: string, 1: list<mixed>} SQL and parameters
+     * @return array{0: string, 1: list<int|string>} SQL and parameters
      */
     private function buildRangeQuery(
         string $baseTable,
@@ -396,6 +403,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         // Single query for all outputs, partitioned by is_spent
         $stmt = $this->prepare(self::SQL_OUTPUT_SELECT_ALL);
         $stmt->execute([$id]);
+        /** @var list<TOutputRow> $allOutputs */
         $allOutputs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         // Partition outputs by spent status
@@ -412,6 +420,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         // Get transactions
         $stmt = $this->prepare(self::SQL_TX_SELECT_ALL);
         $stmt->execute([$id]);
+        /** @var list<TTransactionRow> $txRows */
         $txRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return $this->buildLedgerDataArray($unspentRows, $spentRows, $txRows);

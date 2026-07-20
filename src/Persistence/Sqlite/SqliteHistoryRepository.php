@@ -21,6 +21,29 @@ use PDO;
  *
  * Provides direct database queries for history information without loading
  * the entire ledger into memory. Used by Ledger in store-backed mode for scalability.
+ *
+ * @phpstan-type TOutputRow array{
+ *     id: string,
+ *     ledger_id: string,
+ *     amount: int|string,
+ *     lock_type: string,
+ *     lock_owner: string|null,
+ *     lock_pubkey: string|null,
+ *     lock_custom_data: string|null,
+ *     is_spent: int|string,
+ *     created_by: string,
+ *     spent_by: string|null,
+ *     ...
+ * }
+ * @phpstan-type TTransactionRow array{
+ *     id: string,
+ *     ledger_id: string,
+ *     is_coinbase: int|string,
+ *     signed_by: string|null,
+ *     fee: int|string|null,
+ *     coinbase_amount: int|string|null,
+ *     ...
+ * }
  */
 final class SqliteHistoryRepository implements HistoryRepository
 {
@@ -267,7 +290,7 @@ final class SqliteHistoryRepository implements HistoryRepository
     }
 
     /**
-     * @return array<string, mixed>|null
+     * @return TOutputRow|null
      */
     private function fetchOutputRow(OutputId $id): ?array
     {
@@ -276,12 +299,13 @@ final class SqliteHistoryRepository implements HistoryRepository
             $stmt->execute([$this->ledgerId, $id->value]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
+            /** @var false|TOutputRow $row */
             return $row === false ? null : $row;
         });
     }
 
     /**
-     * @return array<string, mixed>|null
+     * @return TTransactionRow|null
      */
     private function fetchTransactionRow(TxId $id): ?array
     {
@@ -290,6 +314,7 @@ final class SqliteHistoryRepository implements HistoryRepository
             $stmt->execute([$this->ledgerId, $id->value]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
+            /** @var false|TTransactionRow $row */
             return $row === false ? null : $row;
         });
     }

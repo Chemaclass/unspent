@@ -21,7 +21,7 @@ final readonly class TransactionInfo
     /**
      * Create from a database row.
      *
-     * @param array<string, mixed> $row
+     * @param array{id: string, fee: int|string, ...} $row
      */
     public static function fromRow(array $row): self
     {

@@ -72,7 +72,7 @@ final readonly class HashLock implements OutputLock
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array{hash: string, algorithm: string, innerLock?: array<string, mixed>} $data
      */
     public static function fromArray(array $data): self
     {
@@ -107,6 +107,9 @@ final readonly class HashLock implements OutputLock
         $this->innerLock?->validate($tx, $spendIndex);
     }
 
+    /**
+     * @return array{type: string, hash: string, algorithm: string, innerLock?: array<string, mixed>}
+     */
     public function toArray(): array
     {
         $data = [

@@ -54,7 +54,7 @@ final readonly class TimeLock implements OutputLock
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array{innerLock: array<string, mixed>, unlockTime: int|string} $data
      */
     public static function fromArray(array $data): self
     {
@@ -86,6 +86,9 @@ final readonly class TimeLock implements OutputLock
         $this->innerLock->validate($tx, $spendIndex);
     }
 
+    /**
+     * @return array{type: string, unlockTime: int, innerLock: array<string, mixed>}
+     */
     public function toArray(): array
     {
         return [
