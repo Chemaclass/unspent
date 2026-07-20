@@ -15,25 +15,15 @@ use Chemaclass\Unspent\UnspentSet;
  */
 final readonly class SmallestFirstStrategy implements SelectionStrategy
 {
+    use AccumulatesOutputs;
+
     public function select(UnspentSet $available, int $target): array
     {
         // Collect and sort by amount ascending
         $outputs = iterator_to_array($available);
         usort($outputs, static fn (Output $a, Output $b): int => $a->amount <=> $b->amount);
 
-        $selected = [];
-        $accumulated = 0;
-
-        foreach ($outputs as $output) {
-            $selected[] = $output;
-            $accumulated += $output->amount;
-
-            if ($accumulated >= $target) {
-                break;
-            }
-        }
-
-        return $selected;
+        return $this->accumulateUntilTarget($outputs, $target);
     }
 
     public function name(): string
