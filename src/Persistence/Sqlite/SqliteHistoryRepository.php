@@ -12,12 +12,9 @@ use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\OutputStatus;
 use Chemaclass\Unspent\Persistence\HistoryRepository;
 use Chemaclass\Unspent\Persistence\LockData;
-use Chemaclass\Unspent\Persistence\PersistenceException;
 use Chemaclass\Unspent\Tx;
 use Chemaclass\Unspent\TxId;
 use PDO;
-use PDOException;
-use PDOStatement;
 
 /**
  * SQLite implementation of HistoryRepository for store-backed mode.
@@ -27,6 +24,10 @@ use PDOStatement;
  */
 final class SqliteHistoryRepository implements HistoryRepository
 {
+    use PdoQueryWrapper;
+    use PdoStatementCache;
+    use PdoTransactionalWrite;
+
     private const string SQL_OUTPUT_BY_ID = 'SELECT * FROM outputs WHERE ledger_id = ? AND id = ?';
     private const string SQL_TX_BY_ID = 'SELECT * FROM transactions WHERE ledger_id = ? AND id = ?';
     private const string SQL_ALL_TX_FEES = 'SELECT id, fee FROM transactions WHERE ledger_id = ? AND is_coinbase = 0 AND fee IS NOT NULL';
@@ -36,9 +37,6 @@ final class SqliteHistoryRepository implements HistoryRepository
     private const string SQL_LEDGER_UPDATE_TOTALS = 'UPDATE ledgers SET total_unspent = total_unspent + ?, total_fees = total_fees + ?, total_minted = total_minted + ? WHERE id = ?';
 
     private const string ORIGIN_GENESIS = 'genesis';
-
-    /** @var array<string, PDOStatement> Cached prepared statements */
-    private array $stmtCache = [];
 
     public function __construct(
         private readonly PDO $pdo,
@@ -51,9 +49,7 @@ final class SqliteHistoryRepository implements HistoryRepository
         int $fee,
         array $spentOutputData,
     ): void {
-        try {
-            $this->pdo->beginTransaction();
-
+        $this->runInTransaction($this->ledgerId, function () use ($tx, $fee, $spentOutputData): void {
             $this->insertOutputs($tx->outputs, $tx->id->value);
 
             // Mark spent outputs
@@ -88,19 +84,12 @@ final class SqliteHistoryRepository implements HistoryRepository
                 0, // minted delta
                 $this->ledgerId,
             ]);
-
-            $this->pdo->commit();
-        } catch (PDOException $e) {
-            $this->pdo->rollBack();
-            throw PersistenceException::saveFailed($this->ledgerId, $e->getMessage());
-        }
+        });
     }
 
     public function saveCoinbase(CoinbaseTx $coinbase): void
     {
-        try {
-            $this->pdo->beginTransaction();
-
+        $this->runInTransaction($this->ledgerId, function () use ($coinbase): void {
             $this->insertOutputs($coinbase->outputs, $coinbase->id->value);
 
             // Insert transaction record
@@ -122,19 +111,12 @@ final class SqliteHistoryRepository implements HistoryRepository
                 $mintedAmount, // minted delta
                 $this->ledgerId,
             ]);
-
-            $this->pdo->commit();
-        } catch (PDOException $e) {
-            $this->pdo->rollBack();
-            throw PersistenceException::saveFailed($this->ledgerId, $e->getMessage());
-        }
+        });
     }
 
     public function saveGenesis(array $outputs): void
     {
-        try {
-            $this->pdo->beginTransaction();
-
+        $this->runInTransaction($this->ledgerId, function () use ($outputs): void {
             $this->insertOutputs($outputs, self::ORIGIN_GENESIS);
 
             $totalAmount = array_sum(array_map(
@@ -150,12 +132,7 @@ final class SqliteHistoryRepository implements HistoryRepository
                 0, // minted delta (genesis is not minting)
                 $this->ledgerId,
             ]);
-
-            $this->pdo->commit();
-        } catch (PDOException $e) {
-            $this->pdo->rollBack();
-            throw PersistenceException::saveFailed($this->ledgerId, $e->getMessage());
-        }
+        });
     }
 
     public function findSpentOutput(OutputId $id): ?Output
@@ -215,7 +192,7 @@ final class SqliteHistoryRepository implements HistoryRepository
 
     public function findAllTxFees(): array
     {
-        try {
+        return $this->tryQuery(function (): array {
             $stmt = $this->prepare(self::SQL_ALL_TX_FEES);
             $stmt->execute([$this->ledgerId]);
 
@@ -225,9 +202,7 @@ final class SqliteHistoryRepository implements HistoryRepository
             }
 
             return $fees;
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+        });
     }
 
     public function isCoinbase(TxId $id): bool
@@ -296,15 +271,13 @@ final class SqliteHistoryRepository implements HistoryRepository
      */
     private function fetchOutputRow(OutputId $id): ?array
     {
-        try {
+        return $this->tryQuery(function () use ($id): ?array {
             $stmt = $this->prepare(self::SQL_OUTPUT_BY_ID);
             $stmt->execute([$this->ledgerId, $id->value]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return $row === false ? null : $row;
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -312,19 +285,12 @@ final class SqliteHistoryRepository implements HistoryRepository
      */
     private function fetchTransactionRow(TxId $id): ?array
     {
-        try {
+        return $this->tryQuery(function () use ($id): ?array {
             $stmt = $this->prepare(self::SQL_TX_BY_ID);
             $stmt->execute([$this->ledgerId, $id->value]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
             return $row === false ? null : $row;
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
-    }
-
-    private function prepare(string $sql): PDOStatement
-    {
-        return $this->stmtCache[$sql] ??= $this->pdo->prepare($sql);
+        });
     }
 }

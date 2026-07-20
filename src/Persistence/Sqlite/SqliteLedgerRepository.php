@@ -31,6 +31,10 @@ use PDOStatement;
  */
 final class SqliteLedgerRepository extends AbstractLedgerRepository
 {
+    use PdoQueryWrapper;
+    use PdoStatementCache;
+    use PdoTransactionalWrite;
+
     // SQL Query Constants
     private const string SQL_LEDGER_EXISTS = 'SELECT 1 FROM ledgers WHERE id = ?';
     private const string SQL_LEDGER_SELECT = 'SELECT id FROM ledgers WHERE id = ?';
@@ -53,9 +57,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     private const string ORIGIN_GENESIS = 'genesis';
 
-    /** @var array<string, PDOStatement> Cached prepared statements */
-    private array $stmtCache = [];
-
     public function __construct(
         private readonly PDO $pdo,
     ) {
@@ -63,19 +64,12 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     public function save(string $id, LedgerInterface $ledger): void
     {
-        try {
-            $this->pdo->beginTransaction();
-
+        $this->runInTransaction($id, function () use ($id, $ledger): void {
             $this->deleteLedgerData($id);
             $this->insertLedger($id, $ledger);
             $this->insertOutputs($id, $ledger);
             $this->insertTransactions($id, $ledger);
-
-            $this->pdo->commit();
-        } catch (PDOException $e) {
-            $this->pdo->rollBack();
-            throw PersistenceException::saveFailed($id, $e->getMessage());
-        }
+        });
     }
 
     public function find(string $id): ?LedgerInterface
@@ -204,19 +198,17 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     public function findCoinbaseTransactions(string $ledgerId): array
     {
-        try {
+        return $this->tryQuery(function () use ($ledgerId): array {
             $stmt = $this->prepare(self::SQL_TX_COINBASE);
             $stmt->execute([$ledgerId]);
 
             return array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'id');
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+        });
     }
 
     public function findTransactionsByFeeRange(string $ledgerId, int $min, ?int $max = null): array
     {
-        try {
+        return $this->tryQuery(function () use ($ledgerId, $min, $max): array {
             [$sql, $params] = $this->buildRangeQuery(
                 baseTable: 'transactions',
                 ledgerId: $ledgerId,
@@ -234,17 +226,7 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
                 TransactionInfo::fromRow(...),
                 $stmt->fetchAll(PDO::FETCH_ASSOC),
             ));
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
-    }
-
-    /**
-     * Get a cached prepared statement or create a new one.
-     */
-    private function prepare(string $sql): PDOStatement
-    {
-        return $this->stmtCache[$sql] ??= $this->pdo->prepare($sql);
+        });
     }
 
     /**
@@ -256,14 +238,12 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
      */
     private function executeOutputQuery(string $sql, array $params): array
     {
-        try {
+        return $this->tryQuery(function () use ($sql, $params): array {
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
             return $this->rowsToOutputs($stmt->fetchAll(PDO::FETCH_ASSOC));
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+        });
     }
 
     /**
@@ -273,14 +253,12 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
      */
     private function executeScalarQuery(string $sql, array $params): int
     {
-        try {
+        return $this->tryQuery(function () use ($sql, $params): int {
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
             return (int) $stmt->fetchColumn();
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+        });
     }
 
     /**

@@ -15,21 +15,11 @@ use Chemaclass\Unspent\UnspentSet;
  */
 final readonly class FifoStrategy implements SelectionStrategy
 {
+    use AccumulatesOutputs;
+
     public function select(UnspentSet $available, int $target): array
     {
-        $selected = [];
-        $accumulated = 0;
-
-        foreach ($available as $output) {
-            $selected[] = $output;
-            $accumulated += $output->amount;
-
-            if ($accumulated >= $target) {
-                break;
-            }
-        }
-
-        return $selected;
+        return $this->accumulateUntilTarget(iterator_to_array($available, false), $target);
     }
 
     public function name(): string
