@@ -24,11 +24,11 @@ use Chemaclass\Unspent\TxId;
 final class InMemoryHistoryRepository implements HistoryRepository
 {
     /**
-     * @param array<string, int>                                            $txFees          Map of TxId value to fee
-     * @param array<string, int>                                            $coinbaseAmounts Map of coinbase TxId to minted amount
-     * @param array<string, string>                                         $outputCreatedBy Map of OutputId → TxId|'genesis'
-     * @param array<string, string>                                         $outputSpentBy   Map of OutputId → TxId
-     * @param array<string, array{amount: int, lock: array<string, mixed>}> $spentOutputs    Spent output data for history queries
+     * @param array<string, int>    $txFees          Map of TxId value to fee
+     * @param array<string, int>    $coinbaseAmounts Map of coinbase TxId to minted amount
+     * @param array<string, string> $outputCreatedBy Map of OutputId → TxId|'genesis'
+     * @param array<string, string> $outputSpentBy   Map of OutputId → TxId
+     * @param TOutputDataMap        $spentOutputs    Spent output data for history queries
      */
     public function __construct(
         private array $txFees = [],
@@ -145,7 +145,7 @@ final class InMemoryHistoryRepository implements HistoryRepository
      *     coinbaseAmounts: array<string, int>,
      *     outputCreatedBy: array<string, string>,
      *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
+     *     spentOutputs: TOutputDataMap
      * }
      */
     public function toArray(): array
@@ -167,7 +167,7 @@ final class InMemoryHistoryRepository implements HistoryRepository
      *     coinbaseAmounts?: array<string, int>,
      *     outputCreatedBy?: array<string, string>,
      *     outputSpentBy?: array<string, string>,
-     *     spentOutputs?: array<string, array{amount: int, lock: array<string, mixed>}>
+     *     spentOutputs?: TOutputDataMap
      * } $data
      */
     public static function fromArray(array $data): self
