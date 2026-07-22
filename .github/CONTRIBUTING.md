@@ -67,7 +67,10 @@ All gates must pass before commit. The pre-commit hook runs `check:quick`; CI ru
 | PHPUnit      | `composer phpunit`     | All pass               | Yes        | Yes |
 | Rector       | `composer rector-dry`  | No suggested changes   | No         | Yes |
 | PHPStan      | `composer stan`        | Level 8, 0 errors      | No         | Yes |
-| Infection    | `composer infection`   | 90%+ MSI               | No         | Yes |
+| Infection    | `composer check:mutation` | 90%+ MSI            | No         | Yes |
+| Coverage     | (checked in CI)        | 85%+ lines             | No         | Yes |
+
+Mutation testing and coverage are **not** in `composer test` (they are slower); run `composer check:mutation` before pushing so a CI-only failure doesn't surprise you.
 
 **Why not full `composer test` on pre-commit?** Rector and PHPStan take ~15s each. The hook prioritizes fast feedback (~2s cached); the full suite runs in CI.
 
@@ -89,6 +92,7 @@ composer test:feature     # Integration tests
 composer check:quick      # CS-Fixer + PHPUnit (~2s cached)
 composer check:full       # CS-Fixer + Rector + PHPStan + PHPUnit
 composer test             # Same as check:full
+composer check:mutation   # Mutation testing (90% MSI) — matches CI, run before pushing
 ```
 
 ### Individual tools

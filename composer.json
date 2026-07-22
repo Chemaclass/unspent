@@ -101,12 +101,14 @@
             "@rector-dry",
             "@stan",
             "@phpunit"
-        ]
+        ],
+        "check:mutation": "@infection"
     },
     "scripts-descriptions": {
         "test": "Run full quality gate (csrun + rector-dry + stan + phpunit)",
         "check:quick": "Fast pre-commit gate (csrun + phpunit, ~2s cached)",
         "check:full": "Same as test — full quality gate",
+        "check:mutation": "Mutation-testing gate (90% MSI, matches CI) — run before pushing",
         "fix": "Apply CS-Fixer and Rector auto-fixes",
         "test:fast": "Unit tests only, stop on first failure",
         "test:unit": "All unit tests",

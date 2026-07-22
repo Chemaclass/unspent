@@ -11,8 +11,9 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  MIN_COVERAGE: 65
-  MIN_MSI: 80
+  # Kept in sync with composer.json (infection) and the CONTRIBUTING / CLAUDE quality tables.
+  MIN_COVERAGE: 85
+  MIN_MSI: 90
 
 jobs:
   security:
