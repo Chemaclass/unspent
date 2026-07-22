@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - In-memory history no longer copies its internal arrays on every `apply()` / `applyCoinbase()`; sequential application is now linear instead of O(n²) in the number of transactions
 - `Ledger::unspent()` now returns a copy-on-write snapshot instead of marking the internal set as shared, so reading no longer forces a full copy on the next write; interleaved read/write and event-dispatching `apply()` are now linear
 - `UnspentSet` maintains an incremental owner index, so owner-scoped lookups (`ownedBy()`, `totalAmountOwnedBy()`, and therefore `Ledger::unspentByOwner()` / `totalUnspentByOwner()` / `transfer()` / `debit()` / `consolidate()` / `batchTransfer()` and `UtxoAnalytics`) cost O(outputs-owned-by-owner) instead of O(total outputs); `totalAmountOwnedBy()` no longer allocates an intermediate set and `filter()` computes its total in a single pass
+- `SqliteLedgerRepository::save()` serializes the ledger once and writes outputs/transactions with chunked multi-row `INSERT`s instead of one round trip per row; transaction coinbase/fee metadata is read from the serialized array instead of per-transaction method calls
 
 ## [1.1.0] - 2026-07-22
 
