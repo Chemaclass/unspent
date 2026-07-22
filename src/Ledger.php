@@ -31,9 +31,6 @@ use JsonException;
  */
 final class Ledger implements LedgerInterface
 {
-    /** Library version following semver. */
-    public const string VERSION = '1.0.0';
-
     /** Serialization format version for future migration support. */
     private const int SERIALIZATION_VERSION = 1;
 

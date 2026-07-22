@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 
 - **BREAKING**: `HistoryRepository::withTransaction()`, `withCoinbase()`, and `withGenesis()` — the immutable copy-on-write variants that merely duplicated the `save*` methods. Custom `HistoryRepository` implementations now only need the `save*` methods.
+- `Ledger::VERSION` constant — it had gone stale (hardcoded `1.0.0`) and was unused; read the installed version from Composer (`\Composer\InstalledVersions::getPrettyVersion('chemaclass/unspent')`) if you need it at runtime
 
 ### Performance
 
