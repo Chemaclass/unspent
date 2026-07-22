@@ -42,7 +42,7 @@ final readonly class Output
     public static function ownedBy(string $owner, int $amount, ?string $id = null): self
     {
         return new self(
-            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            id: new OutputId($id ?? IdGenerator::forOutput()),
             amount: $amount,
             lock: new Owner($owner),
         );
@@ -57,7 +57,7 @@ final readonly class Output
     public static function signedBy(string $publicKey, int $amount, ?string $id = null): self
     {
         return new self(
-            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            id: new OutputId($id ?? IdGenerator::forOutput()),
             amount: $amount,
             lock: new PublicKey($publicKey),
         );
@@ -72,7 +72,7 @@ final readonly class Output
     public static function open(int $amount, ?string $id = null): self
     {
         return new self(
-            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            id: new OutputId($id ?? IdGenerator::forOutput()),
             amount: $amount,
             lock: new NoLock(),
         );
@@ -87,7 +87,7 @@ final readonly class Output
     public static function lockedWith(OutputLock $lock, int $amount, ?string $id = null): self
     {
         return new self(
-            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            id: new OutputId($id ?? IdGenerator::forOutput()),
             amount: $amount,
             lock: $lock,
         );
@@ -103,7 +103,7 @@ final readonly class Output
     public static function timelocked(string $owner, int $amount, int $unlockTime, ?string $id = null): self
     {
         return new self(
-            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            id: new OutputId($id ?? IdGenerator::forOutput()),
             amount: $amount,
             lock: new TimeLock(new Owner($owner), $unlockTime),
         );
@@ -120,7 +120,7 @@ final readonly class Output
     public static function multisig(int $threshold, array $signers, int $amount, ?string $id = null): self
     {
         return new self(
-            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            id: new OutputId($id ?? IdGenerator::forOutput()),
             amount: $amount,
             lock: new MultisigLock($threshold, $signers),
         );
@@ -139,7 +139,7 @@ final readonly class Output
         $innerLock = $owner !== null ? new Owner($owner) : null;
 
         return new self(
-            id: new OutputId($id ?? IdGenerator::forOutput($amount)),
+            id: new OutputId($id ?? IdGenerator::forOutput()),
             amount: $amount,
             lock: HashLock::fromHash($hash, $algorithm, $innerLock),
         );

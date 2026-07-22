@@ -103,15 +103,15 @@ final class IdGeneratorTest extends TestCase
 
     public function test_for_output_is_random(): void
     {
-        $id1 = IdGenerator::forOutput(100);
-        $id2 = IdGenerator::forOutput(100);
+        $id1 = IdGenerator::forOutput();
+        $id2 = IdGenerator::forOutput();
 
         self::assertNotSame($id1, $id2);
     }
 
     public function test_for_output_returns_32_hex_characters(): void
     {
-        $id = IdGenerator::forOutput(100);
+        $id = IdGenerator::forOutput();
 
         self::assertSame(32, \strlen($id));
         self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $id);
@@ -121,7 +121,7 @@ final class IdGeneratorTest extends TestCase
     {
         $ids = [];
         for ($i = 0; $i < 100; ++$i) {
-            $ids[] = IdGenerator::forOutput(100);
+            $ids[] = IdGenerator::forOutput();
         }
 
         $uniqueIds = array_unique($ids);
