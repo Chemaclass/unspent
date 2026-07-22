@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `SqliteLedgerRepository::save()` serializes the ledger once and writes outputs/transactions with chunked multi-row `INSERT`s instead of one round trip per row; transaction coinbase/fee metadata is read from the serialized array instead of per-transaction method calls
 - `Ledger::apply()` captures spent-output history data during spend validation, looking each spent output up once instead of twice
 - `IdGenerator::forOutput()` returns 128 random bits directly instead of hashing them, dropping a SHA-256 call per output created
+- SQLite `idx_outputs_owner` widened to `(ledger_id, lock_owner, is_spent)` as a partial index (`WHERE lock_owner IS NOT NULL`), so unspent-by-owner queries are served entirely from the index and non-owner rows are skipped (applies to newly created schemas)
 
 ## [1.1.0] - 2026-07-22
 
