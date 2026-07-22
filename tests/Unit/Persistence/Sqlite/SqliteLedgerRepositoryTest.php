@@ -63,6 +63,34 @@ final class SqliteLedgerRepositoryTest extends TestCase
         self::assertSame(500, $bob->amount);
     }
 
+    public function test_save_and_load_ledger_with_many_outputs_across_insert_chunks(): void
+    {
+        $repo = SqliteRepositoryFactory::createInMemory();
+
+        $outputs = [];
+        for ($i = 0; $i < 250; ++$i) {
+            $outputs[] = Output::ownedBy('alice', 100, "utxo-{$i}");
+        }
+        $ledger = Ledger::withGenesis(...$outputs);
+
+        // Spend two outputs so spent-output rows are also part of the batch.
+        $ledger->apply(Tx::create(
+            spendIds: ['utxo-0', 'utxo-1'],
+            outputs: [Output::ownedBy('bob', 200, 'bob-funds')],
+            signedBy: 'alice',
+            id: 'tx-1',
+        ));
+
+        $repo->save('big', $ledger);
+        $loaded = $repo->find('big');
+
+        self::assertNotNull($loaded);
+        self::assertSame($ledger->totalUnspentAmount(), $loaded->totalUnspentAmount());
+        self::assertCount(249, $loaded->unspent());
+        self::assertSame(200, $loaded->unspent()->get(new OutputId('bob-funds'))?->amount);
+        self::assertNotNull($loaded->getOutput(new OutputId('utxo-0')));
+    }
+
     public function test_save_and_load_ledger_with_transactions(): void
     {
         $repo = SqliteRepositoryFactory::createInMemory();

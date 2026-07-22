@@ -61,6 +61,35 @@ $repo->findTransactionsByFeeRange('wallet-1', min: 10);
 $repo->countUnspent('wallet-1');
 ```
 
+### Write Patterns & Performance
+
+Two persistence models trade simplicity against write cost:
+
+**Snapshot save (`SqliteLedgerRepository::save`)** rewrites the whole ledger — it
+deletes the stored rows and re-inserts every output and transaction using chunked
+multi-row `INSERT`s (bounded parameter count per statement). Simple and atomic,
+but each `save()` is O(total history). Best for small/medium ledgers or periodic
+checkpoints.
+
+```php
+$repo = SqliteRepositoryFactory::createFromFile('ledger.db');
+$repo->save('wallet-1', $ledger); // full snapshot, batched inserts
+```
+
+**Store-backed history (`SqliteHistoryRepository`)** appends per operation, so each
+`apply()` / `applyCoinbase()` writes only the new rows and memory stays bounded to
+the unspent set. Prefer this for large or high-write-throughput ledgers.
+
+```php
+use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
+
+$repo = new SqliteHistoryRepository($pdo, 'wallet-1');
+$ledger = Ledger::withRepository($repo)
+    ->addGenesis(Output::ownedBy('alice', 1000));
+
+$ledger->credit('alice', 100); // persists incrementally
+```
+
 ## Custom Locks
 
 Register handlers before deserializing:

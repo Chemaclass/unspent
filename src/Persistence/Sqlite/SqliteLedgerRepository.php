@@ -12,11 +12,9 @@ use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Persistence\AbstractLedgerRepository;
 use Chemaclass\Unspent\Persistence\PersistenceException;
 use Chemaclass\Unspent\Persistence\TransactionInfo;
-use Chemaclass\Unspent\TxId;
 use Chemaclass\Unspent\UnspentSet;
 use PDO;
 use PDOException;
-use PDOStatement;
 
 /**
  * SQLite implementation of the ledger repository.
@@ -43,7 +41,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     private const string SQL_LEDGER_DELETE = 'DELETE FROM ledgers WHERE id = ?';
     private const string SQL_LEDGER_INSERT = 'INSERT INTO ledgers (id, version, total_unspent, total_fees, total_minted) VALUES (?, ?, ?, ?, ?)';
 
-    private const string SQL_OUTPUT_INSERT = 'INSERT INTO outputs (id, ledger_id, amount, lock_type, lock_owner, lock_pubkey, lock_custom_data, is_spent, created_by, spent_by) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     private const string SQL_OUTPUT_SELECT_ALL = 'SELECT *, is_spent FROM outputs WHERE ledger_id = ?';
     private const string SQL_OUTPUT_SELECT_UNSPENT = 'SELECT * FROM outputs WHERE ledger_id = ? AND is_spent = 0';
     private const string SQL_LEDGER_TOTALS = 'SELECT total_fees, total_minted FROM ledgers WHERE id = ?';
@@ -53,11 +50,25 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     private const string SQL_OUTPUT_COUNT_UNSPENT = 'SELECT COUNT(*) FROM outputs WHERE ledger_id = ? AND is_spent = 0';
     private const string SQL_OUTPUT_SUM_BY_OWNER = 'SELECT COALESCE(SUM(amount), 0) FROM outputs WHERE ledger_id = ? AND lock_owner = ? AND is_spent = 0';
 
-    private const string SQL_TX_INSERT = 'INSERT INTO transactions (id, ledger_id, is_coinbase, fee, coinbase_amount) VALUES (?, ?, ?, ?, ?)';
     private const string SQL_TX_SELECT_ALL = 'SELECT * FROM transactions WHERE ledger_id = ?';
     private const string SQL_TX_COINBASE = 'SELECT id FROM transactions WHERE ledger_id = ? AND is_coinbase = 1';
 
     private const string ORIGIN_GENESIS = 'genesis';
+
+    /**
+     * Upper bound on bound parameters per statement, kept well under SQLite's
+     * default SQLITE_MAX_VARIABLE_NUMBER so batched inserts stay portable.
+     */
+    private const int MAX_BIND_PARAMS = 900;
+
+    /** @var list<string> */
+    private const array OUTPUT_COLUMNS = [
+        'id', 'ledger_id', 'amount', 'lock_type', 'lock_owner',
+        'lock_pubkey', 'lock_custom_data', 'is_spent', 'created_by', 'spent_by',
+    ];
+
+    /** @var list<string> */
+    private const array TX_COLUMNS = ['id', 'ledger_id', 'is_coinbase', 'fee', 'coinbase_amount'];
 
     public function __construct(
         private readonly PDO $pdo,
@@ -66,11 +77,14 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     public function save(string $id, LedgerInterface $ledger): void
     {
-        $this->runInTransaction($id, function () use ($id, $ledger): void {
+        // Serialize once and reuse across every insert step.
+        $ledgerArray = $ledger->toArray();
+
+        $this->runInTransaction($id, function () use ($id, $ledger, $ledgerArray): void {
             $this->deleteLedgerData($id);
             $this->insertLedger($id, $ledger);
-            $this->insertOutputs($id, $ledger);
-            $this->insertTransactions($id, $ledger);
+            $this->insertOutputs($id, $ledgerArray, $ledger);
+            $this->insertTransactions($id, $ledgerArray);
         });
     }
 
@@ -311,42 +325,56 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         ]);
     }
 
-    private function insertOutputs(string $id, LedgerInterface $ledger): void
+    /**
+     * @param TLedgerArray $ledgerArray
+     */
+    private function insertOutputs(string $id, array $ledgerArray, LedgerInterface $ledger): void
     {
-        $stmt = $this->prepare(self::SQL_OUTPUT_INSERT);
-
-        // Pre-fetch all metadata to avoid N+1 queries
-        $ledgerArray = $ledger->toArray();
         $outputCreatedBy = $ledgerArray['outputCreatedBy'];
         $outputSpentBy = $ledgerArray['outputSpentBy'];
+        $rows = [];
 
         foreach ($ledger->unspent() as $outputId => $output) {
-            $createdBy = $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS;
-            $this->executeOutputInsert($stmt, $id, $outputId, $output, $createdBy, null);
+            $rows[] = $this->outputRow(
+                $id,
+                $outputId,
+                $output,
+                $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS,
+                null,
+            );
         }
 
         foreach ($ledgerArray['spentOutputs'] as $outputId => $outputData) {
             $output = new Output(
-                new OutputId($outputId),
+                new OutputId((string) $outputId),
                 $outputData['amount'],
                 LockFactory::fromArray($outputData['lock']),
             );
-            $createdBy = $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS;
-            $spentBy = $outputSpentBy[$outputId] ?? null;
-            $this->executeOutputInsert($stmt, $id, $outputId, $output, $createdBy, $spentBy);
+            $rows[] = $this->outputRow(
+                $id,
+                (string) $outputId,
+                $output,
+                $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS,
+                $outputSpentBy[$outputId] ?? null,
+            );
         }
+
+        $this->batchInsert('outputs', self::OUTPUT_COLUMNS, $rows);
     }
 
-    private function executeOutputInsert(
-        PDOStatement $stmt,
+    /**
+     * @return list<int|string|null>
+     */
+    private function outputRow(
         string $ledgerId,
         string $outputId,
         Output $output,
         string $createdBy,
         ?string $spentBy,
-    ): void {
+    ): array {
         $lockData = $this->extractLockData($output);
-        $stmt->execute([
+
+        return [
             $outputId,
             $ledgerId,
             $output->amount,
@@ -357,25 +385,54 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $spentBy !== null ? 1 : 0,
             $createdBy,
             $spentBy,
-        ]);
+        ];
     }
 
-    private function insertTransactions(string $id, LedgerInterface $ledger): void
+    /**
+     * @param TLedgerArray $ledgerArray
+     */
+    private function insertTransactions(string $id, array $ledgerArray): void
     {
-        $stmt = $this->prepare(self::SQL_TX_INSERT);
-        $allFees = $ledger->allTxFees();
+        $txFees = $ledgerArray['txFees'];
+        $coinbaseAmounts = $ledgerArray['coinbaseAmounts'];
+        $rows = [];
 
-        foreach ($ledger->toArray()['appliedTxs'] as $txId) {
-            $txIdObj = new TxId($txId);
-            $isCoinbase = $ledger->isCoinbase($txIdObj);
-
-            $stmt->execute([
+        foreach ($ledgerArray['appliedTxs'] as $txId) {
+            $isCoinbase = isset($coinbaseAmounts[$txId]);
+            $rows[] = [
                 $txId,
                 $id,
                 $isCoinbase ? 1 : 0,
-                $allFees[$txId] ?? null,
-                $isCoinbase ? $ledger->coinbaseAmount($txIdObj) : null,
-            ]);
+                $txFees[$txId] ?? null,
+                $isCoinbase ? $coinbaseAmounts[$txId] : null,
+            ];
+        }
+
+        $this->batchInsert('transactions', self::TX_COLUMNS, $rows);
+    }
+
+    /**
+     * Insert many rows using chunked multi-row INSERT statements, keeping the
+     * bound-parameter count per statement under SQLite's limit.
+     *
+     * @param list<string>                $columns
+     * @param list<list<int|string|null>> $rows
+     */
+    private function batchInsert(string $table, array $columns, array $rows): void
+    {
+        if ($rows === []) {
+            return;
+        }
+
+        $columnCount = \count($columns);
+        $rowsPerChunk = max(1, intdiv(self::MAX_BIND_PARAMS, $columnCount));
+        $columnList = implode(', ', $columns);
+        $rowPlaceholder = '(' . implode(', ', array_fill(0, $columnCount, '?')) . ')';
+
+        foreach (array_chunk($rows, $rowsPerChunk) as $chunk) {
+            $placeholders = implode(', ', array_fill(0, \count($chunk), $rowPlaceholder));
+            $sql = "INSERT INTO {$table} ({$columnList}) VALUES {$placeholders}";
+            $this->prepare($sql)->execute(array_merge(...$chunk));
         }
     }
 
