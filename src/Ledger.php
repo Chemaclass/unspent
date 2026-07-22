@@ -45,7 +45,7 @@ final class Ledger implements LedgerInterface
         private array $appliedTxIds,
         private int $totalFees,
         private int $totalMinted,
-        private HistoryRepository $historyRepository,
+        private readonly HistoryRepository $historyRepository,
     ) {
     }
 
@@ -158,7 +158,7 @@ final class Ledger implements LedgerInterface
         DuplicateValidator::assertNoDuplicateOutputIds(array_values($outputs));
 
         $this->unspentSet = UnspentSet::fromOutputs(...$outputs);
-        $this->historyRepository = $this->historyRepository->withGenesis(array_values($outputs));
+        $this->historyRepository->saveGenesis(array_values($outputs));
 
         return $this;
     }
@@ -201,7 +201,7 @@ final class Ledger implements LedgerInterface
 
         $this->appliedTxIds[$tx->id->value] = true;
         $this->totalFees += $fee;
-        $this->historyRepository = $this->historyRepository->withTransaction($tx, $fee, $spentOutputData);
+        $this->historyRepository->saveTransaction($tx, $fee, $spentOutputData);
 
         return $this;
     }
@@ -224,7 +224,7 @@ final class Ledger implements LedgerInterface
 
         $this->appliedTxIds[$coinbase->id->value] = true;
         $this->totalMinted += $mintedAmount;
-        $this->historyRepository = $this->historyRepository->withCoinbase($coinbase);
+        $this->historyRepository->saveCoinbase($coinbase);
 
         return $this;
     }
