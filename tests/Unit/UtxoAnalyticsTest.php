@@ -11,6 +11,29 @@ use PHPUnit\Framework\TestCase;
 
 final class UtxoAnalyticsTest extends TestCase
 {
+    public function test_summarize_reports_all_metrics_for_a_prefetched_set(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 100, 'a1'),
+            Output::ownedBy('alice', 5, 'a2'),
+            Output::ownedBy('alice', 50, 'a3'),
+            Output::ownedBy('bob', 999, 'b1'),
+        );
+
+        $summary = UtxoAnalytics::summarize($ledger->unspentByOwner('alice'), dustThreshold: 10);
+
+        self::assertSame(3, $summary['count']);
+        self::assertSame(155, $summary['total']);
+        self::assertSame(51, $summary['average']);
+        self::assertSame(5, $summary['min']);
+        self::assertSame(100, $summary['max']);
+        self::assertSame(1, $summary['dustCount']);
+        self::assertSame(5, $summary['dustTotal']);
+        self::assertSame('a1', $summary['largest']?->id->value);
+        self::assertSame('a2', $summary['smallest']?->id->value);
+        self::assertSame('a1', $summary['oldest']?->id->value);
+    }
+
     // ========================================
     // findDust() tests
     // ========================================
