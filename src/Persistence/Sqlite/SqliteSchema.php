@@ -105,7 +105,7 @@ final readonly class SqliteSchema implements DatabaseSchema
     {
         $indexes = [
             'CREATE INDEX IF NOT EXISTS idx_outputs_ledger_unspent ON outputs(ledger_id, is_spent)',
-            'CREATE INDEX IF NOT EXISTS idx_outputs_owner ON outputs(ledger_id, lock_owner)',
+            'CREATE INDEX IF NOT EXISTS idx_outputs_owner ON outputs(ledger_id, lock_owner, is_spent) WHERE lock_owner IS NOT NULL',
             'CREATE INDEX IF NOT EXISTS idx_outputs_amount ON outputs(ledger_id, amount)',
             'CREATE INDEX IF NOT EXISTS idx_outputs_created_by ON outputs(ledger_id, created_by)',
             'CREATE INDEX IF NOT EXISTS idx_outputs_lock_type ON outputs(ledger_id, lock_type)',

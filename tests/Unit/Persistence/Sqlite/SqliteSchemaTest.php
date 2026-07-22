@@ -34,6 +34,24 @@ final class SqliteSchemaTest extends TestCase
         self::assertContains('transactions', $tables);
     }
 
+    public function test_owner_index_covers_is_spent_for_unspent_owner_queries(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $schema = new SqliteSchema($pdo);
+        $schema->create();
+
+        $result = $pdo->query(
+            "SELECT sql FROM sqlite_master WHERE type='index' AND name='idx_outputs_owner'",
+        );
+        $sql = $result !== false ? (string) $result->fetchColumn() : '';
+
+        self::assertStringContainsStringIgnoringCase('lock_owner', $sql);
+        self::assertStringContainsStringIgnoringCase('is_spent', $sql);
+        self::assertStringContainsStringIgnoringCase('lock_owner IS NOT NULL', $sql);
+    }
+
     public function test_exists_returns_true_after_create(): void
     {
         $pdo = new PDO('sqlite::memory:');
