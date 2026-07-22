@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-22
+
 ### Added
 
 - `RandomStrategy` coin selection — shuffles outputs randomly before selecting for improved privacy
@@ -17,6 +19,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Removed deprecated static methods from `SqliteSchema` (`createSchema()`, `schemaExists()`, `dropSchema()`) — use instance methods instead
 - Fixed PHPUnit notices in `LoggingLedgerTest` by using `createStub()` for mocks without expectations
 - Corrected CLAUDE.md to reflect actual PHPStan level 8
+
+### Internal
+
+- Deduplicated shared logic into traits: `IdValue` (`OutputId`/`TxId`), `AccumulatesOutputs` (selection strategies), and `PdoStatementCache`/`PdoQueryWrapper`/`PdoTransactionalWrite` (SQLite repositories)
+- Strengthened weak types: `mixed`/`callable` narrowed to `Closure`, precise `array{}` shapes for lock (de)serialization, `@phpstan-type TOutputRow`/`TTransactionRow` for database rows
+- Consolidated repeated ledger array-shape docblocks behind PHPStan `typeAliases` (`TOutputData`, `TLedgerArray`, …)
+- Removed restating comments and redundant `@param` docblocks
 
 ---
 
