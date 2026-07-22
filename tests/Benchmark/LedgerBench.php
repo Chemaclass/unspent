@@ -102,6 +102,27 @@ final class LedgerBench
     }
 
     /**
+     * Owner-scoped lookups across many distinct owners. With the owner index
+     * each lookup is O(outputs-owned-by-owner); without it, each was O(total),
+     * so this subject scaled quadratically in the number of owners.
+     */
+    #[Bench\Revs(5)]
+    #[Bench\Iterations(3)]
+    #[Bench\Subject]
+    public function benchOwnerScopedLookupAmongManyOwners(): void
+    {
+        $ledger = Ledger::inMemory();
+
+        for ($i = 0; $i < 1000; ++$i) {
+            $ledger->credit("owner-{$i}", 100, "cb-{$i}");
+        }
+
+        for ($i = 0; $i < 1000; ++$i) {
+            $ledger->totalUnspentByOwner("owner-{$i}");
+        }
+    }
+
+    /**
      * @return Generator<string, array{count: int}>
      */
     public function provideScales(): Generator

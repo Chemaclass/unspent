@@ -19,6 +19,10 @@ use Traversable;
  * mutation, we track "ownership" of the internal array. Mutations happen
  * in-place when we own the array, and copy only when forking from shared state.
  *
+ * A secondary owner index (owner name => set of owned output ids) is maintained
+ * incrementally so owner-scoped lookups cost O(outputs-owned-by-owner) instead
+ * of O(total outputs).
+ *
  * @implements IteratorAggregate<string, Output>
  */
 final class UnspentSet implements Countable, IteratorAggregate
@@ -30,17 +34,19 @@ final class UnspentSet implements Countable, IteratorAggregate
     private bool $owned = true;
 
     /**
-     * @param array<string, Output> $outputs
+     * @param array<string, Output>              $outputs    Output id => Output
+     * @param array<string, array<string, true>> $ownerIndex Owner name => set of owned output ids
      */
     private function __construct(
         private array $outputs,
         private int $cachedTotal,
+        private array $ownerIndex,
     ) {
     }
 
     public static function empty(): self
     {
-        return new self([], 0);
+        return new self([], 0, []);
     }
 
     public static function fromOutputs(Output ...$outputs): self
@@ -70,31 +76,39 @@ final class UnspentSet implements Countable, IteratorAggregate
      */
     public function snapshot(): self
     {
-        return new self($this->outputs, $this->cachedTotal)->release();
+        return new self($this->outputs, $this->cachedTotal, $this->ownerIndex)->release();
     }
 
     public function add(Output $output): self
     {
         $key = $output->id->value;
         $delta = $output->amount;
-
-        if (isset($this->outputs[$key])) {
-            $delta -= $this->outputs[$key]->amount;
+        $existing = $this->outputs[$key] ?? null;
+        if ($existing !== null) {
+            $delta -= $existing->amount;
         }
 
         if ($this->owned) {
-            // Mutate in place - we own this array
+            if ($existing !== null) {
+                $this->unindexOwner($this->ownerIndex, $existing);
+            }
             $this->outputs[$key] = $output;
             $this->cachedTotal += $delta;
+            $this->indexOwner($this->ownerIndex, $output);
 
             return $this;
         }
 
         // Fork - create a copy since we don't own the array
         $newOutputs = $this->outputs;
+        $newIndex = $this->ownerIndex;
+        if ($existing !== null) {
+            $this->unindexOwner($newIndex, $existing);
+        }
         $newOutputs[$key] = $output;
+        $this->indexOwner($newIndex, $output);
 
-        return new self($newOutputs, $this->cachedTotal + $delta);
+        return new self($newOutputs, $this->cachedTotal + $delta, $newIndex);
     }
 
     public function addAll(Output ...$outputs): self
@@ -104,14 +118,16 @@ final class UnspentSet implements Countable, IteratorAggregate
         }
 
         if ($this->owned) {
-            // Mutate in place
             foreach ($outputs as $output) {
                 $key = $output->id->value;
-                if (isset($this->outputs[$key])) {
-                    $this->cachedTotal -= $this->outputs[$key]->amount;
+                $existing = $this->outputs[$key] ?? null;
+                if ($existing !== null) {
+                    $this->cachedTotal -= $existing->amount;
+                    $this->unindexOwner($this->ownerIndex, $existing);
                 }
                 $this->outputs[$key] = $output;
                 $this->cachedTotal += $output->amount;
+                $this->indexOwner($this->ownerIndex, $output);
             }
 
             return $this;
@@ -120,41 +136,45 @@ final class UnspentSet implements Countable, IteratorAggregate
         // Fork
         $newOutputs = $this->outputs;
         $newTotal = $this->cachedTotal;
-
+        $newIndex = $this->ownerIndex;
         foreach ($outputs as $output) {
             $key = $output->id->value;
-            if (isset($newOutputs[$key])) {
-                $newTotal -= $newOutputs[$key]->amount;
+            $existing = $newOutputs[$key] ?? null;
+            if ($existing !== null) {
+                $newTotal -= $existing->amount;
+                $this->unindexOwner($newIndex, $existing);
             }
             $newOutputs[$key] = $output;
             $newTotal += $output->amount;
+            $this->indexOwner($newIndex, $output);
         }
 
-        return new self($newOutputs, $newTotal);
+        return new self($newOutputs, $newTotal, $newIndex);
     }
 
     public function remove(OutputId $id): self
     {
         $key = $id->value;
-        if (!isset($this->outputs[$key])) {
+        $existing = $this->outputs[$key] ?? null;
+        if ($existing === null) {
             return $this;
         }
 
-        $removedAmount = $this->outputs[$key]->amount;
-
         if ($this->owned) {
-            // Mutate in place
             unset($this->outputs[$key]);
-            $this->cachedTotal -= $removedAmount;
+            $this->cachedTotal -= $existing->amount;
+            $this->unindexOwner($this->ownerIndex, $existing);
 
             return $this;
         }
 
         // Fork
         $newOutputs = $this->outputs;
+        $newIndex = $this->ownerIndex;
         unset($newOutputs[$key]);
+        $this->unindexOwner($newIndex, $existing);
 
-        return new self($newOutputs, $this->cachedTotal - $removedAmount);
+        return new self($newOutputs, $this->cachedTotal - $existing->amount, $newIndex);
     }
 
     public function removeAll(OutputId ...$ids): self
@@ -164,12 +184,13 @@ final class UnspentSet implements Countable, IteratorAggregate
         }
 
         if ($this->owned) {
-            // Mutate in place
             foreach ($ids as $id) {
                 $key = $id->value;
-                if (isset($this->outputs[$key])) {
-                    $this->cachedTotal -= $this->outputs[$key]->amount;
+                $existing = $this->outputs[$key] ?? null;
+                if ($existing !== null) {
+                    $this->cachedTotal -= $existing->amount;
                     unset($this->outputs[$key]);
+                    $this->unindexOwner($this->ownerIndex, $existing);
                 }
             }
 
@@ -179,16 +200,18 @@ final class UnspentSet implements Countable, IteratorAggregate
         // Fork
         $newOutputs = $this->outputs;
         $newTotal = $this->cachedTotal;
-
+        $newIndex = $this->ownerIndex;
         foreach ($ids as $id) {
             $key = $id->value;
-            if (isset($newOutputs[$key])) {
-                $newTotal -= $newOutputs[$key]->amount;
+            $existing = $newOutputs[$key] ?? null;
+            if ($existing !== null) {
+                $newTotal -= $existing->amount;
                 unset($newOutputs[$key]);
+                $this->unindexOwner($newIndex, $existing);
             }
         }
 
-        return new self($newOutputs, $newTotal);
+        return new self($newOutputs, $newTotal, $newIndex);
     }
 
     public function contains(OutputId $id): bool
@@ -235,32 +258,55 @@ final class UnspentSet implements Countable, IteratorAggregate
     public function filter(callable $predicate): self
     {
         $filtered = array_filter($this->outputs, $predicate);
-        $total = array_sum(array_map(static fn (Output $o): int => $o->amount, $filtered));
+        $total = 0;
+        $index = [];
+        foreach ($filtered as $output) {
+            $total += $output->amount;
+            $this->indexOwner($index, $output);
+        }
 
-        return new self($filtered, $total);
+        return new self($filtered, $total, $index);
     }
 
     /**
      * Returns all outputs owned by a specific owner.
      *
-     * Only returns outputs with an Owner lock matching the given name.
+     * Only returns outputs with an Owner lock matching the given name. Resolved
+     * through the owner index in O(outputs-owned-by-owner).
      * For database-level queries, prefer QueryableLedgerRepository::findUnspentByOwner().
      */
     public function ownedBy(string $owner): self
     {
-        return $this->filter(
-            static fn (Output $o): bool => $o->lock instanceof Owner && $o->lock->name === $owner,
-        );
+        $ids = $this->ownerIndex[$owner] ?? [];
+        if ($ids === []) {
+            return self::empty();
+        }
+
+        $outputs = [];
+        $total = 0;
+        foreach (array_keys($ids) as $id) {
+            $output = $this->outputs[$id];
+            $outputs[$id] = $output;
+            $total += $output->amount;
+        }
+
+        return new self($outputs, $total, [$owner => $ids]);
     }
 
     /**
      * Returns total amount owned by a specific owner.
      *
+     * Resolved through the owner index without allocating an intermediate set.
      * For database-level queries, prefer QueryableLedgerRepository::sumUnspentByOwner().
      */
     public function totalAmountOwnedBy(string $owner): int
     {
-        return $this->ownedBy($owner)->totalAmount();
+        $total = 0;
+        foreach (array_keys($this->ownerIndex[$owner] ?? []) as $id) {
+            $total += $this->outputs[$id]->amount;
+        }
+
+        return $total;
     }
 
     public function getIterator(): Traversable
@@ -309,5 +355,31 @@ final class UnspentSet implements Countable, IteratorAggregate
         }
 
         return self::fromOutputs(...$outputs);
+    }
+
+    /**
+     * @param array<string, array<string, true>> $index
+     */
+    private function indexOwner(array &$index, Output $output): void
+    {
+        if ($output->lock instanceof Owner) {
+            $index[$output->lock->name][$output->id->value] = true;
+        }
+    }
+
+    /**
+     * @param array<string, array<string, true>> $index
+     */
+    private function unindexOwner(array &$index, Output $output): void
+    {
+        if (!$output->lock instanceof Owner) {
+            return;
+        }
+
+        $name = $output->lock->name;
+        unset($index[$name][$output->id->value]);
+        if (($index[$name] ?? []) === []) {
+            unset($index[$name]);
+        }
     }
 }
