@@ -84,6 +84,77 @@ final class UtxoAnalytics
     }
 
     /**
+     * Computes every owner metric in a single pass over a pre-fetched unspent
+     * set, so callers needing several metrics fetch the outputs only once, e.g.
+     * `UtxoAnalytics::summarize($ledger->unspentByOwner('alice'))`.
+     *
+     * @param int $dustThreshold Amount below which outputs are considered dust
+     *
+     * @return array{
+     *     count: int,
+     *     total: int,
+     *     average: int,
+     *     min: int,
+     *     max: int,
+     *     dustCount: int,
+     *     dustTotal: int,
+     *     largest: ?Output,
+     *     smallest: ?Output,
+     *     oldest: ?Output
+     * }
+     */
+    public static function summarize(UnspentSet $unspent, int $dustThreshold = 10): array
+    {
+        $count = 0;
+        $total = 0;
+        $min = 0;
+        $max = 0;
+        $dustCount = 0;
+        $dustTotal = 0;
+        $largest = null;
+        $smallest = null;
+        $oldest = null;
+
+        foreach ($unspent as $output) {
+            ++$count;
+            $total += $output->amount;
+
+            if ($count === 1) {
+                $min = $output->amount;
+                $max = $output->amount;
+                $oldest = $output;
+            } else {
+                $min = min($min, $output->amount);
+                $max = max($max, $output->amount);
+            }
+
+            if ($largest === null || $output->amount > $largest->amount) {
+                $largest = $output;
+            }
+            if ($smallest === null || $output->amount < $smallest->amount) {
+                $smallest = $output;
+            }
+            if ($output->amount < $dustThreshold) {
+                ++$dustCount;
+                $dustTotal += $output->amount;
+            }
+        }
+
+        return [
+            'count' => $count,
+            'total' => $total,
+            'average' => $count > 0 ? intdiv($total, $count) : 0,
+            'min' => $min,
+            'max' => $max,
+            'dustCount' => $dustCount,
+            'dustTotal' => $dustTotal,
+            'largest' => $largest,
+            'smallest' => $smallest,
+            'oldest' => $oldest,
+        ];
+    }
+
+    /**
      * Get statistics about an owner's outputs.
      *
      * @param int $dustThreshold Amount below which outputs are considered dust
@@ -100,39 +171,16 @@ final class UtxoAnalytics
      */
     public static function stats(LedgerInterface $ledger, string $owner, int $dustThreshold = 10): array
     {
-        $count = 0;
-        $total = 0;
-        $min = 0;
-        $max = 0;
-        $dustCount = 0;
-        $dustTotal = 0;
-
-        foreach ($ledger->unspentByOwner($owner) as $output) {
-            ++$count;
-            $total += $output->amount;
-
-            if ($count === 1) {
-                $min = $output->amount;
-                $max = $output->amount;
-            } else {
-                $min = min($min, $output->amount);
-                $max = max($max, $output->amount);
-            }
-
-            if ($output->amount < $dustThreshold) {
-                ++$dustCount;
-                $dustTotal += $output->amount;
-            }
-        }
+        $summary = self::summarize($ledger->unspentByOwner($owner), $dustThreshold);
 
         return [
-            'count' => $count,
-            'total' => $total,
-            'average' => $count > 0 ? (int) ($total / $count) : 0,
-            'min' => $min,
-            'max' => $max,
-            'dustCount' => $dustCount,
-            'dustTotal' => $dustTotal,
+            'count' => $summary['count'],
+            'total' => $summary['total'],
+            'average' => $summary['average'],
+            'min' => $summary['min'],
+            'max' => $summary['max'],
+            'dustCount' => $summary['dustCount'],
+            'dustTotal' => $summary['dustTotal'],
         ];
     }
 

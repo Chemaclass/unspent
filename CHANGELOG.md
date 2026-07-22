@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - `UnspentSet::snapshot()` — returns an isolated copy-on-write view of the outputs; used by `Ledger::unspent()`
+- `UtxoAnalytics::summarize(UnspentSet $unspent, int $dustThreshold = 10)` — computes every owner metric (count, total, average, min, max, dust, largest, smallest, oldest) in a single pass over a pre-fetched set, so callers needing several metrics fetch the owner's outputs only once
 
 ### Changed
 
