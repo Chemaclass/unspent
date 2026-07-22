@@ -173,12 +173,9 @@ final class Ledger implements LedgerInterface
      */
     public function apply(Tx $tx): static
     {
-        $this->assertTxNotAlreadyApplied($tx);
-        $spentOutputData = [];
-        $spendAmount = $this->validateSpendsAndGetTotal($tx, $spentOutputData);
         $outputAmount = $tx->totalOutputAmount();
-        $this->assertSufficientSpends($spendAmount, $outputAmount);
-        $this->assertNoOutputIdConflicts($tx);
+        $spentOutputData = [];
+        $spendAmount = $this->assertApplicable($tx, $outputAmount, $spentOutputData);
 
         $fee = $spendAmount - $outputAmount;
 
@@ -405,11 +402,7 @@ final class Ledger implements LedgerInterface
     public function canApply(Tx $tx): ?Exception\UnspentException
     {
         try {
-            $this->assertTxNotAlreadyApplied($tx);
-            $spendAmount = $this->validateSpendsAndGetTotal($tx);
-            $outputAmount = $tx->totalOutputAmount();
-            $this->assertSufficientSpends($spendAmount, $outputAmount);
-            $this->assertNoOutputIdConflicts($tx);
+            $this->assertApplicable($tx, $tx->totalOutputAmount());
 
             return null;
         } catch (Exception\UnspentException $e) {
@@ -548,6 +541,30 @@ final class Ledger implements LedgerInterface
         if (isset($this->appliedTxIds[$id->value])) {
             throw DuplicateTxException::forId($id->value);
         }
+    }
+
+    /**
+     * Runs every applicability check for a transaction and returns the total
+     * spend amount, capturing spent-output data for history in the same pass.
+     * Single source of truth shared by apply() (which then mutates) and
+     * canApply() (which reports the failure) so the two cannot drift.
+     *
+     * @param TOutputDataMap $spentOutputData captured by reference for the history repository
+     *
+     * @throws DuplicateTxException        If the transaction ID was already used
+     * @throws OutputAlreadySpentException If any spend references an unknown output
+     * @throws AuthorizationException      If authorization fails for any spent output
+     * @throws InsufficientSpendsException If the spend total is less than the output total
+     * @throws DuplicateOutputIdException  If any new output ID already exists
+     */
+    private function assertApplicable(Tx $tx, int $outputAmount, array &$spentOutputData = []): int
+    {
+        $this->assertTxNotAlreadyApplied($tx);
+        $spendAmount = $this->validateSpendsAndGetTotal($tx, $spentOutputData);
+        $this->assertSufficientSpends($spendAmount, $outputAmount);
+        $this->assertNoOutputIdConflicts($tx);
+
+        return $spendAmount;
     }
 
     /**

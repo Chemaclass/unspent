@@ -10,6 +10,7 @@ use Chemaclass\Unspent\Exception\DuplicateTxException;
 use Chemaclass\Unspent\Exception\GenesisNotAllowedException;
 use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
+use Chemaclass\Unspent\Exception\UnspentException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
@@ -39,6 +40,34 @@ final class LedgerTest extends TestCase
             $ledger->historyRepository(),
             'in-memory history must mutate in place, not allocate a new repository per apply',
         );
+    }
+
+    public function test_can_apply_agrees_with_apply(): void
+    {
+        $make = static fn (): Ledger => Ledger::withGenesis(Output::ownedBy('alice', 100, 'a'));
+
+        $valid = Tx::create(['a'], [Output::ownedBy('bob', 100, 'b')], signedBy: 'alice', id: 'ok');
+        self::assertNull($make()->canApply($valid));
+        self::assertTrue($make()->apply($valid)->isTxApplied($valid->id));
+
+        $invalidCases = [
+            // Insufficient spends: output total exceeds spend total.
+            Tx::create(['a'], [Output::ownedBy('bob', 200, 'b')], signedBy: 'alice', id: 'over'),
+            // Unknown spend.
+            Tx::create(['missing'], [Output::ownedBy('bob', 10, 'b')], signedBy: 'alice', id: 'ghost'),
+        ];
+
+        foreach ($invalidCases as $tx) {
+            $reported = $make()->canApply($tx);
+            self::assertInstanceOf(UnspentException::class, $reported);
+
+            try {
+                $make()->apply($tx);
+                self::fail("apply should have thrown for {$tx->id->value}");
+            } catch (UnspentException $thrown) {
+                self::assertInstanceOf($reported::class, $thrown);
+            }
+        }
     }
 
     public function test_empty_ledger_has_zero_unspent(): void
