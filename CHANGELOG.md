@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- `Ledger` now writes history through the mutating `HistoryRepository::saveTransaction()` / `saveCoinbase()` / `saveGenesis()` methods instead of allocating a new repository instance per operation
+
+### Removed
+
+- **BREAKING**: `HistoryRepository::withTransaction()`, `withCoinbase()`, and `withGenesis()` — the immutable copy-on-write variants that merely duplicated the `save*` methods. Custom `HistoryRepository` implementations now only need the `save*` methods.
+
+### Performance
+
+- In-memory history no longer copies its internal arrays on every `apply()` / `applyCoinbase()`; sequential application is now linear instead of O(n²) in the number of transactions
+
 ## [1.1.0] - 2026-07-22
 
 ### Added

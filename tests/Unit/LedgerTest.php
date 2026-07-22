@@ -26,6 +26,21 @@ final class LedgerTest extends TestCase
         self::assertInstanceOf(Ledger::class, $ledger);
     }
 
+    public function test_in_memory_history_repository_is_mutated_in_place_not_swapped(): void
+    {
+        $ledger = Ledger::inMemory();
+        $repository = $ledger->historyRepository();
+
+        $ledger->credit('alice', 100)
+            ->transfer('alice', 'bob', 30);
+
+        self::assertSame(
+            $repository,
+            $ledger->historyRepository(),
+            'in-memory history must mutate in place, not allocate a new repository per apply',
+        );
+    }
+
     public function test_empty_ledger_has_zero_unspent(): void
     {
         $ledger = Ledger::inMemory();
