@@ -11,8 +11,6 @@ use InvalidArgumentException;
 
 /**
  * Utility class for detecting duplicate IDs in collections.
- *
- * Extracted from Tx, CoinbaseTx, and Ledger to eliminate code duplication (DRY).
  */
 final class DuplicateValidator
 {

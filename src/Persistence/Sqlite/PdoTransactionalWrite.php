@@ -11,10 +11,6 @@ use PDOException;
  * Runs a write operation inside a PDO transaction, rolling back and
  * translating failures into PersistenceException.
  *
- * Extracted from SqliteHistoryRepository (saveTransaction, saveCoinbase,
- * saveGenesis) and SqliteLedgerRepository (save), which all repeated the
- * same begin/commit/rollback shape (DRY).
- *
  * Requires the using class to expose a `private readonly PDO $pdo` property.
  */
 trait PdoTransactionalWrite

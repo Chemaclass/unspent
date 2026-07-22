@@ -8,8 +8,6 @@ use InvalidArgumentException;
 
 /**
  * Shared validation and value semantics for string-based identifier value objects.
- *
- * Extracted from OutputId and TxId to eliminate duplicated validation logic (DRY).
  */
 trait IdValue
 {
