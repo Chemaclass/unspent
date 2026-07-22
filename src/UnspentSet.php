@@ -60,6 +60,19 @@ final class UnspentSet implements Countable, IteratorAggregate
         return $this;
     }
 
+    /**
+     * Returns an isolated snapshot of the current outputs for external reads.
+     *
+     * The snapshot shares the underlying array copy-on-write and is marked as
+     * shared, so mutating it forks instead of touching this set. This set stays
+     * owned, so the ledger's own writes remain in place — reading via
+     * Ledger::unspent() no longer forces a full copy on the next write.
+     */
+    public function snapshot(): self
+    {
+        return new self($this->outputs, $this->cachedTotal)->release();
+    }
+
     public function add(Output $output): self
     {
         $key = $output->id->value;
