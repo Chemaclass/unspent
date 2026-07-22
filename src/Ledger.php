@@ -379,7 +379,7 @@ final class Ledger implements LedgerInterface
 
     public function unspent(): UnspentSet
     {
-        return $this->unspentSet->release();
+        return $this->unspentSet->snapshot();
     }
 
     public function totalUnspentAmount(): int

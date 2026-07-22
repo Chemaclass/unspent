@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `UnspentSet::snapshot()` — returns an isolated copy-on-write view of the outputs; used by `Ledger::unspent()`
+
 ### Changed
 
 - `Ledger` now writes history through the mutating `HistoryRepository::saveTransaction()` / `saveCoinbase()` / `saveGenesis()` methods instead of allocating a new repository instance per operation
@@ -18,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Performance
 
 - In-memory history no longer copies its internal arrays on every `apply()` / `applyCoinbase()`; sequential application is now linear instead of O(n²) in the number of transactions
+- `Ledger::unspent()` now returns a copy-on-write snapshot instead of marking the internal set as shared, so reading no longer forces a full copy on the next write; interleaved read/write and event-dispatching `apply()` are now linear
 
 ## [1.1.0] - 2026-07-22
 

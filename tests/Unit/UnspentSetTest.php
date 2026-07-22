@@ -237,6 +237,40 @@ final class UnspentSetTest extends TestCase
         self::assertTrue($newSet->isEmpty());
     }
 
+    public function test_snapshot_preserves_contents(): void
+    {
+        $set = UnspentSet::fromOutputs(Output::open(100, 'a'), Output::open(50, 'b'));
+
+        $snapshot = $set->snapshot();
+
+        self::assertSame(150, $snapshot->totalAmount());
+        self::assertTrue($snapshot->contains(new OutputId('a')));
+        self::assertTrue($snapshot->contains(new OutputId('b')));
+    }
+
+    public function test_snapshot_is_isolated_so_mutating_it_does_not_affect_source(): void
+    {
+        $set = UnspentSet::fromOutputs(Output::open(100, 'a'));
+
+        $snapshot = $set->snapshot();
+        $snapshot->add(Output::open(50, 'b'));
+
+        self::assertSame(100, $set->totalAmount());
+        self::assertSame(1, $set->count());
+    }
+
+    public function test_snapshot_leaves_source_owned_so_writes_stay_in_place(): void
+    {
+        $set = UnspentSet::fromOutputs(Output::open(100, 'a'));
+
+        $set->snapshot();
+        $mutated = $set->add(Output::open(50, 'b'));
+
+        // Source stays owned: add() mutates in place and returns the same instance,
+        // so reading via snapshot() does not force a fork on the next write.
+        self::assertSame($set, $mutated);
+    }
+
     public function test_add_replaces_output_with_same_id(): void
     {
         $output1 = new Output(new OutputId('shared'), 100, new \Chemaclass\Unspent\Lock\Owner('alice'));
