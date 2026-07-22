@@ -271,6 +271,47 @@ final class UnspentSetTest extends TestCase
         self::assertSame($set, $mutated);
     }
 
+    public function test_owned_by_is_correct_after_add_remove_and_replace(): void
+    {
+        $set = UnspentSet::empty()
+            ->addAll(
+                Output::ownedBy('alice', 100, 'a1'),
+                Output::ownedBy('bob', 50, 'b1'),
+                Output::ownedBy('alice', 30, 'a2'),
+                Output::open(10, 'open1'),
+            )
+            ->remove(new OutputId('a1'))
+            ->add(Output::ownedBy('alice', 70, 'a3'));
+
+        self::assertSame(100, $set->totalAmountOwnedBy('alice'));
+        self::assertSame(2, $set->ownedBy('alice')->count());
+        self::assertSame(50, $set->totalAmountOwnedBy('bob'));
+        self::assertSame(0, $set->totalAmountOwnedBy('carol'));
+        self::assertSame(0, $set->ownedBy('carol')->count());
+    }
+
+    public function test_owned_by_is_correct_after_fork(): void
+    {
+        $set = UnspentSet::fromOutputs(Output::ownedBy('alice', 100, 'a1'));
+        $set->release();
+
+        $forked = $set->add(Output::ownedBy('alice', 50, 'a2'));
+
+        self::assertSame(100, $set->totalAmountOwnedBy('alice'));
+        self::assertSame(150, $forked->totalAmountOwnedBy('alice'));
+    }
+
+    public function test_replacing_an_output_with_a_new_owner_updates_owner_lookups(): void
+    {
+        $set = UnspentSet::fromOutputs(Output::ownedBy('alice', 100, 'x'));
+
+        $updated = $set->add(Output::ownedBy('bob', 100, 'x'));
+
+        self::assertSame(0, $updated->totalAmountOwnedBy('alice'));
+        self::assertSame(100, $updated->totalAmountOwnedBy('bob'));
+        self::assertSame(0, $updated->ownedBy('alice')->count());
+    }
+
     public function test_add_replaces_output_with_same_id(): void
     {
         $output1 = new Output(new OutputId('shared'), 100, new \Chemaclass\Unspent\Lock\Owner('alice'));
