@@ -116,27 +116,4 @@ final readonly class LockData
             null => throw new RuntimeException("Unknown lock type: {$type}"),
         };
     }
-
-    public function isTimeLock(): bool
-    {
-        return $this->type === LockType::TIMELOCK->value;
-    }
-
-    public function isMultisigLock(): bool
-    {
-        return $this->type === LockType::MULTISIG->value;
-    }
-
-    public function isHashLock(): bool
-    {
-        return $this->type === LockType::HASHLOCK->value;
-    }
-
-    /**
-     * Check if this is a complex lock type (stored in custom_data).
-     */
-    public function isComplexLock(): bool
-    {
-        return $this->custom !== null;
-    }
 }
