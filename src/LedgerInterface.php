@@ -81,11 +81,8 @@ interface LedgerInterface
      * Automatically selects outputs to spend, calculates change, and handles authorization.
      * This is a convenience method that wraps apply() with automatic output selection.
      *
-     * @param string      $from   Owner to transfer from
-     * @param string      $to     Owner to transfer to
-     * @param int         $amount Amount to transfer
-     * @param int         $fee    Optional fee (burned value)
-     * @param string|null $txId   Optional transaction ID (auto-generated if null)
+     * @param int         $fee  Optional fee (burned value)
+     * @param string|null $txId Optional transaction ID (auto-generated if null)
      *
      * @throws InsufficientSpendsException If sender has insufficient balance
      * @throws OutputAlreadySpentException If outputs have been spent
@@ -101,9 +98,7 @@ interface LedgerInterface
      * Removes value from an owner without transferring to another.
      * Useful for redemptions, burns, or system debits.
      *
-     * @param string      $owner  Owner to debit
      * @param int         $amount Amount to debit (burned)
-     * @param int         $fee    Optional additional fee
      * @param string|null $txId   Optional transaction ID (auto-generated if null)
      *
      * @throws InsufficientSpendsException If owner has insufficient balance
@@ -118,9 +113,7 @@ interface LedgerInterface
      * Creates new value for an owner without spending inputs.
      * This is a convenience wrapper around applyCoinbase().
      *
-     * @param string      $owner  Owner to credit
-     * @param int         $amount Amount to mint
-     * @param string|null $txId   Optional transaction ID (auto-generated if null)
+     * @param string|null $txId Optional transaction ID (auto-generated if null)
      *
      * @throws DuplicateOutputIdException If output ID conflicts
      *
@@ -134,9 +127,7 @@ interface LedgerInterface
      * Useful for cleaning up many small outputs ("dust") into one larger output.
      * Does nothing if owner has 0 or 1 outputs.
      *
-     * @param string      $owner Owner whose outputs to consolidate
-     * @param int         $fee   Optional consolidation fee (burned)
-     * @param string|null $txId  Optional transaction ID
+     * @param int $fee Optional consolidation fee (burned)
      *
      * @return static The same ledger instance (mutated)
      */
@@ -147,10 +138,7 @@ interface LedgerInterface
      *
      * More efficient than multiple transfer() calls as it uses a single transaction.
      *
-     * @param string             $from       Owner to transfer from
      * @param array<string, int> $recipients Map of recipient => amount
-     * @param int                $fee        Optional fee (burned)
-     * @param string|null        $txId       Optional transaction ID
      *
      * @throws InsufficientSpendsException If sender has insufficient balance
      * @throws InvalidArgumentException    If recipients is empty or contains invalid amounts
@@ -247,16 +235,7 @@ interface LedgerInterface
     /**
      * Serializes the ledger to an array format suitable for persistence.
      *
-     * @return array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy: array<string, string>,
-     *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
-     * }
+     * @return TLedgerArray
      */
     public function toArray(): array;
 

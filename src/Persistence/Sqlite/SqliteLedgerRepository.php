@@ -28,10 +28,16 @@ use PDOStatement;
  * - Prepared statement caching for repeated queries
  * - Combined queries to reduce N+1 patterns
  * - Match expressions for query building
+ *
+ * @phpstan-import-type TOutputRow from AbstractLedgerRepository
+ * @phpstan-import-type TTransactionRow from AbstractLedgerRepository
  */
 final class SqliteLedgerRepository extends AbstractLedgerRepository
 {
-    // SQL Query Constants
+    use PdoQueryWrapper;
+    use PdoStatementCache;
+    use PdoTransactionalWrite;
+
     private const string SQL_LEDGER_EXISTS = 'SELECT 1 FROM ledgers WHERE id = ?';
     private const string SQL_LEDGER_SELECT = 'SELECT id FROM ledgers WHERE id = ?';
     private const string SQL_LEDGER_DELETE = 'DELETE FROM ledgers WHERE id = ?';
@@ -53,9 +59,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     private const string ORIGIN_GENESIS = 'genesis';
 
-    /** @var array<string, PDOStatement> Cached prepared statements */
-    private array $stmtCache = [];
-
     public function __construct(
         private readonly PDO $pdo,
     ) {
@@ -63,19 +66,12 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     public function save(string $id, LedgerInterface $ledger): void
     {
-        try {
-            $this->pdo->beginTransaction();
-
+        $this->runInTransaction($id, function () use ($id, $ledger): void {
             $this->deleteLedgerData($id);
             $this->insertLedger($id, $ledger);
             $this->insertOutputs($id, $ledger);
             $this->insertTransactions($id, $ledger);
-
-            $this->pdo->commit();
-        } catch (PDOException $e) {
-            $this->pdo->rollBack();
-            throw PersistenceException::saveFailed($id, $e->getMessage());
-        }
+        });
     }
 
     public function find(string $id): ?LedgerInterface
@@ -121,7 +117,6 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     public function findUnspentOnly(string $id): ?array
     {
         try {
-            // Check if ledger exists and get totals
             $stmt = $this->prepare(self::SQL_LEDGER_TOTALS);
             $stmt->execute([$id]);
             $totalsRow = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -130,9 +125,9 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
                 return null;
             }
 
-            // Get only unspent outputs
             $stmt = $this->prepare(self::SQL_OUTPUT_SELECT_UNSPENT);
             $stmt->execute([$id]);
+            /** @var list<TOutputRow> $rows */
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
             $outputs = $this->rowsToOutputs($rows);
@@ -204,19 +199,17 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
 
     public function findCoinbaseTransactions(string $ledgerId): array
     {
-        try {
+        return $this->tryQuery(function () use ($ledgerId): array {
             $stmt = $this->prepare(self::SQL_TX_COINBASE);
             $stmt->execute([$ledgerId]);
 
             return array_column($stmt->fetchAll(PDO::FETCH_ASSOC), 'id');
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+        });
     }
 
     public function findTransactionsByFeeRange(string $ledgerId, int $min, ?int $max = null): array
     {
-        try {
+        return $this->tryQuery(function () use ($ledgerId, $min, $max): array {
             [$sql, $params] = $this->buildRangeQuery(
                 baseTable: 'transactions',
                 ledgerId: $ledgerId,
@@ -230,63 +223,52 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
-            return array_values(array_map(
-                TransactionInfo::fromRow(...),
-                $stmt->fetchAll(PDO::FETCH_ASSOC),
-            ));
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
-    }
+            /** @var list<array{id: string, fee: int|string, ...}> $rows */
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    /**
-     * Get a cached prepared statement or create a new one.
-     */
-    private function prepare(string $sql): PDOStatement
-    {
-        return $this->stmtCache[$sql] ??= $this->pdo->prepare($sql);
+            return array_map(TransactionInfo::fromRow(...), $rows);
+        });
     }
 
     /**
      * Execute a query that returns Output objects.
      *
-     * @param list<mixed> $params
+     * @param list<int|string> $params
      *
      * @return list<Output>
      */
     private function executeOutputQuery(string $sql, array $params): array
     {
-        try {
+        return $this->tryQuery(function () use ($sql, $params): array {
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
-            return $this->rowsToOutputs($stmt->fetchAll(PDO::FETCH_ASSOC));
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+            /** @var list<TOutputRow> $rows */
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            return $this->rowsToOutputs($rows);
+        });
     }
 
     /**
      * Execute a query that returns a single integer value.
      *
-     * @param list<mixed> $params
+     * @param list<int|string> $params
      */
     private function executeScalarQuery(string $sql, array $params): int
     {
-        try {
+        return $this->tryQuery(function () use ($sql, $params): int {
             $stmt = $this->prepare($sql);
             $stmt->execute($params);
 
             return (int) $stmt->fetchColumn();
-        } catch (PDOException $e) {
-            throw PersistenceException::queryFailed($e->getMessage());
-        }
+        });
     }
 
     /**
      * Build a range query with optional max bound.
      *
-     * @return array{0: string, 1: list<mixed>} SQL and parameters
+     * @return array{0: string, 1: list<int|string>} SQL and parameters
      */
     private function buildRangeQuery(
         string $baseTable,
@@ -338,13 +320,11 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
         $outputCreatedBy = $ledgerArray['outputCreatedBy'];
         $outputSpentBy = $ledgerArray['outputSpentBy'];
 
-        // Insert unspent outputs
         foreach ($ledger->unspent() as $outputId => $output) {
             $createdBy = $outputCreatedBy[$outputId] ?? self::ORIGIN_GENESIS;
             $this->executeOutputInsert($stmt, $id, $outputId, $output, $createdBy, null);
         }
 
-        // Insert spent outputs
         foreach ($ledgerArray['spentOutputs'] as $outputId => $outputData) {
             $output = new Output(
                 new OutputId($outputId),
@@ -402,25 +382,17 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
     /**
      * Fetch ledger data using optimized combined query.
      *
-     * @return array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy: array<string, string>,
-     *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
-     * }
+     * @return TLedgerArray
      */
     private function fetchLedgerData(string $id): array
     {
-        // Single query for all outputs, partitioned by is_spent
+        // Single query for all outputs, partitioned below by is_spent,
+        // avoiding two separate round trips for unspent vs. spent rows.
         $stmt = $this->prepare(self::SQL_OUTPUT_SELECT_ALL);
         $stmt->execute([$id]);
+        /** @var list<TOutputRow> $allOutputs */
         $allOutputs = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        // Partition outputs by spent status
         $unspentRows = [];
         $spentRows = [];
         foreach ($allOutputs as $row) {
@@ -431,9 +403,9 @@ final class SqliteLedgerRepository extends AbstractLedgerRepository
             }
         }
 
-        // Get transactions
         $stmt = $this->prepare(self::SQL_TX_SELECT_ALL);
         $stmt->execute([$id]);
+        /** @var list<TTransactionRow> $txRows */
         $txRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         return $this->buildLedgerDataArray($unspentRows, $spentRows, $txRows);

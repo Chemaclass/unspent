@@ -13,9 +13,7 @@ use Chemaclass\Unspent\TxId;
 final readonly class OutputCreated extends LedgerEvent
 {
     /**
-     * @param Output $output    The created output
-     * @param TxId   $createdBy Transaction that created this output
-     * @param float  $timestamp Unix timestamp with microseconds
+     * @param float $timestamp Unix timestamp with microseconds
      */
     public function __construct(
         public Output $output,

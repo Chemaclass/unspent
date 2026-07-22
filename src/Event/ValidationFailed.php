@@ -13,9 +13,7 @@ use Chemaclass\Unspent\Tx;
 final readonly class ValidationFailed extends LedgerEvent
 {
     /**
-     * @param Tx               $transaction The transaction that failed
-     * @param UnspentException $exception   The validation exception
-     * @param float            $timestamp   Unix timestamp with microseconds
+     * @param float $timestamp Unix timestamp with microseconds
      */
     public function __construct(
         public Tx $transaction,

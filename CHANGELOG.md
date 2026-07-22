@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-07-22
+
 ### Added
 
 - `RandomStrategy` coin selection — shuffles outputs randomly before selecting for improved privacy
@@ -18,9 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Fixed PHPUnit notices in `LoggingLedgerTest` by using `createStub()` for mocks without expectations
 - Corrected CLAUDE.md to reflect actual PHPStan level 8
 
+### Internal
+
+- Deduplicated shared logic into traits: `IdValue` (`OutputId`/`TxId`), `AccumulatesOutputs` (selection strategies), and `PdoStatementCache`/`PdoQueryWrapper`/`PdoTransactionalWrite` (SQLite repositories)
+- Strengthened weak types: `mixed`/`callable` narrowed to `Closure`, precise `array{}` shapes for lock (de)serialization, `@phpstan-type TOutputRow`/`TTransactionRow` for database rows
+- Consolidated repeated ledger array-shape docblocks behind PHPStan `typeAliases` (`TOutputData`, `TLedgerArray`, …)
+- Removed restating comments and redundant `@param` docblocks
+
 ---
 
-## [1.0.0]
+## [1.0.0] - 2026-01-14
 
 ### Added
 
@@ -47,3 +56,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Repository operations return new instances instead of cloning (O(1) vs O(n))
 - `SqliteLedgerRepository::insertOutputs()` pre-fetches metadata to avoid N+1 queries
 - `UnspentSet::outputIds()` optimized to avoid unnecessary array operations
+
+[Unreleased]: https://github.com/Chemaclass/unspent/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/Chemaclass/unspent/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/Chemaclass/unspent/releases/tag/v1.0.0

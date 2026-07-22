@@ -164,7 +164,7 @@ final class LockDataTest extends TestCase
 
     public function test_to_array_from_row_with_custom_lock(): void
     {
-        $customData = json_encode(['type' => 'timelock', 'until' => 12345]);
+        $customData = json_encode(['type' => 'timelock', 'until' => 12345], JSON_THROW_ON_ERROR);
         $row = [
             'lock_type' => 'timelock',
             'lock_owner' => null,

@@ -15,6 +15,8 @@ use Chemaclass\Unspent\UnspentSet;
  */
 final readonly class RandomStrategy implements SelectionStrategy
 {
+    use AccumulatesOutputs;
+
     public function select(UnspentSet $available, int $target): array
     {
         /** @var list<Output> $all */
@@ -22,19 +24,7 @@ final readonly class RandomStrategy implements SelectionStrategy
 
         shuffle($all);
 
-        $selected = [];
-        $accumulated = 0;
-
-        foreach ($all as $output) {
-            $selected[] = $output;
-            $accumulated += $output->amount;
-
-            if ($accumulated >= $target) {
-                break;
-            }
-        }
-
-        return $selected;
+        return $this->accumulateUntilTarget($all, $target);
     }
 
     public function name(): string
