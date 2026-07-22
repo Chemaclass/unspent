@@ -16,6 +16,7 @@ use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Tx;
+use Closure;
 use PHPUnit\Framework\TestCase;
 
 final class EventDispatchingLedgerTest extends TestCase
@@ -423,9 +424,9 @@ final class EventDispatchingLedgerTest extends TestCase
     }
 
     /**
-     * @return callable(LedgerEvent): void
+     * @return Closure(LedgerEvent): void
      */
-    private function captureDispatcher(): callable
+    private function captureDispatcher(): Closure
     {
         return function (LedgerEvent $event): void {
             $this->dispatchedEvents[] = $event;

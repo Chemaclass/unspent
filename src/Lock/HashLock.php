@@ -72,7 +72,7 @@ final readonly class HashLock implements OutputLock
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array{hash: string, algorithm: string, innerLock?: array<string, mixed>} $data
      */
     public static function fromArray(array $data): self
     {
@@ -95,7 +95,6 @@ final readonly class HashLock implements OutputLock
             throw AuthorizationException::missingProof($spendIndex);
         }
 
-        // Verify preimage hashes to expected value
         if (!$this->verifyPreimage($preimage)) {
             throw new AuthorizationException(
                 'Invalid hash preimage',
@@ -103,10 +102,12 @@ final readonly class HashLock implements OutputLock
             );
         }
 
-        // Also check inner lock if present
         $this->innerLock?->validate($tx, $spendIndex);
     }
 
+    /**
+     * @return array{type: string, hash: string, algorithm: string, innerLock?: array<string, mixed>}
+     */
     public function toArray(): array
     {
         $data = [

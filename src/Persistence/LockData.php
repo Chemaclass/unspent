@@ -38,6 +38,10 @@ final readonly class LockData
      */
     public static function fromLock(OutputLock $lock): self
     {
+        // OutputLock::toArray()'s declared shape is open (`...`), but PHPStan does not
+        // treat unlisted keys as possibly-present for array_key_exists() narrowing below.
+        // Widen back to a generic map so 'name'/'key' lookups on non-owner/pubkey locks
+        // are checked, not statically dismissed as impossible.
         /** @var array<string, mixed> $lockArray */
         $lockArray = $lock->toArray();
         $type = (string) $lockArray['type'];
@@ -87,7 +91,7 @@ final readonly class LockData
     /**
      * Convert a database row to a lock array for LockFactory::fromArray().
      *
-     * @param array<string, mixed> $row Database row with lock_type, lock_owner, lock_pubkey, lock_custom_data
+     * @param array{lock_type: string, lock_owner: string|null, lock_pubkey: string|null, lock_custom_data: string|null, ...} $row Database row with lock_type, lock_owner, lock_pubkey, lock_custom_data
      *
      * @return array<string, mixed> Lock array for LockFactory::fromArray()
      */

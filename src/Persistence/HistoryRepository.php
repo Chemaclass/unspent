@@ -22,7 +22,7 @@ interface HistoryRepository
     /**
      * Saves a regular transaction and its effects.
      *
-     * @param array<string, array{amount: int, lock: array<string, mixed>}> $spentOutputData
+     * @param TOutputDataMap $spentOutputData
      */
     public function saveTransaction(
         Tx $tx,
@@ -103,7 +103,7 @@ interface HistoryRepository
      * contains the transaction data. For database-backed repositories, this may
      * return the same instance after persisting.
      *
-     * @param array<string, array{amount: int, lock: array<string, mixed>}> $spentOutputData
+     * @param TOutputDataMap $spentOutputData
      *
      * @return static New repository instance with transaction saved
      */

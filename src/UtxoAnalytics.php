@@ -14,9 +14,7 @@ final class UtxoAnalytics
     /**
      * Find outputs below a threshold amount ("dust").
      *
-     * @param LedgerInterface $ledger    The ledger to analyze
-     * @param string          $owner     Owner to find dust for
-     * @param int             $threshold Maximum amount to consider as dust
+     * @param int $threshold Maximum amount to consider as dust
      *
      * @return list<Output> Outputs below the threshold
      */
@@ -38,9 +36,6 @@ final class UtxoAnalytics
      *
      * Returns the first output in iteration order, which for FIFO is the oldest.
      *
-     * @param LedgerInterface $ledger The ledger to analyze
-     * @param string          $owner  Owner to find oldest output for
-     *
      * @return Output|null The oldest output, or null if none found
      */
     public static function oldestUnspent(LedgerInterface $ledger, string $owner): ?Output
@@ -54,9 +49,6 @@ final class UtxoAnalytics
 
     /**
      * Get the largest unspent output for an owner.
-     *
-     * @param LedgerInterface $ledger The ledger to analyze
-     * @param string          $owner  Owner to find largest output for
      *
      * @return Output|null The largest output, or null if none found
      */
@@ -76,9 +68,6 @@ final class UtxoAnalytics
     /**
      * Get the smallest unspent output for an owner.
      *
-     * @param LedgerInterface $ledger The ledger to analyze
-     * @param string          $owner  Owner to find smallest output for
-     *
      * @return Output|null The smallest output, or null if none found
      */
     public static function smallestUnspent(LedgerInterface $ledger, string $owner): ?Output
@@ -97,9 +86,7 @@ final class UtxoAnalytics
     /**
      * Get statistics about an owner's outputs.
      *
-     * @param LedgerInterface $ledger        The ledger to analyze
-     * @param string          $owner         Owner to get stats for
-     * @param int             $dustThreshold Amount below which outputs are considered dust
+     * @param int $dustThreshold Amount below which outputs are considered dust
      *
      * @return array{
      *     count: int,
@@ -151,9 +138,6 @@ final class UtxoAnalytics
 
     /**
      * Get the number of unspent outputs for an owner.
-     *
-     * @param LedgerInterface $ledger The ledger to analyze
-     * @param string          $owner  Owner to count outputs for
      */
     public static function outputCountByOwner(LedgerInterface $ledger, string $owner): int
     {
@@ -165,9 +149,7 @@ final class UtxoAnalytics
      *
      * Returns true if the owner has more outputs than the threshold.
      *
-     * @param LedgerInterface $ledger    The ledger to analyze
-     * @param string          $owner     Owner to check
-     * @param int             $threshold Output count above which consolidation is recommended
+     * @param int $threshold Output count above which consolidation is recommended
      */
     public static function shouldConsolidate(LedgerInterface $ledger, string $owner, int $threshold = 10): bool
     {

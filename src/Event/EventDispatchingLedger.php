@@ -15,6 +15,7 @@ use Chemaclass\Unspent\Persistence\HistoryRepository;
 use Chemaclass\Unspent\Tx;
 use Chemaclass\Unspent\TxId;
 use Chemaclass\Unspent\UnspentSet;
+use Closure;
 
 /**
  * Event-dispatching decorator for Ledger.
@@ -30,30 +31,25 @@ use Chemaclass\Unspent\UnspentSet;
  */
 final readonly class EventDispatchingLedger implements LedgerInterface
 {
-    /** @var callable(LedgerEvent): void */
-    private mixed $dispatcher;
-
     /**
-     * @param callable(LedgerEvent): void $dispatcher
+     * @param Closure(LedgerEvent): void $dispatcher
      */
-    private function __construct(
-        private Ledger $ledger,
-        callable $dispatcher,
-    ) {
-        $this->dispatcher = $dispatcher;
+    private function __construct(private Ledger $ledger, private Closure $dispatcher)
+    {
     }
 
     /**
-     * @param callable(LedgerEvent): void $dispatcher
+     * @param Closure(LedgerEvent): void $dispatcher
      */
-    public static function wrap(Ledger $ledger, callable $dispatcher): self
+    public static function wrap(Ledger $ledger, Closure $dispatcher): self
     {
         return new self($ledger, $dispatcher);
     }
 
     public function apply(Tx $tx): static
     {
-        // Capture output data before mutation
+        // Spent outputs are removed from the unspent set by apply(), so their
+        // amounts must be captured now to build OutputSpent events afterward.
         $inputTotal = 0;
         $spentOutputs = [];
         foreach ($tx->spends as $spendId) {
@@ -69,7 +65,6 @@ final readonly class EventDispatchingLedger implements LedgerInterface
             $outputTotal = $tx->totalOutputAmount();
             $fee = $inputTotal - $outputTotal;
 
-            // Dispatch transaction applied event
             $this->dispatch(new TransactionApplied(
                 transaction: $tx,
                 fee: $fee,
@@ -77,7 +72,6 @@ final readonly class EventDispatchingLedger implements LedgerInterface
                 outputTotal: $outputTotal,
             ));
 
-            // Dispatch output spent events (using captured data)
             foreach ($tx->spends as $spendId) {
                 $output = $spentOutputs[$spendId->value] ?? null;
                 if ($output !== null) {
@@ -89,7 +83,6 @@ final readonly class EventDispatchingLedger implements LedgerInterface
                 }
             }
 
-            // Dispatch output created events
             foreach ($tx->outputs as $output) {
                 $this->dispatch(new OutputCreated(
                     output: $output,
@@ -112,14 +105,12 @@ final readonly class EventDispatchingLedger implements LedgerInterface
         $this->ledger->applyCoinbase($coinbase);
         $mintedAmount = $coinbase->totalOutputAmount();
 
-        // Dispatch coinbase applied event
         $this->dispatch(new CoinbaseApplied(
             coinbase: $coinbase,
             mintedAmount: $mintedAmount,
             totalMinted: $this->ledger->totalMinted(),
         ));
 
-        // Dispatch output created events
         foreach ($coinbase->outputs as $output) {
             $this->dispatch(new OutputCreated(
                 output: $output,

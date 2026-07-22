@@ -1,6 +1,15 @@
 parameters:
     level: 8
     tmpDir: .phpstan-cache
+    # Shared PHPStan-only type aliases for serialized ledger/output shapes.
+    # These document the persistence array format reused across Ledger,
+    # LedgerInterface, HistoryRepository implementations, and the SQLite/abstract
+    # repositories. Keep in sync with any change to that format.
+    typeAliases:
+        TOutputData: 'array{amount: int, lock: array<string, mixed>}'
+        TOutputDataMap: 'array<string, TOutputData>'
+        TLedgerArray: 'array{version: int, unspent: TOutputDataMap, appliedTxs: list<string>, txFees: array<string, int>, coinbaseAmounts: array<string, int>, outputCreatedBy: array<string, string>, outputSpentBy: array<string, string>, spentOutputs: TOutputDataMap}'
+        TLedgerArrayInput: 'array{version: int, unspent: TOutputDataMap, appliedTxs: list<string>, txFees: array<string, int>, coinbaseAmounts: array<string, int>, outputCreatedBy?: array<string, string>, outputSpentBy?: array<string, string>, spentOutputs?: TOutputDataMap}'
     paths:
         - src
         - example

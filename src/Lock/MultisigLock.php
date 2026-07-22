@@ -66,7 +66,7 @@ final readonly class MultisigLock implements OutputLock
     }
 
     /**
-     * @param array<string, mixed> $data
+     * @param array{threshold: int|string, signers: list<string>} $data
      */
     public static function fromArray(array $data): self
     {
@@ -84,13 +84,11 @@ final readonly class MultisigLock implements OutputLock
             throw AuthorizationException::missingProof($spendIndex);
         }
 
-        // Parse comma-separated signers
         $providedSigners = array_unique(array_filter(
             array_map(trim(...), explode(',', $proof)),
             static fn (string $s): bool => $s !== '',
         ));
 
-        // Verify each signer is authorized
         $validSigners = [];
         foreach ($providedSigners as $signer) {
             if (!\in_array($signer, $this->signers, true)) {
@@ -102,7 +100,6 @@ final readonly class MultisigLock implements OutputLock
             $validSigners[] = $signer;
         }
 
-        // Check threshold
         if (\count($validSigners) < $this->threshold) {
             throw new AuthorizationException(
                 \sprintf('Multisig requires %d signatures, got %d', $this->threshold, \count($validSigners)),
@@ -111,6 +108,9 @@ final readonly class MultisigLock implements OutputLock
         }
     }
 
+    /**
+     * @return array{type: string, threshold: int, signers: list<string>}
+     */
     public function toArray(): array
     {
         return [

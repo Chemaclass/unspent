@@ -73,16 +73,7 @@ final class Ledger implements LedgerInterface
     /**
      * Creates a Ledger from a serialized array (in-memory mode).
      *
-     * @param array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy?: array<string, string>,
-     *     outputSpentBy?: array<string, string>,
-     *     spentOutputs?: array<string, array{amount: int, lock: array<string, mixed>}>
-     * } $data
+     * @param TLedgerArrayInput $data
      */
     public static function fromArray(array $data): self
     {
@@ -193,7 +184,6 @@ final class Ledger implements LedgerInterface
 
         $fee = $spendAmount - $outputAmount;
 
-        // Collect spent output data
         $spentOutputData = [];
         foreach ($tx->spends as $spendId) {
             $output = $this->unspentSet->get($spendId);
@@ -315,7 +305,6 @@ final class Ledger implements LedgerInterface
     {
         $outputs = iterator_to_array($this->unspentByOwner($owner));
 
-        // Nothing to consolidate if 0 or 1 outputs
         if (\count($outputs) <= 1) {
             return $this;
         }
@@ -360,7 +349,6 @@ final class Ledger implements LedgerInterface
             $outputs[] = Output::ownedBy($recipient, $amount);
         }
 
-        // Select inputs
         $outputsToSpend = [];
         $accumulated = 0;
 
@@ -376,7 +364,6 @@ final class Ledger implements LedgerInterface
             throw InsufficientSpendsException::create($accumulated, $totalRequired);
         }
 
-        // Add change output if needed
         $change = $accumulated - $totalRequired;
         if ($change > 0) {
             $outputs[] = Output::ownedBy($from, $change);
@@ -530,16 +517,7 @@ final class Ledger implements LedgerInterface
     }
 
     /**
-     * @return array{
-     *     version: int,
-     *     unspent: array<string, array{amount: int, lock: array<string, mixed>}>,
-     *     appliedTxs: list<string>,
-     *     txFees: array<string, int>,
-     *     coinbaseAmounts: array<string, int>,
-     *     outputCreatedBy: array<string, string>,
-     *     outputSpentBy: array<string, string>,
-     *     spentOutputs: array<string, array{amount: int, lock: array<string, mixed>}>
-     * }
+     * @return TLedgerArray
      */
     public function toArray(): array
     {
