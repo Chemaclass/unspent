@@ -177,23 +177,13 @@ final class Ledger implements LedgerInterface
     public function apply(Tx $tx): static
     {
         $this->assertTxNotAlreadyApplied($tx);
-        $spendAmount = $this->validateSpendsAndGetTotal($tx);
+        $spentOutputData = [];
+        $spendAmount = $this->validateSpendsAndGetTotal($tx, $spentOutputData);
         $outputAmount = $tx->totalOutputAmount();
         $this->assertSufficientSpends($spendAmount, $outputAmount);
         $this->assertNoOutputIdConflicts($tx);
 
         $fee = $spendAmount - $outputAmount;
-
-        $spentOutputData = [];
-        foreach ($tx->spends as $spendId) {
-            $output = $this->unspentSet->get($spendId);
-            if ($output !== null) {
-                $spentOutputData[$spendId->value] = [
-                    'amount' => $output->amount,
-                    'lock' => $output->lock->toArray(),
-                ];
-            }
-        }
 
         $this->unspentSet = $this->unspentSet
             ->removeAll(...$tx->spends)
@@ -564,9 +554,13 @@ final class Ledger implements LedgerInterface
     }
 
     /**
-     * Validates all spends exist in unspent set, checks authorization, and returns total spend amount.
+     * Validates all spends exist in the unspent set, checks authorization, and
+     * returns the total spend amount — capturing spent-output data for history
+     * in the same pass so callers do not look each output up twice.
+     *
+     * @param TOutputDataMap $spentOutputData captured by reference for the history repository
      */
-    private function validateSpendsAndGetTotal(Tx $tx): int
+    private function validateSpendsAndGetTotal(Tx $tx, array &$spentOutputData = []): int
     {
         $spendAmount = 0;
         $spendIndex = 0;
@@ -578,6 +572,11 @@ final class Ledger implements LedgerInterface
             }
 
             $output->lock->validate($tx, $spendIndex);
+
+            $spentOutputData[$spendId->value] = [
+                'amount' => $output->amount,
+                'lock' => $output->lock->toArray(),
+            ];
 
             $spendAmount += $output->amount;
             ++$spendIndex;
