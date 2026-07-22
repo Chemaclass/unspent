@@ -40,13 +40,11 @@ final class IdGenerator
 
     /**
      * Generate a unique ID for an output.
-     * Each call produces a different ID (includes random bytes).
+     * Each call produces a different ID (128 bits of randomness, 32 hex chars).
      */
-    public static function forOutput(int $amount): string
+    public static function forOutput(): string
     {
-        $data = $amount . '|' . bin2hex(random_bytes(self::RANDOM_BYTES));
-
-        return self::hash($data);
+        return bin2hex(random_bytes(self::RANDOM_BYTES));
     }
 
     /**

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - `Ledger` now writes history through the mutating `HistoryRepository::saveTransaction()` / `saveCoinbase()` / `saveGenesis()` methods instead of allocating a new repository instance per operation
+- `IdGenerator::forOutput()` no longer takes an `$amount` argument — output ids are random and never derived from the amount
 
 ### Removed
 
@@ -26,6 +27,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UnspentSet` maintains an incremental owner index, so owner-scoped lookups (`ownedBy()`, `totalAmountOwnedBy()`, and therefore `Ledger::unspentByOwner()` / `totalUnspentByOwner()` / `transfer()` / `debit()` / `consolidate()` / `batchTransfer()` and `UtxoAnalytics`) cost O(outputs-owned-by-owner) instead of O(total outputs); `totalAmountOwnedBy()` no longer allocates an intermediate set and `filter()` computes its total in a single pass
 - `SqliteLedgerRepository::save()` serializes the ledger once and writes outputs/transactions with chunked multi-row `INSERT`s instead of one round trip per row; transaction coinbase/fee metadata is read from the serialized array instead of per-transaction method calls
 - `Ledger::apply()` captures spent-output history data during spend validation, looking each spent output up once instead of twice
+- `IdGenerator::forOutput()` returns 128 random bits directly instead of hashing them, dropping a SHA-256 call per output created
 
 ## [1.1.0] - 2026-07-22
 
