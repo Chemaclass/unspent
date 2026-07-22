@@ -2,141 +2,127 @@
 
 ## Status
 
-Accepted
+Accepted (revised to match the implementation)
 
 ## Context
 
-The `UnspentSet` class manages the set of unspent outputs and could contain thousands of outputs. While the `Ledger` class is mutable (see ADR-002), the internal `UnspentSet` uses copy-on-fork semantics for efficient branching and memory management.
+The `UnspentSet` class manages the set of unspent outputs and can hold thousands
+of entries. The `Ledger` is mutable (see ADR-002) and applies many transactions
+in sequence, each removing spent outputs and adding new ones. Copying the whole
+output array on every mutation would make a run of N transactions O(N²).
 
-We needed an optimization strategy that:
+We needed a strategy that:
 
-1. Minimizes memory allocation during operations
-2. Supports efficient branching (multiple forks from same base)
-3. Allows value objects to remain immutable for thread safety
+1. Mutates in place during normal ledger operation (no per-op copy).
+2. Never lets an externally exposed view corrupt the ledger's internal state.
+3. Answers owner-scoped queries without scanning the whole set.
 
 ## Decision
 
-We implemented **copy-on-fork** semantics in `UnspentSet`:
+`UnspentSet` tracks a single boolean, `$owned`, that records whether this
+instance is free to mutate its own backing array:
 
 ```php
-final readonly class UnspentSet
+final class UnspentSet
 {
+    private bool $owned = true;
+
     private function __construct(
-        private array $outputs,        // Current unspent outputs
-        private ?self $parent = null,  // Optional parent for shared state
+        private array $outputs,     // id => Output
+        private int $cachedTotal,   // running sum, kept O(1)
+        private array $ownerIndex,  // owner name => set of owned output ids
     ) {}
 }
 ```
 
-When an operation occurs:
-- Small changes: Create new instance referencing parent
-- Large changes or deep nesting: Flatten to new independent instance
+- **Owned (`$owned === true`)** — `add`/`addAll`/`remove`/`removeAll` mutate
+  `$outputs` in place and return `$this`. O(1) per element, no copy.
+- **Shared (`$owned === false`)** — the same operations **fork**: they copy the
+  array, apply the change to the copy, and return a new `UnspentSet`. The
+  original is left untouched.
 
-This is similar to copy-on-write but optimized for the branching use case.
+A set becomes shared through `release()`. External reads go through
+`snapshot()`, which returns a *released copy* that shares the array copy-on-write
+while leaving the internal set owned — so `Ledger::unspent()` never degrades the
+ledger's own subsequent writes (see the interleaved read/write case below).
+
+A secondary **owner index** (`owner name => set of owned output ids`) is
+maintained incrementally alongside every mutation, so owner-scoped lookups cost
+O(outputs-owned-by-owner) instead of O(total outputs).
 
 ## Consequences
 
 ### Positive
 
-- **Memory efficient branching**: Creating multiple "what-if" scenarios shares base state.
-- **Fast operations**: Adding/removing outputs doesn't copy the entire set.
-- **Efficient internal operations**: The mutable `Ledger` benefits from optimized `UnspentSet` operations.
+- **Linear ledger runs**: applying N transactions is O(N) because the internal
+  set stays owned and mutates in place.
+- **Safe exposure**: `snapshot()` hands out an isolated view; a caller mutating
+  it forks and cannot touch the ledger.
+- **Cheap owner queries**: `ownedBy()` / `totalAmountOwnedBy()` resolve through
+  the owner index rather than filtering the whole set.
 
 ### Negative
 
-- **Implementation complexity**: The parent chain must be managed carefully.
-- **Read overhead**: Lookups may traverse parent chain (mitigated by flattening).
-
-### Mitigations
-
-- Automatic flattening when parent chain exceeds threshold.
-- `release()` method for explicit flattening when needed.
-- Comprehensive test coverage for edge cases.
+- **Two states to reason about**: contributors must keep the owned and forked
+  branches of each mutator in sync.
+- **Index bookkeeping**: every mutator must keep `ownerIndex` consistent (covered
+  by tests, including fork and owner-replacement cases).
 
 ## How It Works
 
-### Sequential Operations
+### Sequential operations (owned, in place)
 
 ```php
-$set1 = UnspentSet::fromOutputs($a, $b, $c);  // Independent
-$set2 = $set1->add($d);                        // References $set1
-$set3 = $set2->remove($a->id);                 // References $set2
-
-// Memory: Only deltas stored, base outputs shared
+$set = UnspentSet::fromOutputs($a, $b, $c); // owned
+$set->add($d);                              // mutates in place, returns $set
+$set->remove($a->id);                       // mutates in place, returns $set
 ```
 
-### Branching Scenarios
+### Exposure and copy-on-fork
 
 ```php
-$base = UnspentSet::fromOutputs($a, $b, $c);
-
-$branch1 = $base->add($d);   // Both branches
-$branch2 = $base->add($e);   // share $base
-
-// $branch1 and $branch2 both reference same $base
+$snapshot = $ledger->unspent();  // snapshot(): released copy, shares array (COW)
+$snapshot->add($x);              // snapshot is shared → forks, ledger untouched
+$ledger->credit('alice', 10);    // internal set still owned → mutates in place
 ```
 
-### Flattening
-
-```php
-$set = $ledger->unspent();           // May have parent chain
-$flat = $set->release();             // Independent, no parents
-
-// Or automatic via threshold
-// After N parent levels, new instance is flattened
-```
+Because `snapshot()` leaves the internal set owned, an interleaved
+read-then-write loop stays O(1) per write instead of forking on every write.
 
 ## Performance Characteristics
 
 | Operation | Complexity | Notes |
 |-----------|------------|-------|
-| add() | O(1) | Creates new node |
-| remove() | O(1) | Creates new node |
-| get() | O(k) | k = parent depth, amortized O(1) |
-| count() | O(1) | Cached |
-| iterate | O(n) | n = total outputs |
+| `add()` / `remove()` | O(1) | In place when owned |
+| `addAll()` / `removeAll()` | O(k) | k = number of ids |
+| `get()` / `contains()` | O(1) | Hash lookup |
+| `count()` / `totalAmount()` | O(1) | `totalAmount` uses `cachedTotal` |
+| `ownedBy()` / `totalAmountOwnedBy()` | O(owned) | Via the owner index |
+| `snapshot()` | O(1) | Shares array copy-on-write |
+| First write after `release()` | O(n) | One fork, then owned again |
+| iterate / `toArray()` | O(n) | n = total outputs |
 
 ## Alternatives Considered
 
-### Full Copy on Every Operation
+### Full copy on every operation
 
 Always copy the entire output set.
 
-**Rejected because**:
-- O(n) memory per operation
-- Prohibitive for large output sets
+**Rejected**: O(n) memory per operation, O(N²) for a run of N transactions.
 
-### Persistent Data Structures
+### Persistent data structures (HAMTs)
 
-Use HAMTs or similar functional data structures.
+**Rejected**: no standard PHP implementation, extra dependency, and heavier than
+needed for the mutable-ledger use case.
 
-**Rejected because**:
-- No standard PHP implementation
-- Additional dependency
-- May be over-engineered for typical use cases
+### Parent-chain sharing
 
-### Mutable Internal State
-
-Use mutable arrays internally, copy only on external access.
-
-**Rejected because**:
-- Complicates invariant maintenance
-- Still requires full copy on branching
-
-## Benchmarks
-
-Typical performance characteristics (varies by hardware):
-
-```
-Operation on 10,000 outputs:
-- add():     ~0.001ms (parent reference)
-- remove():  ~0.001ms (parent reference)
-- release(): ~1.0ms   (flatten to independent)
-- iterate:   ~0.5ms   (traverse all)
-```
+An earlier draft of this ADR proposed a `?self $parent` chain with automatic
+flattening. It was not implemented: the `$owned` flag delivers the same
+"don't copy unless shared" benefit with O(1) reads and far less complexity.
 
 ## References
 
-- [Persistent Data Structures](https://en.wikipedia.org/wiki/Persistent_data_structure)
 - [Copy-on-write](https://en.wikipedia.org/wiki/Copy-on-write)
-- [docs/scalability.md](../scalability.md) - Scalability documentation
+- [ADR-002: Mutable Design](002-mutable-design.md)
+- [docs/scalability.md](../scalability.md)
