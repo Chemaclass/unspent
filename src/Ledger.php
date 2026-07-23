@@ -216,20 +216,7 @@ final class Ledger implements LedgerInterface
     public function transfer(string $from, string $to, int $amount, int $fee = 0, ?string $txId = null): static
     {
         $required = $amount + $fee;
-        $outputsToSpend = [];
-        $accumulated = 0;
-
-        foreach ($this->unspentByOwner($from) as $output) {
-            $outputsToSpend[] = $output->id->value;
-            $accumulated += $output->amount;
-            if ($accumulated >= $required) {
-                break;
-            }
-        }
-
-        if ($accumulated < $required) {
-            throw InsufficientSpendsException::create($accumulated, $required);
-        }
+        [$outputsToSpend, $accumulated] = $this->selectSpends($from, $required);
 
         $outputs = [Output::ownedBy($to, $amount)];
         $change = $accumulated - $required;
@@ -248,20 +235,7 @@ final class Ledger implements LedgerInterface
     public function debit(string $owner, int $amount, int $fee = 0, ?string $txId = null): static
     {
         $required = $amount + $fee;
-        $outputsToSpend = [];
-        $accumulated = 0;
-
-        foreach ($this->unspentByOwner($owner) as $output) {
-            $outputsToSpend[] = $output->id->value;
-            $accumulated += $output->amount;
-            if ($accumulated >= $required) {
-                break;
-            }
-        }
-
-        if ($accumulated < $required) {
-            throw InsufficientSpendsException::create($accumulated, $required);
-        }
+        [$outputsToSpend, $accumulated] = $this->selectSpends($owner, $required);
 
         $outputs = [];
         $change = $accumulated - $required;
@@ -333,20 +307,7 @@ final class Ledger implements LedgerInterface
             $outputs[] = Output::ownedBy($recipient, $amount);
         }
 
-        $outputsToSpend = [];
-        $accumulated = 0;
-
-        foreach ($this->unspentByOwner($from) as $output) {
-            $outputsToSpend[] = $output->id->value;
-            $accumulated += $output->amount;
-            if ($accumulated >= $totalRequired) {
-                break;
-            }
-        }
-
-        if ($accumulated < $totalRequired) {
-            throw InsufficientSpendsException::create($accumulated, $totalRequired);
-        }
+        [$outputsToSpend, $accumulated] = $this->selectSpends($from, $totalRequired);
 
         $change = $accumulated - $totalRequired;
         if ($change > 0) {
@@ -541,6 +502,34 @@ final class Ledger implements LedgerInterface
         if (isset($this->appliedTxIds[$id->value])) {
             throw DuplicateTxException::forId($id->value);
         }
+    }
+
+    /**
+     * Greedily selects an owner's unspent outputs, in iteration order, until
+     * their total covers $required.
+     *
+     * @throws InsufficientSpendsException If the owner's unspent total is below $required
+     *
+     * @return array{list<string>, int} The chosen spend ids and their total
+     */
+    private function selectSpends(string $owner, int $required): array
+    {
+        $spendIds = [];
+        $accumulated = 0;
+
+        foreach ($this->unspentByOwner($owner) as $output) {
+            $spendIds[] = $output->id->value;
+            $accumulated += $output->amount;
+            if ($accumulated >= $required) {
+                break;
+            }
+        }
+
+        if ($accumulated < $required) {
+            throw InsufficientSpendsException::create($accumulated, $required);
+        }
+
+        return [$spendIds, $accumulated];
     }
 
     /**
