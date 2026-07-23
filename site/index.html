@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>unspent — UTXO-model bookkeeping for PHP</title>
+<meta name="description" content="A zero-dependency PHP 8.4+ library implementing the UTXO model for value tracking, double-spend prevention, and immutable audit trails.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪙</text></svg>">
+<style>
+  :root {
+    --bg: #ffffff; --bg-alt: #f6f8fa; --fg: #1f2328; --fg-dim: #59636e;
+    --border: #d1d9e0; --accent: #10b981; --accent-fg: #ffffff;
+    --code-bg: #0d1117; --code-fg: #e6edf3; --card: #ffffff; --shadow: 0 1px 3px rgba(0,0,0,.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0d1117; --bg-alt: #010409; --fg: #e6edf3; --fg-dim: #9198a1;
+      --border: #2a313c; --accent: #2dd4a7; --accent-fg: #04150f;
+      --code-bg: #010409; --code-fg: #e6edf3; --card: #151b23; --shadow: 0 1px 3px rgba(0,0,0,.4);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--fg);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0;
+    background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); z-index: 10;
+  }
+  nav .brand { font-weight: 700; font-size: 1.15rem; letter-spacing: -.02em; }
+  nav .brand span { color: var(--accent); }
+  nav .links { display: flex; gap: 20px; font-size: .95rem; }
+  nav .links a { color: var(--fg-dim); }
+  nav .links a:hover { color: var(--fg); text-decoration: none; }
+
+  header.hero { text-align: center; padding: 72px 0 56px; }
+  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.1; margin: 0 0 16px; letter-spacing: -.03em; }
+  .hero p.tag { font-size: clamp(1.05rem, 2.5vw, 1.3rem); color: var(--fg-dim); margin: 0 auto 28px; max-width: 620px; }
+  .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
+  .badge {
+    font-size: .8rem; padding: 4px 10px; border: 1px solid var(--border);
+    border-radius: 999px; color: var(--fg-dim); background: var(--card);
+  }
+  .install {
+    display: inline-flex; align-items: center; gap: 12px; background: var(--code-bg); color: var(--code-fg);
+    padding: 12px 18px; border-radius: 10px; font-family: ui-monospace, monospace; font-size: .95rem;
+    margin-bottom: 24px; max-width: 100%; overflow-x: auto; box-shadow: var(--shadow);
+  }
+  .install .prompt { color: var(--accent); user-select: none; }
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn {
+    padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: .95rem;
+    border: 1px solid var(--border); color: var(--fg); background: var(--card); transition: transform .06s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+
+  section { padding: 48px 0; }
+  section h2 { font-size: 1.6rem; letter-spacing: -.02em; margin: 0 0 8px; text-align: center; }
+  section .sub { text-align: center; color: var(--fg-dim); margin: 0 auto 36px; max-width: 560px; }
+
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
+  .feature {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 22px; box-shadow: var(--shadow);
+  }
+  .feature .ico { font-size: 1.5rem; margin-bottom: 10px; }
+  .feature h3 { margin: 0 0 6px; font-size: 1.05rem; }
+  .feature p { margin: 0; color: var(--fg-dim); font-size: .93rem; }
+
+  .code-block { background: var(--bg-alt); }
+  pre {
+    background: var(--code-bg); color: var(--code-fg); padding: 22px; border-radius: 12px;
+    overflow-x: auto; font-size: .9rem; line-height: 1.7; box-shadow: var(--shadow); margin: 0;
+  }
+  pre .k { color: #ff7b72; } pre .s { color: #a5d6ff; } pre .c { color: #8b949e; }
+  pre .m { color: #d2a8ff; } pre .v { color: #79c0ff; }
+  @media (prefers-color-scheme: light) {
+    pre .k { color: #cf222e; } pre .s { color: #0a3069; } pre .c { color: #6e7781; }
+    pre .m { color: #8250df; } pre .v { color: #0550ae; }
+  }
+
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 18px; text-align: center; }
+  .stat .num { font-size: 1.9rem; font-weight: 700; color: var(--accent); letter-spacing: -.02em; }
+  .stat .lbl { color: var(--fg-dim); font-size: .88rem; }
+
+  footer { border-top: 1px solid var(--border); padding: 32px 0; color: var(--fg-dim); font-size: .9rem; }
+  footer .row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: center; }
+  footer .links { display: flex; gap: 18px; }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="brand">🪙 <span>un</span>spent</div>
+  <div class="links">
+    <a href="https://github.com/Chemaclass/unspent#readme">Docs</a>
+    <a href="https://packagist.org/packages/chemaclass/unspent">Packagist</a>
+    <a href="https://github.com/Chemaclass/unspent">GitHub</a>
+  </div>
+</nav>
+
+<header class="hero">
+  <div class="wrap">
+    <h1>UTXO-model bookkeeping<br>for PHP</h1>
+    <p class="tag">A zero-dependency library for value tracking with built-in double-spend prevention and an immutable audit trail — the accounting model behind Bitcoin, as a clean PHP API.</p>
+    <div class="badges">
+      <span class="badge">PHP 8.4+</span>
+      <span class="badge">Zero runtime dependencies</span>
+      <span class="badge">Hexagonal architecture</span>
+      <span class="badge">MIT</span>
+    </div>
+    <div class="install">
+      <span class="prompt">$</span><span>composer require chemaclass/unspent</span>
+    </div>
+    <div class="cta">
+      <a class="btn primary" href="https://github.com/Chemaclass/unspent">View on GitHub</a>
+      <a class="btn" href="https://github.com/Chemaclass/unspent#readme">Read the docs</a>
+    </div>
+  </div>
+</header>
+
+<section>
+  <div class="wrap">
+    <h2>What it does</h2>
+    <p class="sub">Every unit of value is an unspent output. Spending consumes outputs and creates new ones — so double-spends are structurally impossible and the full history is always auditable.</p>
+    <div class="grid">
+      <div class="feature">
+        <div class="ico">🔒</div>
+        <h3>Double-spend safe</h3>
+        <p>Outputs can be spent exactly once. Invalid transactions are rejected before they mutate the ledger.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">🧾</div>
+        <h3>Immutable audit trail</h3>
+        <p>Domain objects are <code>readonly</code>. Every output tracks what created and spent it.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">💾</div>
+        <h3>Pluggable persistence</h3>
+        <p>In-memory for tests, SQLite for production — or implement the repository port for any backend.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">🗝️</div>
+        <h3>Rich lock types</h3>
+        <p>Owner, Ed25519 public key, M-of-N multisig, time locks, and hash locks — or bring your own.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">📡</div>
+        <h3>Events &amp; logging</h3>
+        <p>PSR-14 event dispatching and PSR-3 logging via composable decorators.</p>
+      </div>
+      <div class="feature">
+        <div class="ico">📊</div>
+        <h3>Selection &amp; analytics</h3>
+        <p>Coin-selection strategies (FIFO, largest/smallest-first, …) and UTXO analytics out of the box.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="code-block">
+  <div class="wrap">
+    <h2>Fluent by design</h2>
+    <p class="sub">Mint value, move it between owners, and query balances — with a chainable API.</p>
+<pre><span class="k">use</span> Chemaclass\Unspent\<span class="v">Ledger</span>;
+
+<span class="v">$ledger</span> = <span class="v">Ledger</span>::<span class="m">inMemory</span>();
+
+<span class="v">$ledger</span>-&gt;<span class="m">credit</span>(<span class="s">'alice'</span>, <span class="v">100</span>)          <span class="c">// mint 100 to alice</span>
+       -&gt;<span class="m">transfer</span>(<span class="s">'alice'</span>, <span class="s">'bob'</span>, <span class="v">30</span>); <span class="c">// alice → bob</span>
+
+<span class="v">$ledger</span>-&gt;<span class="m">totalUnspentByOwner</span>(<span class="s">'bob'</span>);   <span class="c">// 30</span>
+<span class="v">$ledger</span>-&gt;<span class="m">totalUnspentByOwner</span>(<span class="s">'alice'</span>); <span class="c">// 70</span>
+
+<span class="c">// Validate before committing — no exceptions thrown</span>
+<span class="v">$ledger</span>-&gt;<span class="m">canApply</span>(<span class="v">$tx</span>); <span class="c">// null if valid, else the reason</span></pre>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <h2>Built for correctness</h2>
+    <p class="sub">A small, strict codebase held to a high bar.</p>
+    <div class="stats">
+      <div class="stat"><div class="num">665</div><div class="lbl">tests passing</div></div>
+      <div class="stat"><div class="num">90%+</div><div class="lbl">mutation score</div></div>
+      <div class="stat"><div class="num">Level 8</div><div class="lbl">PHPStan, 0 errors</div></div>
+      <div class="stat"><div class="num">0</div><div class="lbl">runtime dependencies</div></div>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap row">
+    <div>MIT © <a href="https://chemaclass.com">Jose M. Valera Reales</a></div>
+    <div class="links">
+      <a href="https://github.com/Chemaclass/unspent">GitHub</a>
+      <a href="https://packagist.org/packages/chemaclass/unspent">Packagist</a>
+      <a href="https://github.com/Chemaclass/unspent/blob/main/CHANGELOG.md">Changelog</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
