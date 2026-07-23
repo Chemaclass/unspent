@@ -3,176 +3,245 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>unspent — UTXO-model bookkeeping for PHP</title>
-<meta name="description" content="A zero-dependency PHP 8.4+ library implementing the UTXO model for value tracking, double-spend prevention, and immutable audit trails.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🪙</text></svg>">
+<title>unspent — the UTXO model as a PHP library</title>
+<meta name="description" content="A zero-dependency PHP 8.4+ library for value tracking as unspent outputs: double-spend prevention and a complete audit trail baked into the data model.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'><rect x='2' y='2' width='12' height='12' fill='none' stroke='%231f7a4d' stroke-width='1.6'/><rect x='6' y='6' width='4' height='4' fill='%231f7a4d'/></svg>">
 <style>
   :root {
-    --bg: #ffffff; --bg-alt: #f6f8fa; --fg: #1f2328; --fg-dim: #59636e;
-    --border: #d1d9e0; --accent: #10b981; --accent-fg: #ffffff;
-    --code-bg: #0d1117; --code-fg: #e6edf3; --card: #ffffff; --shadow: 0 1px 3px rgba(0,0,0,.08);
+    --paper:#f3f0e6; --panel:#efebdf; --ink:#181712; --dim:#6a6456; --rule:#cabfa5;
+    --accent:#1c7145; --spent:#a83b34; --code-bg:#181712; --code-fg:#e9e4d5;
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --bg: #0d1117; --bg-alt: #010409; --fg: #e6edf3; --fg-dim: #9198a1;
-      --border: #2a313c; --accent: #2dd4a7; --accent-fg: #04150f;
-      --code-bg: #010409; --code-fg: #e6edf3; --card: #151b23; --shadow: 0 1px 3px rgba(0,0,0,.4);
+      --paper:#100f0c; --panel:#16150f; --ink:#e9e4d5; --dim:#8c8674; --rule:#33302a;
+      --accent:#4bbd84; --spent:#dd6a63; --code-bg:#0a0a07; --code-fg:#e9e4d5;
     }
   }
-  * { box-sizing: border-box; }
-  html { scroll-behavior: smooth; }
+  * { box-sizing:border-box; }
+  html { scroll-behavior:smooth; }
   body {
-    margin: 0; background: var(--bg); color: var(--fg);
-    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    -webkit-font-smoothing: antialiased;
+    margin:0; background:var(--paper); color:var(--ink);
+    font:15px/1.65 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    -webkit-font-smoothing:antialiased;
   }
-  a { color: var(--accent); text-decoration: none; }
-  a:hover { text-decoration: underline; }
-  code, pre { font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace; }
-  .wrap { max-width: 960px; margin: 0 auto; padding: 0 20px; }
+  .mono { font-family:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace; }
+  a { color:var(--accent); text-decoration:none; }
+  a:hover { text-decoration:underline; }
+  .wrap { max-width:920px; margin:0 auto; padding:0 24px; }
+  .accent { color:var(--accent); }
 
+  /* nav */
   nav {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 16px 20px; border-bottom: 1px solid var(--border); position: sticky; top: 0;
-    background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(8px); z-index: 10;
+    position:sticky; top:0; z-index:10; background:var(--paper);
+    border-bottom:1px solid var(--rule);
   }
-  nav .brand { font-weight: 700; font-size: 1.15rem; letter-spacing: -.02em; }
-  nav .brand span { color: var(--accent); }
-  nav .links { display: flex; gap: 20px; font-size: .95rem; }
-  nav .links a { color: var(--fg-dim); }
-  nav .links a:hover { color: var(--fg); text-decoration: none; }
+  nav .wrap { display:flex; align-items:center; justify-content:space-between; height:56px; }
+  .brand {
+    font-family:ui-monospace,Menlo,Consolas,monospace; font-weight:700; font-size:1.05rem; letter-spacing:-.02em;
+  }
+  .brand .cur { color:var(--accent); font-weight:400; }
+  nav .links { display:flex; gap:22px; font-size:.82rem; letter-spacing:.02em; text-transform:uppercase; }
+  nav .links a { color:var(--dim); font-family:ui-monospace,Menlo,monospace; }
+  nav .links a:hover { color:var(--ink); text-decoration:none; }
 
-  header.hero { text-align: center; padding: 72px 0 56px; }
-  .hero h1 { font-size: clamp(2.2rem, 6vw, 3.4rem); line-height: 1.1; margin: 0 0 16px; letter-spacing: -.03em; }
-  .hero p.tag { font-size: clamp(1.05rem, 2.5vw, 1.3rem); color: var(--fg-dim); margin: 0 auto 28px; max-width: 620px; }
-  .badges { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-bottom: 28px; }
-  .badge {
-    font-size: .8rem; padding: 4px 10px; border: 1px solid var(--border);
-    border-radius: 999px; color: var(--fg-dim); background: var(--card);
+  /* hero */
+  header.hero { padding:76px 0 40px; }
+  .kicker { font-family:ui-monospace,Menlo,monospace; font-size:.78rem; letter-spacing:.18em; text-transform:uppercase; color:var(--dim); margin-bottom:22px; }
+  .hero h1 {
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:clamp(1.9rem,5.2vw,3.05rem); line-height:1.12; letter-spacing:-.035em; font-weight:700;
+    margin:0 0 22px; max-width:16ch;
   }
-  .install {
-    display: inline-flex; align-items: center; gap: 12px; background: var(--code-bg); color: var(--code-fg);
-    padding: 12px 18px; border-radius: 10px; font-family: ui-monospace, monospace; font-size: .95rem;
-    margin-bottom: 24px; max-width: 100%; overflow-x: auto; box-shadow: var(--shadow);
-  }
-  .install .prompt { color: var(--accent); user-select: none; }
-  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .hero .lede { font-size:clamp(1rem,2vw,1.18rem); color:var(--dim); max-width:60ch; margin:0 0 30px; }
+  .meta { font-family:ui-monospace,Menlo,monospace; font-size:.82rem; color:var(--dim); margin-bottom:26px; }
+  .meta b { color:var(--ink); font-weight:600; }
+
+  .term { border:1px solid var(--ink); background:var(--code-bg); max-width:440px; margin-bottom:26px; }
+  .term .bar { display:flex; gap:6px; align-items:center; padding:7px 12px; border-bottom:1px solid #ffffff1a; }
+  .term .bar i { width:9px; height:9px; background:#ffffff30; display:inline-block; } /* square dots, no radius */
+  .term .bar span { margin-left:auto; font-family:ui-monospace,Menlo,monospace; font-size:.72rem; color:#ffffff66; letter-spacing:.05em; }
+  .term .cmd { padding:14px 16px; font-family:ui-monospace,Menlo,monospace; font-size:.9rem; color:var(--code-fg); white-space:nowrap; overflow-x:auto; }
+  .term .cmd .p { color:var(--accent); user-select:none; }
+
+  .cta { display:flex; gap:0; flex-wrap:wrap; }
   .btn {
-    padding: 11px 22px; border-radius: 8px; font-weight: 600; font-size: .95rem;
-    border: 1px solid var(--border); color: var(--fg); background: var(--card); transition: transform .06s ease;
+    font-family:ui-monospace,Menlo,monospace; font-size:.85rem; letter-spacing:.03em;
+    padding:12px 22px; border:1px solid var(--ink); color:var(--ink); background:transparent;
+    display:inline-flex; align-items:center; gap:8px;
   }
-  .btn:hover { text-decoration: none; transform: translateY(-1px); }
-  .btn.primary { background: var(--accent); color: var(--accent-fg); border-color: var(--accent); }
+  .btn + .btn { border-left:0; }
+  .btn:hover { background:var(--ink); color:var(--paper); text-decoration:none; }
+  .btn.solid { background:var(--ink); color:var(--paper); }
+  .btn.solid:hover { background:var(--accent); border-color:var(--accent); color:#fff; }
 
-  section { padding: 48px 0; }
-  section h2 { font-size: 1.6rem; letter-spacing: -.02em; margin: 0 0 8px; text-align: center; }
-  section .sub { text-align: center; color: var(--fg-dim); margin: 0 auto 36px; max-width: 560px; }
-
-  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 18px; }
-  .feature {
-    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
-    padding: 22px; box-shadow: var(--shadow);
-  }
-  .feature .ico { font-size: 1.5rem; margin-bottom: 10px; }
-  .feature h3 { margin: 0 0 6px; font-size: 1.05rem; }
-  .feature p { margin: 0; color: var(--fg-dim); font-size: .93rem; }
-
-  .code-block { background: var(--bg-alt); }
-  pre {
-    background: var(--code-bg); color: var(--code-fg); padding: 22px; border-radius: 12px;
-    overflow-x: auto; font-size: .9rem; line-height: 1.7; box-shadow: var(--shadow); margin: 0;
-  }
-  pre .k { color: #ff7b72; } pre .s { color: #a5d6ff; } pre .c { color: #8b949e; }
-  pre .m { color: #d2a8ff; } pre .v { color: #79c0ff; }
-  @media (prefers-color-scheme: light) {
-    pre .k { color: #cf222e; } pre .s { color: #0a3069; } pre .c { color: #6e7781; }
-    pre .m { color: #8250df; } pre .v { color: #0550ae; }
+  /* section scaffolding */
+  section { padding:26px 0; }
+  .seclabel {
+    font-family:ui-monospace,Menlo,monospace; font-size:.74rem; letter-spacing:.16em; text-transform:uppercase;
+    color:var(--dim); padding-bottom:14px; margin-bottom:26px; border-bottom:1px solid var(--rule);
+    display:flex; justify-content:space-between;
   }
 
-  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 18px; text-align: center; }
-  .stat .num { font-size: 1.9rem; font-weight: 700; color: var(--accent); letter-spacing: -.02em; }
-  .stat .lbl { color: var(--fg-dim); font-size: .88rem; }
+  /* transaction diagram */
+  .diagram-cap { color:var(--dim); font-size:.92rem; margin:0 0 14px; }
+  pre.diagram {
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.82rem; line-height:1.45;
+    color:var(--ink); background:var(--panel); border:1px solid var(--rule); padding:22px 20px;
+    overflow-x:auto; margin:0 0 14px;
+  }
+  pre.diagram .sp { color:var(--spent); }
+  pre.diagram .un { color:var(--accent); }
+  pre.diagram .lbl { color:var(--dim); }
+  .legend { font-family:ui-monospace,Menlo,monospace; font-size:.8rem; color:var(--dim); display:flex; gap:22px; flex-wrap:wrap; }
+  .legend .un { color:var(--accent); } .legend .sp { color:var(--spent); }
 
-  footer { border-top: 1px solid var(--border); padding: 32px 0; color: var(--fg-dim); font-size: .9rem; }
-  footer .row { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 12px; align-items: center; }
-  footer .links { display: flex; gap: 18px; }
+  /* ledger table of features */
+  .ledger { border:1px solid var(--rule); }
+  .lrow { display:grid; grid-template-columns:70px 1fr; }
+  .lrow + .lrow { border-top:1px solid var(--rule); }
+  .lid {
+    font-family:ui-monospace,Menlo,monospace; font-weight:700; font-size:1rem; color:var(--accent);
+    padding:20px 0 20px 20px; border-right:1px solid var(--rule);
+  }
+  .lmain { padding:18px 22px; }
+  .lmain h3 { font-family:ui-monospace,Menlo,monospace; margin:0 0 5px; font-size:.98rem; letter-spacing:-.01em; }
+  .lmain p { margin:0; color:var(--dim); font-size:.92rem; }
+  .lmain code { font-family:ui-monospace,Menlo,monospace; font-size:.85em; color:var(--ink); background:var(--panel); padding:1px 5px; border:1px solid var(--rule); }
+
+  /* code sample */
+  .file { border:1px solid var(--ink); }
+  .file .tab {
+    font-family:ui-monospace,Menlo,monospace; font-size:.78rem; color:var(--code-fg); background:var(--code-bg);
+    padding:9px 16px; border-bottom:1px solid #ffffff1a; letter-spacing:.03em;
+  }
+  pre.code {
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace; font-size:.86rem; line-height:1.75;
+    background:var(--code-bg); color:var(--code-fg); padding:20px; overflow-x:auto; margin:0;
+  }
+  pre.code .k{color:#ff7b72;} pre.code .s{color:#7ee0b0;} pre.code .c{color:#8b9486;}
+  pre.code .m{color:#d2b8ff;} pre.code .v{color:#9ecbff;}
+
+  /* summary strip */
+  .summary { display:grid; grid-template-columns:repeat(4,1fr); border:1px solid var(--rule); }
+  .summary .cell { padding:22px 16px; text-align:center; }
+  .summary .cell + .cell { border-left:1px solid var(--rule); }
+  .summary .n { font-family:ui-monospace,Menlo,monospace; font-size:1.6rem; font-weight:700; color:var(--accent); letter-spacing:-.02em; }
+  .summary .k { font-family:ui-monospace,Menlo,monospace; font-size:.72rem; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin-top:4px; }
+
+  footer { margin-top:34px; border-top:1px solid var(--rule); padding:26px 0 44px; }
+  footer .wrap { display:flex; justify-content:space-between; flex-wrap:wrap; gap:12px; font-family:ui-monospace,Menlo,monospace; font-size:.8rem; color:var(--dim); }
+  footer .links { display:flex; gap:20px; }
+
+  @media (max-width:560px) {
+    .summary { grid-template-columns:repeat(2,1fr); }
+    .summary .cell:nth-child(3) { border-left:0; }
+    .summary .cell:nth-child(n+3) { border-top:1px solid var(--rule); }
+    nav .links a:first-child { display:none; }
+  }
 </style>
 </head>
 <body>
 
 <nav>
-  <div class="brand">🪙 <span>un</span>spent</div>
-  <div class="links">
-    <a href="https://github.com/Chemaclass/unspent#readme">Docs</a>
-    <a href="https://packagist.org/packages/chemaclass/unspent">Packagist</a>
-    <a href="https://github.com/Chemaclass/unspent">GitHub</a>
+  <div class="wrap">
+    <div class="brand">unspent<span class="cur">▊</span></div>
+    <div class="links">
+      <a href="https://github.com/Chemaclass/unspent#readme">Docs</a>
+      <a href="https://packagist.org/packages/chemaclass/unspent">Packagist</a>
+      <a href="https://github.com/Chemaclass/unspent">Source</a>
+    </div>
   </div>
 </nav>
 
 <header class="hero">
   <div class="wrap">
-    <h1>UTXO-model bookkeeping<br>for PHP</h1>
-    <p class="tag">A zero-dependency library for value tracking with built-in double-spend prevention and an immutable audit trail — the accounting model behind Bitcoin, as a clean PHP API.</p>
-    <div class="badges">
-      <span class="badge">PHP 8.4+</span>
-      <span class="badge">Zero runtime dependencies</span>
-      <span class="badge">Hexagonal architecture</span>
-      <span class="badge">MIT</span>
-    </div>
-    <div class="install">
-      <span class="prompt">$</span><span>composer require chemaclass/unspent</span>
+    <div class="kicker">UTXO model · PHP 8.4+</div>
+    <h1>Every balance is a set of <span class="accent">unspent</span> outputs.</h1>
+    <p class="lede">A zero-dependency PHP library for value tracking, where double-spend prevention and a complete audit trail are baked into the data model — not bolted on afterwards.</p>
+    <div class="meta">MIT · <b>zero dependencies</b> · hexagonal architecture</div>
+    <div class="term">
+      <div class="bar"><i></i><i></i><i></i><span>composer</span></div>
+      <div class="cmd"><span class="p">$ </span>composer require chemaclass/unspent</div>
     </div>
     <div class="cta">
-      <a class="btn primary" href="https://github.com/Chemaclass/unspent">View on GitHub</a>
-      <a class="btn" href="https://github.com/Chemaclass/unspent#readme">Read the docs</a>
+      <a class="btn solid" href="https://github.com/Chemaclass/unspent">Source →</a>
+      <a class="btn" href="https://github.com/Chemaclass/unspent#readme">Documentation</a>
     </div>
   </div>
 </header>
 
 <section>
   <div class="wrap">
-    <h2>What it does</h2>
-    <p class="sub">Every unit of value is an unspent output. Spending consumes outputs and creates new ones — so double-spends are structurally impossible and the full history is always auditable.</p>
-    <div class="grid">
-      <div class="feature">
-        <div class="ico">🔒</div>
-        <h3>Double-spend safe</h3>
-        <p>Outputs can be spent exactly once. Invalid transactions are rejected before they mutate the ledger.</p>
+    <div class="seclabel"><span>The model</span><span>fig. 01</span></div>
+    <p class="diagram-cap">A transaction consumes existing unspent outputs and produces new ones. Spent outputs can never be spent again — that invariant is the ledger.</p>
+<pre class="diagram"><span class="lbl">transaction — alice pays bob 30</span>
+
+  spends                             creates
+  ┌─────────────────┐                ┌─────────────────┐
+  │ alice     · 100 │ ──── spend ───▶│ bob       ·  <span class="un">30</span> │
+  └─────────────────┘                ├─────────────────┤
+    <span class="sp">✕ consumed</span>                       │ alice     ·  <span class="un">70</span> │  <span class="lbl">change</span>
+                                     └─────────────────┘</pre>
+    <div class="legend"><span><span class="un">■</span> unspent output</span><span><span class="sp">✕</span> consumed input</span></div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="seclabel"><span>Capabilities</span><span>entries 01–06</span></div>
+    <div class="ledger">
+      <div class="lrow">
+        <div class="lid mono">01</div>
+        <div class="lmain">
+          <h3>Double-spend safe by construction</h3>
+          <p>An output is spendable exactly once. Invalid transactions are rejected before they ever mutate the ledger — validate first with <code>canApply()</code>.</p>
+        </div>
       </div>
-      <div class="feature">
-        <div class="ico">🧾</div>
-        <h3>Immutable audit trail</h3>
-        <p>Domain objects are <code>readonly</code>. Every output tracks what created and spent it.</p>
+      <div class="lrow">
+        <div class="lid mono">02</div>
+        <div class="lmain">
+          <h3>Immutable audit trail</h3>
+          <p>Domain objects are <code>readonly</code>. Every output records the transaction that created it and the one that spent it.</p>
+        </div>
       </div>
-      <div class="feature">
-        <div class="ico">💾</div>
-        <h3>Pluggable persistence</h3>
-        <p>In-memory for tests, SQLite for production — or implement the repository port for any backend.</p>
+      <div class="lrow">
+        <div class="lid mono">03</div>
+        <div class="lmain">
+          <h3>Pluggable persistence</h3>
+          <p>In-memory for tests, SQLite for production, or implement the repository port for any backend. History and unspent set are stored independently for scale.</p>
+        </div>
       </div>
-      <div class="feature">
-        <div class="ico">🗝️</div>
-        <h3>Rich lock types</h3>
-        <p>Owner, Ed25519 public key, M-of-N multisig, time locks, and hash locks — or bring your own.</p>
+      <div class="lrow">
+        <div class="lid mono">04</div>
+        <div class="lmain">
+          <h3>Expressive locks</h3>
+          <p>Owner, Ed25519 public key, M-of-N multisig, time locks, hash locks — composed and extensible through the <code>OutputLock</code> port.</p>
+        </div>
       </div>
-      <div class="feature">
-        <div class="ico">📡</div>
-        <h3>Events &amp; logging</h3>
-        <p>PSR-14 event dispatching and PSR-3 logging via composable decorators.</p>
+      <div class="lrow">
+        <div class="lid mono">05</div>
+        <div class="lmain">
+          <h3>Events &amp; logging as decorators</h3>
+          <p>PSR-14 event dispatching and PSR-3 logging wrap any ledger without touching the core, following the same hexagonal boundaries.</p>
+        </div>
       </div>
-      <div class="feature">
-        <div class="ico">📊</div>
-        <h3>Selection &amp; analytics</h3>
-        <p>Coin-selection strategies (FIFO, largest/smallest-first, …) and UTXO analytics out of the box.</p>
+      <div class="lrow">
+        <div class="lid mono">06</div>
+        <div class="lmain">
+          <h3>Coin selection &amp; analytics</h3>
+          <p>FIFO, largest- and smallest-first selection strategies, plus UTXO analytics for dust, consolidation and per-owner summaries.</p>
+        </div>
       </div>
     </div>
   </div>
 </section>
 
-<section class="code-block">
+<section>
   <div class="wrap">
-    <h2>Fluent by design</h2>
-    <p class="sub">Mint value, move it between owners, and query balances — with a chainable API.</p>
-<pre><span class="k">use</span> Chemaclass\Unspent\<span class="v">Ledger</span>;
+    <div class="seclabel"><span>In practice</span><span>example.php</span></div>
+    <div class="file">
+      <div class="tab mono">example.php</div>
+<pre class="code"><span class="k">use</span> Chemaclass\Unspent\<span class="v">Ledger</span>;
 
 <span class="v">$ledger</span> = <span class="v">Ledger</span>::<span class="m">inMemory</span>();
 
@@ -180,31 +249,28 @@
        -&gt;<span class="m">transfer</span>(<span class="s">'alice'</span>, <span class="s">'bob'</span>, <span class="v">30</span>); <span class="c">// alice → bob</span>
 
 <span class="v">$ledger</span>-&gt;<span class="m">totalUnspentByOwner</span>(<span class="s">'bob'</span>);   <span class="c">// 30</span>
-<span class="v">$ledger</span>-&gt;<span class="m">totalUnspentByOwner</span>(<span class="s">'alice'</span>); <span class="c">// 70</span>
-
-<span class="c">// Validate before committing — no exceptions thrown</span>
-<span class="v">$ledger</span>-&gt;<span class="m">canApply</span>(<span class="v">$tx</span>); <span class="c">// null if valid, else the reason</span></pre>
+<span class="v">$ledger</span>-&gt;<span class="m">totalUnspentByOwner</span>(<span class="s">'alice'</span>); <span class="c">// 70  (change output)</span></pre>
+    </div>
   </div>
 </section>
 
 <section>
   <div class="wrap">
-    <h2>Built for correctness</h2>
-    <p class="sub">A small, strict codebase held to a high bar.</p>
-    <div class="stats">
-      <div class="stat"><div class="num">665</div><div class="lbl">tests passing</div></div>
-      <div class="stat"><div class="num">90%+</div><div class="lbl">mutation score</div></div>
-      <div class="stat"><div class="num">Level 8</div><div class="lbl">PHPStan, 0 errors</div></div>
-      <div class="stat"><div class="num">0</div><div class="lbl">runtime dependencies</div></div>
+    <div class="seclabel"><span>Held to a bar</span><span>ci · main</span></div>
+    <div class="summary">
+      <div class="cell"><div class="n">665</div><div class="k">tests</div></div>
+      <div class="cell"><div class="n">90%+</div><div class="k">mutation MSI</div></div>
+      <div class="cell"><div class="n">L8</div><div class="k">phpstan · 0 err</div></div>
+      <div class="cell"><div class="n">0</div><div class="k">runtime deps</div></div>
     </div>
   </div>
 </section>
 
 <footer>
-  <div class="wrap row">
+  <div class="wrap">
     <div>MIT © <a href="https://chemaclass.com">Jose M. Valera Reales</a></div>
     <div class="links">
-      <a href="https://github.com/Chemaclass/unspent">GitHub</a>
+      <a href="https://github.com/Chemaclass/unspent">Source</a>
       <a href="https://packagist.org/packages/chemaclass/unspent">Packagist</a>
       <a href="https://github.com/Chemaclass/unspent/blob/main/CHANGELOG.md">Changelog</a>
     </div>
