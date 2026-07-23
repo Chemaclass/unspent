@@ -108,6 +108,16 @@
   .lmain p { margin:0; color:var(--dim); font-size:.92rem; }
   .lmain code { font-family:ui-monospace,Menlo,monospace; font-size:.85em; color:var(--ink); background:var(--panel); padding:1px 5px; border:1px solid var(--rule); }
 
+  /* bitcoin lineage map */
+  .map { border:1px solid var(--rule); }
+  .maprow { display:grid; grid-template-columns:1fr 1fr; }
+  .maprow + .maprow { border-top:1px solid var(--rule); }
+  .maprow .btc, .maprow .us { padding:12px 18px; font-family:ui-monospace,Menlo,monospace; font-size:.85rem; }
+  .maprow .btc { color:var(--dim); border-right:1px solid var(--rule); }
+  .maprow .us { color:var(--ink); }
+  .maprow.head .btc, .maprow.head .us { font-size:.72rem; text-transform:uppercase; letter-spacing:.12em; }
+  .maprow.head .us { color:var(--accent); }
+
   /* code sample */
   .file { border:1px solid var(--ink); }
   .file .tab {
@@ -188,6 +198,22 @@
 
 <section>
   <div class="wrap">
+    <div class="seclabel"><span>Lineage</span><span>fig. 02</span></div>
+    <p class="diagram-cap">Bitcoin has no account balances — only unspent outputs. Your balance is the set you can unlock; spending consumes whole outputs and creates new ones. This library ports that model to general bookkeeping, keeping its one-spend invariant.</p>
+    <div class="map">
+      <div class="maprow head"><div class="btc">bitcoin</div><div class="us">unspent</div></div>
+      <div class="maprow"><div class="btc">unspent transaction output</div><div class="us">Output</div></div>
+      <div class="maprow"><div class="btc">tx spends inputs → creates outputs</div><div class="us">Tx</div></div>
+      <div class="maprow"><div class="btc">coinbase (minting)</div><div class="us">CoinbaseTx · credit()</div></div>
+      <div class="maprow"><div class="btc">fee = inputs − outputs</div><div class="us">computed on apply()</div></div>
+      <div class="maprow"><div class="btc">scriptPubKey conditions</div><div class="us">OutputLock: key · multisig · timelock · hashlock</div></div>
+      <div class="maprow"><div class="btc">double-spend forbidden by consensus</div><div class="us">output removed from the unspent set</div></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
     <div class="seclabel"><span>Capabilities</span><span>entries 01–06</span></div>
     <div class="ledger">
       <div class="lrow">
@@ -250,6 +276,31 @@
 
 <span class="v">$ledger</span>-&gt;<span class="m">totalUnspentByOwner</span>(<span class="s">'bob'</span>);   <span class="c">// 30</span>
 <span class="v">$ledger</span>-&gt;<span class="m">totalUnspentByOwner</span>(<span class="s">'alice'</span>); <span class="c">// 70  (change output)</span></pre>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <div class="seclabel"><span>Performance</span><span>o( · )</span></div>
+    <p class="diagram-cap">Correctness comes free from the model; the engineering keeps the everyday operations linear and cache-friendly — proven by a phpbench suite, not asserted.</p>
+    <div class="ledger">
+      <div class="lrow">
+        <div class="lid mono">→</div>
+        <div class="lmain"><h3>O(1) amortized apply</h3><p>History mutates in place — N transactions cost O(N), not O(N²).</p></div>
+      </div>
+      <div class="lrow">
+        <div class="lid mono">→</div>
+        <div class="lmain"><h3>Owner index</h3><p>Transfers and per-owner balances are O(outputs-owned), independent of total ledger size.</p></div>
+      </div>
+      <div class="lrow">
+        <div class="lid mono">→</div>
+        <div class="lmain"><h3>Copy-on-fork set</h3><p>Mutations happen in place; reads return a copy-on-write snapshot that never poisons the next write.</p></div>
+      </div>
+      <div class="lrow">
+        <div class="lid mono">→</div>
+        <div class="lmain"><h3>Store-backed mode</h3><p>The SQLite adapter batches writes behind covering indexes and keeps memory bounded to the unspent set — scaling past RAM.</p></div>
+      </div>
     </div>
   </div>
 </section>
