@@ -9,10 +9,6 @@ use PDOException;
 
 /**
  * Runs a read query and translates PDO failures into PersistenceException.
- *
- * Extracted from SqliteHistoryRepository and SqliteLedgerRepository, which
- * both repeated the same try/catch(PDOException)->queryFailed() shape
- * across every query method (DRY).
  */
 trait PdoQueryWrapper
 {

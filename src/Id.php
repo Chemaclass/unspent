@@ -10,7 +10,7 @@ use Stringable;
  * Common interface for all identifier value objects.
  *
  * Provides a consistent API for working with IDs generically
- * while concrete types (OutputId, SpendId) maintain type safety.
+ * while concrete types (OutputId, TxId) maintain type safety.
  */
 interface Id extends Stringable
 {

@@ -9,9 +9,6 @@ use Chemaclass\Unspent\Output;
 /**
  * Shared accumulation logic for selection strategies that pick outputs,
  * in a given order, until the target amount is reached.
- *
- * Extracted from FifoStrategy, LargestFirstStrategy, SmallestFirstStrategy,
- * and RandomStrategy to eliminate duplicated selection loops (DRY).
  */
 trait AccumulatesOutputs
 {
