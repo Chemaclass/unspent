@@ -15,6 +15,9 @@ use PDOException;
  */
 trait PdoTransactionalWrite
 {
+    /**
+     * @param callable(): void $operation
+     */
     private function runInTransaction(string $ledgerId, callable $operation): void
     {
         try {
