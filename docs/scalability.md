@@ -18,7 +18,7 @@ $ledger = Ledger::withRepository(new InMemoryHistoryRepository())
 **Characteristics:**
 - All outputs (unspent and spent) stored in memory via `InMemoryHistoryRepository`
 - All transaction history in memory
-- O(1) queries for everything
+- O(1) core lookups; owner-scoped queries served by an owner index
 - Simple, fast, no external dependencies
 
 **Best for:**
@@ -78,26 +78,7 @@ $history = $ledger->outputHistory($outputId);
 
 ## Choosing a Mode
 
-```
-Which mode should I use?
-│
-├─ < 100k outputs?
-│   │
-│   ├─ Yes → Ledger::inMemory() or Ledger::withGenesis()
-│   │         Simple, fast, all in memory
-│   │
-│   └─ No ──┐
-│           │
-├─ >= 100k outputs?
-│   │
-│   └─ Yes → Ledger::withRepository($historyRepo)
-│             Memory bounded by unspent count only
-│
-└─ Memory constrained?
-    │
-    └─ Yes → Ledger::withRepository($historyRepo)
-              Even with fewer outputs
-```
+Rule of thumb: stay **in-memory** (`Ledger::inMemory()` / `withGenesis()`) below ~100k outputs; switch to **store-backed** (`Ledger::withRepository()`) above that, or whenever memory is constrained regardless of count.
 
 | Factor | In-memory Mode | Store-backed Mode |
 |--------|----------------|-------------------|
