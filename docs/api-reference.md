@@ -684,8 +684,8 @@ $restored = InMemoryHistoryRepository::fromArray($data);
 ```php
 interface LedgerRepository
 {
-    public function save(string $id, Ledger $ledger): void;
-    public function find(string $id): ?Ledger;
+    public function save(string $id, LedgerInterface $ledger): void;
+    public function find(string $id): ?LedgerInterface;
     public function delete(string $id): void;
     public function exists(string $id): bool;
 }
@@ -848,6 +848,17 @@ UtxoAnalytics::stats(
 //     'dustCount' => int,
 //     'dustTotal' => int,
 // ]
+
+// Single-pass summary over any UnspentSet (stats() delegates to this).
+// Same keys as stats(), plus the actual boundary outputs.
+UtxoAnalytics::summarize(
+    UnspentSet $unspent,
+    int $dustThreshold = 10
+): array
+// Returns: stats() keys, plus:
+//     'largest' => ?Output,
+//     'smallest' => ?Output,
+//     'oldest' => ?Output,
 
 // Get number of outputs for an owner
 UtxoAnalytics::outputCountByOwner(
