@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-07-24
+
 ### Added
 
 - `UnspentSet::snapshot()` — returns an isolated copy-on-write view of the outputs; used by `Ledger::unspent()`
