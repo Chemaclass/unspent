@@ -19,18 +19,20 @@ YourCustomRepository (concrete)
 For simple key-value storage (Redis, file-based):
 
 ```php
+use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Persistence\LedgerRepository;
 
 final class RedisLedgerRepository implements LedgerRepository
 {
     public function __construct(private \Redis $redis) {}
 
-    public function save(string $id, Ledger $ledger): void
+    public function save(string $id, LedgerInterface $ledger): void
     {
         $this->redis->set("ledger:{$id}", $ledger->toJson());
     }
 
-    public function find(string $id): ?Ledger
+    public function find(string $id): ?LedgerInterface
     {
         $json = $this->redis->get("ledger:{$id}");
         return $json ? Ledger::fromJson($json) : null;
@@ -53,13 +55,15 @@ final class RedisLedgerRepository implements LedgerRepository
 Extend `AbstractLedgerRepository` for normalized storage:
 
 ```php
+use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Persistence\AbstractLedgerRepository;
 
 final class MySQLLedgerRepository extends AbstractLedgerRepository
 {
     public function __construct(private readonly PDO $pdo) {}
 
-    public function save(string $id, Ledger $ledger): void
+    public function save(string $id, LedgerInterface $ledger): void
     {
         $this->pdo->beginTransaction();
 
@@ -69,24 +73,39 @@ final class MySQLLedgerRepository extends AbstractLedgerRepository
 
         // Insert outputs with inherited helper
         foreach ($ledger->unspent() as $outputId => $output) {
-            $lockData = $this->extractLockData($output); // Inherited
-            // Insert into outputs table...
+            $lock = $this->extractLockData($output); // Inherited: returns LockData
+            // INSERT ($outputId, $output->amount, $lock->type, $lock->owner, ...)
         }
 
         $this->pdo->commit();
     }
 
-    public function find(string $id): ?Ledger
+    public function find(string $id): ?LedgerInterface
     {
-        $rows = $this->fetchRows($id);
-        if (empty($rows)) return null;
+        $unspentRows = $this->select('SELECT * FROM outputs WHERE ledger_id = ? AND is_spent = 0', $id);
+        $spentRows   = $this->select('SELECT * FROM outputs WHERE ledger_id = ? AND is_spent = 1', $id);
+        $txRows      = $this->select('SELECT * FROM transactions WHERE ledger_id = ?', $id);
 
-        // Use inherited helper
-        $data = $this->buildLedgerDataArray($unspent, $spent, $txs);
+        if ($unspentRows === [] && $spentRows === [] && $txRows === []) {
+            return null;
+        }
+
+        // Inherited: assembles the array Ledger::fromArray() expects
+        $data = $this->buildLedgerDataArray($unspentRows, $spentRows, $txRows);
+
         return Ledger::fromArray($data);
     }
 
-    // Implement remaining methods...
+    /** @return list<array<string, mixed>> */
+    private function select(string $sql, string $id): array
+    {
+        $stmt = $this->pdo->prepare($sql);
+        $stmt->execute([$id]);
+
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    // Implement remaining methods (delete, exists, queries)...
 }
 ```
 
@@ -97,14 +116,14 @@ final class MySQLLedgerRepository extends AbstractLedgerRepository
 ```php
 // Lock normalization
 $this->extractLockData($output);
-// Returns: ['type', 'owner', 'pubkey', 'custom']
+// Returns: LockData { type, owner, pubkey, custom }
 
 // Row conversion
 $this->rowsToOutputs($rows);
 // Returns: list<Output>
 
 // Build ledger data
-$this->buildLedgerDataArray($unspent, $spent, $txs);
+$this->buildLedgerDataArray($unspentRows, $spentRows, $transactionRows);
 // Returns: array for Ledger::fromArray()
 ```
 

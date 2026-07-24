@@ -96,13 +96,19 @@ class TimeLock implements OutputLock
         private string $owner,
     ) {}
 
-    public function validate(Tx $tx, int $inputIndex): void
+    public function validate(Tx $tx, int $spendIndex): void
     {
         if (time() < $this->unlockTimestamp) {
-            throw AuthorizationException::timeLockNotExpired();
+            throw new AuthorizationException(
+                'Output is still time-locked',
+                AuthorizationException::CODE_NOT_OWNER,
+            );
         }
         if ($tx->signedBy !== $this->owner) {
-            throw AuthorizationException::wrongOwner();
+            throw new AuthorizationException(
+                'Signer is not the owner',
+                AuthorizationException::CODE_NOT_OWNER,
+            );
         }
     }
 }
