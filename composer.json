@@ -39,10 +39,10 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.92",
-        "infection/infection": "^0.32.3",
+        "infection/infection": "^0.34.2",
         "phpbench/phpbench": "^1.4",
         "phpstan/phpstan": "^2.1",
-        "phpunit/phpunit": "^12.5.8",
+        "phpunit/phpunit": "^13.3",
         "rector/rector": "^2.3",
         "symfony/console": "^8.0",
         "symfony/var-dumper": "^8.0"

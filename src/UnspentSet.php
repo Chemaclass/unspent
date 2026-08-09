@@ -8,6 +8,7 @@ use ArrayIterator;
 use Chemaclass\Unspent\Lock\LockFactory;
 use Chemaclass\Unspent\Lock\Owner;
 use Countable;
+use Generator;
 use InvalidArgumentException;
 use IteratorAggregate;
 use Traversable;
@@ -244,10 +245,37 @@ final class UnspentSet implements Countable, IteratorAggregate
      */
     public function outputIds(): array
     {
-        return array_values(array_map(
-            static fn (Output $output): OutputId => $output->id,
-            $this->outputs,
-        ));
+        $ids = [];
+        foreach ($this->outputs as $output) {
+            $ids[] = $output->id;
+        }
+
+        return $ids;
+    }
+
+    /**
+     * Returns the outputs as a plain list, in iteration order.
+     *
+     * Preferred over `iterator_to_array($set)` — no iterator is allocated and
+     * the result is already a `list<Output>`.
+     *
+     * @return list<Output>
+     */
+    public function values(): array
+    {
+        return array_values($this->outputs);
+    }
+
+    /**
+     * Returns the first output in iteration order, or null when the set is empty.
+     */
+    public function first(): ?Output
+    {
+        foreach ($this->outputs as $output) {
+            return $output;
+        }
+
+        return null;
     }
 
     /**
@@ -284,13 +312,29 @@ final class UnspentSet implements Countable, IteratorAggregate
 
         $outputs = [];
         $total = 0;
-        foreach (array_keys($ids) as $id) {
+        foreach ($ids as $id => $_) {
             $output = $this->outputs[$id];
             $outputs[$id] = $output;
             $total += $output->amount;
         }
 
         return new self($outputs, $total, [$owner => $ids]);
+    }
+
+    /**
+     * Lazily yields the outputs owned by a specific owner, keyed by output id.
+     *
+     * Unlike ownedBy(), nothing is materialized: consumers that stop early
+     * (coin selection, dust scans) only touch the outputs they actually read.
+     * Do not mutate this set while iterating.
+     *
+     * @return Generator<string, Output>
+     */
+    public function iterateOwnedBy(string $owner): Generator
+    {
+        foreach ($this->ownerIndex[$owner] ?? [] as $id => $_) {
+            yield $id => $this->outputs[$id];
+        }
     }
 
     /**
@@ -302,7 +346,7 @@ final class UnspentSet implements Countable, IteratorAggregate
     public function totalAmountOwnedBy(string $owner): int
     {
         $total = 0;
-        foreach (array_keys($this->ownerIndex[$owner] ?? []) as $id) {
+        foreach ($this->ownerIndex[$owner] ?? [] as $id => $_) {
             $total += $this->outputs[$id]->amount;
         }
 

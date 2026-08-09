@@ -67,9 +67,11 @@ final readonly class Tx
 
     public function totalOutputAmount(): int
     {
-        return array_sum(array_map(
-            static fn (Output $output): int => $output->amount,
-            $this->outputs,
-        ));
+        $total = 0;
+        foreach ($this->outputs as $output) {
+            $total += $output->amount;
+        }
+
+        return $total;
     }
 }

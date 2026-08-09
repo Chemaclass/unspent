@@ -20,7 +20,7 @@ final readonly class SmallestFirstStrategy implements SelectionStrategy
     public function select(UnspentSet $available, int $target): array
     {
         // Collect and sort by amount ascending
-        $outputs = iterator_to_array($available);
+        $outputs = $available->values();
         usort($outputs, static fn (Output $a, Output $b): int => $a->amount <=> $b->amount);
 
         return $this->accumulateUntilTarget($outputs, $target);

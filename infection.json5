@@ -1,5 +1,5 @@
 {
-    "$schema": "https://raw.githubusercontent.com/infection/infection/0.29.0/resources/schema.json",
+    "$schema": "https://raw.githubusercontent.com/infection/infection/0.34.2/resources/schema.json",
     "source": {
         "directories": ["src"],
         "excludes": [
@@ -63,6 +63,25 @@
         },
         // UnwrapArrayValues often produces equivalent code
         "UnwrapArrayValues": false,
+        // IdGenerator::forOutput() buffers CSPRNG bytes purely as an optimization.
+        // Mutating the refill condition only changes *when* the buffer is topped
+        // up — every schedule still yields unique, well-formed ids, so these
+        // mutants are equivalent by construction and cannot be killed.
+        "NotIdentical": {
+            "ignore": [
+                "Chemaclass\\Unspent\\IdGenerator::forOutput"
+            ]
+        },
+        "GreaterThan": {
+            "ignore": [
+                "Chemaclass\\Unspent\\IdGenerator::forOutput"
+            ]
+        },
+        "GreaterThanNegotiation": {
+            "ignore": [
+                "Chemaclass\\Unspent\\IdGenerator::forOutput"
+            ]
+        },
         // Assignment mutations in accumulator patterns are often equivalent
         "Assignment": {
             "ignore": [

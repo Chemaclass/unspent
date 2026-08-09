@@ -40,11 +40,7 @@ final class UtxoAnalytics
      */
     public static function oldestUnspent(LedgerInterface $ledger, string $owner): ?Output
     {
-        foreach ($ledger->unspentByOwner($owner) as $output) {
-            return $output;
-        }
-
-        return null;
+        return $ledger->unspentByOwner($owner)->first();
     }
 
     /**

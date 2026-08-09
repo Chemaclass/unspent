@@ -2,16 +2,32 @@
 
 When transferring or debiting value, the ledger must choose which outputs to spend. Selection strategies control this choice, optimizing for different goals.
 
+Attach one with `Ledger::selectWith()`, which works with every ledger factory and returns the ledger for chaining:
+
+```php
+$ledger = Ledger::inMemory()->selectWith(new LargestFirstStrategy());
+
+// Swap it at any time; null restores the default selection.
+$ledger->selectWith(new SmallestFirstStrategy());
+$ledger->selectWith(null);
+```
+
+It affects `transfer()`, `debit()` and `batchTransfer()`. Decorators (`LoggingLedger`, `EventDispatchingLedger`) wrap an already-configured `Ledger`, so call `selectWith()` before wrapping.
+
 ## Built-in Strategies
 
-### FifoStrategy (Default)
+### Default selection
+
+With no strategy attached, the ledger streams the owner's outputs in creation order and stops at the first one that covers the target — the same result as `FifoStrategy`, but without materializing the owner's full output set. Leave it as-is unless you need one of the policies below.
+
+### FifoStrategy
 
 Spends outputs in the order they were created - oldest first.
 
 ```php
 use Chemaclass\Unspent\Selection\FifoStrategy;
 
-$ledger = Ledger::inMemory(strategy: new FifoStrategy());
+$ledger = Ledger::inMemory()->selectWith(new FifoStrategy());
 ```
 
 **Best for:**
@@ -26,7 +42,7 @@ Spends the largest outputs first to minimize the number of inputs.
 ```php
 use Chemaclass\Unspent\Selection\LargestFirstStrategy;
 
-$ledger = Ledger::inMemory(strategy: new LargestFirstStrategy());
+$ledger = Ledger::inMemory()->selectWith(new LargestFirstStrategy());
 ```
 
 **Best for:**
@@ -41,7 +57,7 @@ Spends the smallest outputs first to consolidate "dust" (tiny outputs).
 ```php
 use Chemaclass\Unspent\Selection\SmallestFirstStrategy;
 
-$ledger = Ledger::inMemory(strategy: new SmallestFirstStrategy());
+$ledger = Ledger::inMemory()->selectWith(new SmallestFirstStrategy());
 ```
 
 **Best for:**
@@ -56,7 +72,7 @@ Attempts to find outputs that exactly match the target amount, eliminating chang
 ```php
 use Chemaclass\Unspent\Selection\ExactMatchStrategy;
 
-$ledger = Ledger::inMemory(strategy: new ExactMatchStrategy());
+$ledger = Ledger::inMemory()->selectWith(new ExactMatchStrategy());
 ```
 
 **Best for:**
@@ -76,7 +92,7 @@ Shuffles outputs randomly before selecting, making spending patterns unpredictab
 ```php
 use Chemaclass\Unspent\Selection\RandomStrategy;
 
-$ledger = Ledger::inMemory(strategy: new RandomStrategy());
+$ledger = Ledger::inMemory()->selectWith(new RandomStrategy());
 ```
 
 **Best for:**
@@ -88,7 +104,7 @@ $ledger = Ledger::inMemory(strategy: new RandomStrategy());
 
 | Strategy | Priority | Inputs | Change | Use Case |
 |----------|----------|--------|--------|----------|
-| FIFO | Oldest first | Variable | Likely | General purpose |
+| Default / FIFO | Oldest first | Variable | Likely | General purpose |
 | Largest First | Fewest inputs | Minimal | Likely | Reduce complexity |
 | Smallest First | Most inputs | Maximal | Likely | Consolidate dust |
 | Exact Match | No change | Variable | None* | Precise amounts |
@@ -109,18 +125,20 @@ $ledger = Ledger::withGenesis(
 );
 
 // Transfer 60 to bob
-$ledger->transfer('alice', 'bob', 60);
+$ledger->selectWith($strategy)->transfer('alice', 'bob', 60);
 ```
 
 **Which outputs are spent?**
 
 | Strategy | Outputs Spent | Total | Change |
 |----------|--------------|-------|--------|
-| FIFO | out-1 (10), out-2 (50), out-3 (25) | 85 | 25 |
+| Default / FIFO | out-1 (10), out-2 (50) | 60 | 0 |
 | Largest First | out-4 (100) | 100 | 40 |
 | Smallest First | out-1 (10), out-5 (15), out-3 (25), out-2 (50) | 100 | 40 |
 | Exact Match | out-2 (50), out-1 (10) | 60 | 0 |
 | Random | (varies each time) | ≥60 | varies |
+
+Every strategy stops as soon as the running total covers the target, so FIFO takes only `out-1` and `out-2` — it never reaches `out-3`.
 
 ## Custom Strategies
 
@@ -163,7 +181,18 @@ final readonly class MinimumAmountStrategy implements SelectionStrategy
 }
 
 // Use it
-$ledger = Ledger::inMemory(strategy: new MinimumAmountStrategy(minimumAmount: 50));
+$ledger = Ledger::inMemory()->selectWith(new MinimumAmountStrategy(minimumAmount: 50));
+```
+
+A strategy owns the whole decision: the ledger spends exactly what `select()` returns, so a policy may deliberately over-select (to sweep dust, for example). If the returned outputs do not cover the target, `InsufficientSpendsException` is thrown.
+
+```php
+// Iterating the candidate set is cheapest via values()
+public function select(UnspentSet $available, int $target): array
+{
+    $outputs = $available->values(); // list<Output>
+    // ...
+}
 ```
 
 ## Using with Coin Control

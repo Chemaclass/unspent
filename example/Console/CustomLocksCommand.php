@@ -7,6 +7,7 @@ namespace Example\Console;
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Lock\LockFactory;
+use Chemaclass\Unspent\Lock\Owner;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputLock;
 use Chemaclass\Unspent\Tx;
@@ -60,9 +61,8 @@ final class CustomLocksCommand extends AbstractExampleCommand
         $now = time();
 
         foreach ($ledger->unspent() as $output) {
-            $lockData = $output->lock->toArray();
-            // @phpstan-ignore nullCoalesce.offset, offsetAccess.notFound
-            if (($lockData['type'] ?? '') === 'timelock' && $lockData['unlockTime'] <= $now) {
+            $lock = $output->lock;
+            if ($lock instanceof TimeLock && $lock->unlockTime <= $now) {
                 $spendable[] = $output;
             }
         }
@@ -102,8 +102,8 @@ final class CustomLocksCommand extends AbstractExampleCommand
 
         // Spend a random unlocked output
         $toSpend = $spendable[array_rand($spendable)];
-        $lockData = $toSpend->lock->toArray();
-        $owner = $lockData['owner'] ?? 'unknown'; // @phpstan-ignore nullCoalesce.offset
+        $lock = $toSpend->lock;
+        $owner = $lock instanceof TimeLock ? $lock->owner : 'unknown';
         $txNum = $ledger->unspent()->count();
 
         $recipients = array_diff(['alice', 'bob', 'charlie'], [$owner]);
@@ -128,10 +128,9 @@ final class CustomLocksCommand extends AbstractExampleCommand
         // Find a locked output
         $now = time();
         foreach ($ledger->unspent() as $output) {
-            $lockData = $output->lock->toArray();
-            // @phpstan-ignore nullCoalesce.offset, offsetAccess.notFound
-            if (($lockData['type'] ?? '') === 'timelock' && $lockData['unlockTime'] > $now) {
-                $owner = $lockData['owner'];
+            $lock = $output->lock;
+            if ($lock instanceof TimeLock && $lock->unlockTime > $now) {
+                $owner = $lock->owner;
                 $this->io->text("{$owner} tries to spend locked output... ");
 
                 try {
@@ -149,10 +148,9 @@ final class CustomLocksCommand extends AbstractExampleCommand
 
         // Wrong signer attempt
         foreach ($ledger->unspent() as $output) {
-            $lockData = $output->lock->toArray();
-            // @phpstan-ignore nullCoalesce.offset, offsetAccess.notFound
-            if (($lockData['type'] ?? '') === 'timelock' && $lockData['unlockTime'] <= $now) {
-                $owner = $lockData['owner'];
+            $lock = $output->lock;
+            if ($lock instanceof TimeLock && $lock->unlockTime <= $now) {
+                $owner = $lock->owner;
                 $this->io->text("Eve tries to spend {$owner}'s output... ");
 
                 try {
@@ -175,20 +173,19 @@ final class CustomLocksCommand extends AbstractExampleCommand
 
         $now = time();
         foreach ($ledger->unspent() as $id => $output) {
-            $lockData = $output->lock->toArray();
-            $type = $lockData['type'] ?? 'standard'; // @phpstan-ignore nullCoalesce.offset
+            $lock = $output->lock;
 
-            if ($type === 'timelock') {
-                // @phpstan-ignore offsetAccess.notFound
-                $owner = $lockData['owner'];
-                // @phpstan-ignore offsetAccess.notFound
-                $unlockTime = $lockData['unlockTime'];
-                $status = $unlockTime <= $now ? '<fg=green>UNLOCKED</>' : '<fg=yellow>locked until ' . date('Y-m-d', $unlockTime) . '</>';
-                $this->io->text("  {$id}: {$output->amount} ({$owner}) - {$status}");
-            } else {
-                $owner = $lockData['name'] ?? 'open';
-                $this->io->text("  {$id}: {$output->amount} ({$owner})");
+            if ($lock instanceof TimeLock) {
+                $status = $lock->unlockTime <= $now
+                    ? '<fg=green>UNLOCKED</>'
+                    : '<fg=yellow>locked until ' . date('Y-m-d', $lock->unlockTime) . '</>';
+                $this->io->text("  {$id}: {$output->amount} ({$lock->owner}) - {$status}");
+
+                continue;
             }
+
+            $owner = $lock instanceof Owner ? $lock->name : 'open';
+            $this->io->text("  {$id}: {$output->amount} ({$owner})");
         }
     }
 }

@@ -29,21 +29,23 @@ final readonly class ExactMatchStrategy implements SelectionStrategy
 
     public function select(UnspentSet $available, int $target): array
     {
-        $outputs = iterator_to_array($available);
-
-        // Limit outputs to consider for performance
-        if (\count($outputs) > self::MAX_OUTPUTS_TO_CONSIDER) {
-            usort($outputs, static fn (Output $a, Output $b): int => $b->amount <=> $a->amount);
-            $outputs = \array_slice($outputs, 0, self::MAX_OUTPUTS_TO_CONSIDER);
-        }
-
-        // Sort descending for branch-and-bound efficiency
+        // Sort descending once for branch-and-bound efficiency, then cap the
+        // search space to the largest candidates.
+        $outputs = $available->values();
         usort($outputs, static fn (Output $a, Output $b): int => $b->amount <=> $a->amount);
+        $outputs = \array_slice($outputs, 0, self::MAX_OUTPUTS_TO_CONSIDER);
+
+        // Suffix totals: remainingFrom[$i] is the sum of $outputs[$i..end], so
+        // the bound check below is O(1) per node instead of rescanning the tail.
+        $remainingFrom = [\count($outputs) => 0];
+        for ($i = \count($outputs) - 1; $i >= 0; --$i) {
+            $remainingFrom[$i] = $remainingFrom[$i + 1] + $outputs[$i]->amount;
+        }
 
         $best = null;
         $iterations = 0;
 
-        $this->search($outputs, $target, [], 0, 0, $best, $iterations);
+        $this->search($outputs, $remainingFrom, $target, [], 0, 0, $best, $iterations);
 
         if ($best !== null) {
             return $best;
@@ -59,16 +61,18 @@ final readonly class ExactMatchStrategy implements SelectionStrategy
     }
 
     /**
-     * @param list<Output>      $outputs    Available outputs (sorted descending)
-     * @param int               $target     Target amount
-     * @param list<Output>      $current    Current selection
-     * @param int               $sum        Sum of current selection
-     * @param int               $startIndex Index to start from
-     * @param list<Output>|null $best       Best exact match found
-     * @param int               $iterations Iteration counter for early termination
+     * @param list<Output>      $outputs       Available outputs (sorted descending)
+     * @param array<int, int>   $remainingFrom Suffix totals, indexed by start position
+     * @param int               $target        Target amount
+     * @param list<Output>      $current       Current selection
+     * @param int               $sum           Sum of current selection
+     * @param int               $startIndex    Index to start from
+     * @param list<Output>|null $best          Best exact match found
+     * @param int               $iterations    Iteration counter for early termination
      */
     private function search(
         array $outputs,
+        array $remainingFrom,
         int $target,
         array $current,
         int $sum,
@@ -92,15 +96,10 @@ final readonly class ExactMatchStrategy implements SelectionStrategy
             return;
         }
 
-        $remaining = 0;
-        $counter = \count($outputs);
-        for ($i = $startIndex; $i < $counter; ++$i) {
-            $remaining += $outputs[$i]->amount;
-        }
-
-        if ($sum + $remaining < $target) {
+        if ($sum + $remainingFrom[$startIndex] < $target) {
             return;
         }
+
         $counter = \count($outputs);
 
         for ($i = $startIndex; $i < $counter; ++$i) {
@@ -114,12 +113,8 @@ final readonly class ExactMatchStrategy implements SelectionStrategy
 
             if ($newSum <= $target) {
                 $current[] = $output;
-                $this->search($outputs, $target, $current, $newSum, $i + 1, $best, $iterations);
+                $this->search($outputs, $remainingFrom, $target, $current, $newSum, $i + 1, $best, $iterations);
                 array_pop($current);
-            }
-
-            if ($best !== null && $sum === $target) {
-                return;
             }
         }
     }

@@ -232,10 +232,13 @@ final class Mempool
      */
     private function calculateInputTotal(Tx $tx): int
     {
+        // Snapshot once: unspent() forks a view per call, so hoisting it out of
+        // the loop turns N snapshots per staged transaction into one.
+        $unspent = $this->ledger->unspent();
         $total = 0;
 
         foreach ($tx->spends as $spendId) {
-            $output = $this->ledger->unspent()->get($spendId);
+            $output = $unspent->get($spendId);
             if ($output !== null) {
                 $total += $output->amount;
             }

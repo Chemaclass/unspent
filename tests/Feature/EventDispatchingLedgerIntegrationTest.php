@@ -375,14 +375,17 @@ final class EventDispatchingLedgerIntegrationTest extends TestCase
             $dispatcher,
         );
 
-        // Call various read-only methods
-        $ledger->totalUnspentAmount();
-        $ledger->unspent();
-        $ledger->unspent()->count();
-        $ledger->totalFeesCollected();
-        $ledger->totalMinted();
-        $ledger->allTxFees();
+        // Exercise various read-only methods
+        $reads = [
+            $ledger->totalUnspentAmount(),
+            $ledger->unspent(),
+            $ledger->unspent()->count(),
+            $ledger->totalFeesCollected(),
+            $ledger->totalMinted(),
+            $ledger->allTxFees(),
+        ];
 
+        self::assertCount(6, $reads);
         self::assertCount(0, $events);
     }
 }

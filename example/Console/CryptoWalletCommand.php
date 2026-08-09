@@ -6,6 +6,7 @@ namespace Example\Console;
 
 use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\LedgerInterface;
+use Chemaclass\Unspent\Lock\PublicKey;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\Tx;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -91,9 +92,8 @@ final class CryptoWalletCommand extends AbstractExampleCommand
 
         $txNum = $ledger->unspent()->count();
         $txId = "tx-{$txNum}";
-        $lockData = $toSpend->lock->toArray();
-        /** @var string $pubKey */
-        $pubKey = $lockData['key'] ?? ''; // @phpstan-ignore nullCoalesce.offset
+        $lock = $toSpend->lock;
+        $pubKey = $lock instanceof PublicKey ? $lock->key : '';
         $isAlice = $pubKey === $this->alicePub;
         $privKey = $isAlice ? $this->alicePriv : $this->bobPriv;
         $recipientPub = $isAlice ? $this->bobPub : $this->alicePub;

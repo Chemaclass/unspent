@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Chemaclass\Unspent\Selection;
 
-use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\UnspentSet;
 
 /**
@@ -19,8 +18,7 @@ final readonly class RandomStrategy implements SelectionStrategy
 
     public function select(UnspentSet $available, int $target): array
     {
-        /** @var list<Output> $all */
-        $all = iterator_to_array($available);
+        $all = $available->values();
 
         shuffle($all);
 

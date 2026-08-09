@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Chemaclass\UnspentTests\Benchmark;
 
+use Chemaclass\Unspent\IdGenerator;
 use Chemaclass\Unspent\Ledger;
+use Chemaclass\Unspent\Mempool;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Persistence\Sqlite\SqliteHistoryRepository;
@@ -129,6 +131,70 @@ final class LedgerBench
     {
         yield '100' => ['count' => 100];
         yield '1000' => ['count' => 1000];
+    }
+
+    /**
+     * Small transfers out of a wallet holding many outputs. Coin selection only
+     * needs the first output that covers the target, so this stays flat once
+     * selection streams the owner index instead of materializing the whole set.
+     */
+    #[Bench\Revs(5)]
+    #[Bench\Iterations(3)]
+    #[Bench\Subject]
+    public function benchTransferFromFragmentedWallet(): void
+    {
+        $ledger = Ledger::inMemory();
+
+        for ($i = 0; $i < 500; ++$i) {
+            $ledger->credit('whale', 1000, "cb-{$i}");
+        }
+
+        for ($i = 0; $i < 100; ++$i) {
+            $ledger->transfer('whale', 'bob', 10, txId: "tx-{$i}");
+        }
+    }
+
+    /**
+     * Staging transactions costs one unspent-set snapshot per transaction, not
+     * one per spent input.
+     */
+    #[Bench\Revs(5)]
+    #[Bench\Iterations(3)]
+    #[Bench\Subject]
+    public function benchMempoolStaging(): void
+    {
+        $outputs = [];
+        for ($i = 0; $i < 200; ++$i) {
+            $outputs[] = Output::open(100, "utxo-{$i}");
+        }
+        $ledger = Ledger::withGenesis(...$outputs);
+        $mempool = new Mempool($ledger);
+
+        for ($i = 0; $i < 40; ++$i) {
+            $spendIds = [];
+            for ($j = 0; $j < 5; ++$j) {
+                $spendIds[] = 'utxo-' . ($i * 5 + $j);
+            }
+
+            $mempool->add(Tx::create(
+                spendIds: $spendIds,
+                outputs: [Output::open(450, "spend-{$i}")],
+                id: "tx-{$i}",
+            ));
+        }
+    }
+
+    /**
+     * Output-id generation dominates ledgers that let the library assign ids.
+     */
+    #[Bench\Revs(20)]
+    #[Bench\Iterations(3)]
+    #[Bench\Subject]
+    public function benchOutputIdGeneration(): void
+    {
+        for ($i = 0; $i < 1000; ++$i) {
+            IdGenerator::forOutput();
+        }
     }
 
     #[Bench\Revs(10)]

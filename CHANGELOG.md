@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `Ledger::selectWith(?SelectionStrategy $strategy)` — attaches a coin-selection policy to `transfer()`, `debit()` and `batchTransfer()`. The `Selection\*` strategies shipped since 1.0 had no way to reach the ledger; this wires them in. Passing `null` restores the default selection
+- `UnspentSet::values(): list<Output>` — replaces `iterator_to_array($set)`; allocates no iterator and returns a list
+- `UnspentSet::first(): ?Output` — first output in iteration order, or `null` when empty
+- `UnspentSet::iterateOwnedBy(string $owner): Generator<string, Output>` — lazily streams one owner's outputs without materializing an intermediate set
+
+### Changed
+
+- Coin selection for `transfer()`/`debit()`/`batchTransfer()` now streams the owner index and stops at the first output covering the target, instead of building the owner's full `UnspentSet` first. Repeated small transfers out of a fragmented wallet are ~3x faster
+- `IdGenerator::forOutput()` draws CSPRNG bytes in batches of 256 ids instead of one `random_bytes()` call per id (~2.8x faster). Each id still gets its own 16 distinct random bytes, and the buffer is discarded when the PID changes so a forked child never replays its parent's unused entropy
+- `Ledger::consolidate()` collects ids and totals in one pass instead of three
+- `Tx::totalOutputAmount()` and `CoinbaseTx::totalOutputAmount()` sum in place instead of allocating an intermediate array
+- `Mempool::add()` and `EventDispatchingLedger::apply()` take one unspent-set snapshot per transaction instead of one per spent input (~10% faster mempool staging)
+- `ExactMatchStrategy` precomputes suffix totals, making its branch-and-bound bound check O(1) per node instead of rescanning the remaining outputs
+- Selection strategies build their candidate list via `UnspentSet::values()`
+
+### Fixed
+
+- `docs/selection-strategies.md` documented a `Ledger::inMemory(strategy: ...)` constructor argument that never existed, and its worked example reported the FIFO row as spending three outputs (85, change 25) when selection stops at two (60, change 0). Both now match the shipped behaviour
+
+### Dependencies
+
+- PHPUnit 12 → 13.3, Infection 0.32 → 0.34.2, PHPStan 2.1 → 2.2, Rector 2.3 → 2.6, PHP-CS-Fixer 3.92 → 3.95, PHPBench 1.4 → 1.7, Symfony Console/VarDumper 8.0 → 8.1
+- `phpunit.xml` drops `defects` from `executionOrder`: Infection 0.34 forces `recordTestRunHistory="false"`, which PHPUnit 13 reports as a warning that `failOnWarning="true"` turns into a failed run
+
 ## [1.2.0] - 2026-07-24
 
 ### Added
