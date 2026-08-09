@@ -35,5 +35,5 @@ filter:
     - src/
   excluded_paths:
     - tests/
-    - examples/
+    - example/
     - docs/
