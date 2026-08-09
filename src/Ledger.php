@@ -506,11 +506,6 @@ final class Ledger implements LedgerInterface
         return json_encode($this->toArray(), $flags | JSON_THROW_ON_ERROR);
     }
 
-    private function assertTxNotAlreadyApplied(Tx $tx): void
-    {
-        $this->assertTxIdNotAlreadyUsed($tx->id);
-    }
-
     private function assertTxIdNotAlreadyUsed(TxId $id): void
     {
         if (isset($this->appliedTxIds[$id->value])) {
@@ -607,7 +602,7 @@ final class Ledger implements LedgerInterface
      */
     private function assertApplicable(Tx $tx, int $outputAmount, array &$spentOutputData = []): int
     {
-        $this->assertTxNotAlreadyApplied($tx);
+        $this->assertTxIdNotAlreadyUsed($tx->id);
         $spendAmount = $this->validateSpendsAndGetTotal($tx, $spentOutputData);
         $this->assertSufficientSpends($spendAmount, $outputAmount);
         $this->assertNoOutputIdConflicts($tx);

@@ -82,34 +82,7 @@ final class UnspentSet implements Countable, IteratorAggregate
 
     public function add(Output $output): self
     {
-        $key = $output->id->value;
-        $delta = $output->amount;
-        $existing = $this->outputs[$key] ?? null;
-        if ($existing !== null) {
-            $delta -= $existing->amount;
-        }
-
-        if ($this->owned) {
-            if ($existing !== null) {
-                $this->unindexOwner($this->ownerIndex, $existing);
-            }
-            $this->outputs[$key] = $output;
-            $this->cachedTotal += $delta;
-            $this->indexOwner($this->ownerIndex, $output);
-
-            return $this;
-        }
-
-        // Fork - create a copy since we don't own the array
-        $newOutputs = $this->outputs;
-        $newIndex = $this->ownerIndex;
-        if ($existing !== null) {
-            $this->unindexOwner($newIndex, $existing);
-        }
-        $newOutputs[$key] = $output;
-        $this->indexOwner($newIndex, $output);
-
-        return new self($newOutputs, $this->cachedTotal + $delta, $newIndex);
+        return $this->addAll($output);
     }
 
     public function addAll(Output ...$outputs): self
@@ -155,27 +128,7 @@ final class UnspentSet implements Countable, IteratorAggregate
 
     public function remove(OutputId $id): self
     {
-        $key = $id->value;
-        $existing = $this->outputs[$key] ?? null;
-        if ($existing === null) {
-            return $this;
-        }
-
-        if ($this->owned) {
-            unset($this->outputs[$key]);
-            $this->cachedTotal -= $existing->amount;
-            $this->unindexOwner($this->ownerIndex, $existing);
-
-            return $this;
-        }
-
-        // Fork
-        $newOutputs = $this->outputs;
-        $newIndex = $this->ownerIndex;
-        unset($newOutputs[$key]);
-        $this->unindexOwner($newIndex, $existing);
-
-        return new self($newOutputs, $this->cachedTotal - $existing->amount, $newIndex);
+        return $this->removeAll($id);
     }
 
     public function removeAll(OutputId ...$ids): self
