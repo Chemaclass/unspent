@@ -85,4 +85,12 @@ final class OutputIdTest extends TestCase
 
         self::assertSame('valid-output_ID-123', $id->value);
     }
+
+    public function test_rejects_an_invalid_character_before_a_valid_suffix(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('can only contain alphanumeric characters');
+
+        new OutputId('bad id');
+    }
 }

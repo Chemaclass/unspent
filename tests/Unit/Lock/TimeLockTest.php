@@ -200,4 +200,14 @@ final class TimeLockTest extends TestCase
 
         self::assertTrue($lock->isLocked());
     }
+
+    public function test_from_array_casts_a_numeric_string_unlock_time_to_int(): void
+    {
+        $lock = TimeLock::fromArray([
+            'innerLock' => ['type' => 'owner', 'name' => 'alice'],
+            'unlockTime' => '1700000000',
+        ]);
+
+        self::assertSame(1700000000, $lock->unlockTime);
+    }
 }

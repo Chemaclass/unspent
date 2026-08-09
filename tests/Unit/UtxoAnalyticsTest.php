@@ -6,6 +6,7 @@ namespace Chemaclass\UnspentTests\Unit;
 
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
+use Chemaclass\Unspent\UnspentSet;
 use Chemaclass\Unspent\UtxoAnalytics;
 use PHPUnit\Framework\TestCase;
 
@@ -358,5 +359,30 @@ final class UtxoAnalyticsTest extends TestCase
         $ledger = Ledger::withGenesis(...$outputs);
 
         self::assertFalse(UtxoAnalytics::shouldConsolidate($ledger, 'alice'));
+    }
+
+    public function test_summarize_defaults_the_dust_threshold_to_ten(): void
+    {
+        $set = UnspentSet::fromOutputs(
+            Output::ownedBy('alice', 9, 'a-1'),
+            Output::ownedBy('alice', 10, 'a-2'),
+        );
+
+        $summary = UtxoAnalytics::summarize($set);
+
+        self::assertSame(1, $summary['dustCount'], 'only the 9 sits below the default threshold of 10');
+        self::assertSame(9, $summary['dustTotal']);
+    }
+
+    public function test_summarize_keeps_the_first_output_when_amounts_tie(): void
+    {
+        $first = Output::ownedBy('alice', 50, 'a-1');
+        $second = Output::ownedBy('alice', 50, 'a-2');
+        $set = UnspentSet::fromOutputs($first, $second);
+
+        $summary = UtxoAnalytics::summarize($set);
+
+        self::assertSame($first, $summary['largest']);
+        self::assertSame($first, $summary['smallest']);
     }
 }

@@ -176,4 +176,10 @@ final class IdGeneratorTest extends TestCase
 
         self::assertNotSame($id1, $id2);
     }
+
+    public function test_for_coinbase_takes_the_leading_half_of_the_sha256_digest(): void
+    {
+        // sha256('') = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        self::assertSame('e3b0c44298fc1c149afbf4c8996fb924', IdGenerator::forCoinbase([]));
+    }
 }

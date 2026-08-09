@@ -413,4 +413,17 @@ final class LoggingLedgerTest extends TestCase
 
         self::assertInstanceOf(OutputAlreadySpentException::class, $result);
     }
+
+    public function test_to_json_delegates_with_default_compact_flags(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('<alice>', 100, 'a-1'));
+        $loggingLedger = LoggingLedger::wrap($ledger, $this->createStub(LoggerInterface::class));
+
+        $json = $loggingLedger->toJson();
+
+        // JSON_HEX_TAG would escape the angle brackets to their unicode form
+        self::assertStringContainsString('"name":"<alice>"', $json);
+        // JSON_PRETTY_PRINT would introduce newlines
+        self::assertStringNotContainsString("\n", $json);
+    }
 }

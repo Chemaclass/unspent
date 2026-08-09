@@ -8,6 +8,7 @@ use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Ledger;
 use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
+use Chemaclass\Unspent\Selection\ExactMatchStrategy;
 use Chemaclass\Unspent\Selection\FifoStrategy;
 use Chemaclass\Unspent\Selection\LargestFirstStrategy;
 use Chemaclass\Unspent\Selection\SmallestFirstStrategy;
@@ -101,6 +102,22 @@ final class LedgerSelectionStrategyTest extends TestCase
         $this->expectException(InsufficientSpendsException::class);
 
         $ledger->transfer('nobody', 'bob', 1, txId: 'tx-1');
+    }
+
+    public function test_strategy_selection_totals_every_returned_output(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::ownedBy('alice', 10, 'a-1'),
+            Output::ownedBy('alice', 50, 'a-2'),
+            Output::ownedBy('alice', 500, 'a-3'),
+        )->selectWith(new ExactMatchStrategy());
+
+        // Exact match picks 50 + 10 = 60, so the running total has to add both
+        // outputs and land exactly on the target.
+        $ledger->transfer('alice', 'bob', 60, txId: 'tx-1');
+
+        self::assertSame(60, $ledger->totalUnspentByOwner('bob'));
+        self::assertSame(500, $ledger->totalUnspentByOwner('alice'));
     }
 
     private function ledgerWithOutputs(): Ledger

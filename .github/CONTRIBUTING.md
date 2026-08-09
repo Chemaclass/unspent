@@ -67,7 +67,7 @@ All gates must pass before commit. The pre-commit hook runs `check:quick`; CI ru
 | PHPUnit      | `composer phpunit`     | All pass               | Yes        | Yes |
 | Rector       | `composer rector-dry`  | No suggested changes   | No         | Yes |
 | PHPStan      | `composer stan`        | Level 8, 0 errors      | No         | Yes |
-| Infection    | `composer check:mutation` | 90%+ MSI            | No         | Yes |
+| Infection    | `composer check:mutation` | 100% MSI            | No         | Yes |
 | Coverage     | (checked in CI)        | 85%+ lines             | No         | Yes |
 
 Mutation testing and coverage are **not** in `composer test` (they are slower); run `composer check:mutation` before pushing so a CI-only failure doesn't surprise you.
@@ -92,7 +92,7 @@ composer test:feature     # Integration tests
 composer check:quick      # CS-Fixer + PHPUnit (~2s cached)
 composer check:full       # CS-Fixer + Rector + PHPStan + PHPUnit
 composer test             # Same as check:full
-composer check:mutation   # Mutation testing (90% MSI) — matches CI, run before pushing
+composer check:mutation   # Mutation testing (100% MSI) — matches CI, run before pushing
 ```
 
 ### Individual tools
@@ -151,7 +151,7 @@ After tests pass, verify they're meaningful:
 composer infection
 ```
 
-Minimum **90% MSI** required.
+Minimum **100% MSI** required. Mutants that are equivalent by construction are recorded, with their reasoning, in the `mutators.*.ignore` lists of `infection.json5`.
 
 ## Docker Workflow
 

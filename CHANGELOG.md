@@ -24,9 +24,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `ExactMatchStrategy` precomputes suffix totals, making its branch-and-bound bound check O(1) per node instead of rescanning the remaining outputs
 - Selection strategies build their candidate list via `UnspentSet::values()`
 
+- `UnspentSet::add()` and `remove()` now delegate to `addAll()` / `removeAll()` instead of each carrying their own copy of the owned/fork branching. Neither is used outside tests, so the extra variadic pack costs nothing measurable
+- Mutation-testing gate raised from 90% to **100% MSI**. Mutants that are equivalent by construction — marker arrays whose value is never read, `json_decode()`'s depth guard, `PublicKey`'s unreachable defensive re-check, and `TimeLock`'s `time()` boundaries — are recorded with their reasoning in the `mutators.*.ignore` lists of `infection.json5` rather than absorbed into a lower threshold
+
 ### Fixed
 
 - `docs/selection-strategies.md` documented a `Ledger::inMemory(strategy: ...)` constructor argument that never existed, and its worked example reported the FIFO row as spending three outputs (85, change 25) when selection stops at two (60, change 0). Both now match the shipped behaviour
+- `.scrutinizer.yml` excluded `examples/`, but the directory is `example/`; the entry never matched anything
 
 ### Dependencies
 
