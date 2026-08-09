@@ -4,7 +4,7 @@ Run mutation testing with Infection and analyze results. `$ARGUMENTS` can specif
 
 ## Steps
 
-1. Run `composer infection` (threshold: 90%+ MSI)
+1. Run `composer infection` (threshold: 100% MSI)
 2. Report key metrics: MSI, Covered MSI, escaped mutants count
 3. For each escaped mutant: identify file:line, mutation type, and suggest a test to catch it
 
@@ -12,15 +12,15 @@ Run mutation testing with Infection and analyze results. `$ARGUMENTS` can specif
 
 If `$ARGUMENTS` specifies a file:
 ```bash
-vendor/bin/infection --filter={file} --min-msi=90 --min-covered-msi=90 --show-mutations
+vendor/bin/infection --filter={file} --min-msi=100 --min-covered-msi=100 --show-mutations
 ```
 
 ## Report Format
 
 | Metric | Value | Threshold |
 |--------|-------|-----------|
-| MSI | X% | >= 90% |
-| Covered MSI | X% | >= 90% |
+| MSI | X% | 100% |
+| Covered MSI | X% | 100% |
 | Killed | N | - |
 | Escaped | N | - |
 

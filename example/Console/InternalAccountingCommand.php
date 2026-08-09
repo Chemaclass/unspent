@@ -46,25 +46,26 @@ final class InternalAccountingCommand extends AbstractExampleCommand
     {
         // Find departments with available budget
         $departments = ['engineering', 'marketing', 'operations'];
-        $availableDepts = [];
+        $available = [];
 
         foreach ($departments as $dept) {
             $balance = $ledger->totalUnspentByOwner($dept);
             if ($balance >= 5_000) {
-                $availableDepts[$dept] = $balance;
+                $available[] = ['dept' => $dept, 'balance' => $balance];
             }
         }
 
-        if ($availableDepts === []) {
+        if ($available === []) {
             $this->io->text('No department has enough budget for transfers!');
 
             return $ledger;
         }
 
         // Pick random sender and action
-        $depts = array_keys($availableDepts);
-        $sender = $depts[array_rand($depts)];
-        $balance = $availableDepts[$sender];
+        $picked = $available[array_rand($available)];
+        $sender = $picked['dept'];
+        $balance = $picked['balance'];
+        $depts = array_column($available, 'dept');
         $action = random_int(0, 1);
 
         if ($action === 0) {

@@ -423,4 +423,21 @@ final class MempoolTest extends TestCase
 
         $mempool->replace('nonexistent', $tx);
     }
+
+    public function test_fee_for_sums_every_input_of_a_multi_input_transaction(): void
+    {
+        $ledger = Ledger::withGenesis(
+            Output::open(100, 'u-1'),
+            Output::open(200, 'u-2'),
+        );
+        $mempool = new Mempool($ledger);
+
+        $txId = $mempool->add(Tx::create(
+            spendIds: ['u-1', 'u-2'],
+            outputs: [Output::open(250, 'o-1')],
+            id: 'tx-multi',
+        ));
+
+        self::assertSame(50, $mempool->feeFor($txId));
+    }
 }

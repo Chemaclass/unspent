@@ -165,4 +165,32 @@ final class TxBuilderTest extends TestCase
             ->spend('input-1')
             ->build();
     }
+
+    #[Test]
+    public function repeated_spend_calls_accumulate_instead_of_replacing(): void
+    {
+        $tx = TxBuilder::new()
+            ->spend('out-1')
+            ->spend('out-2')
+            ->output('bob', 10)
+            ->build();
+
+        self::assertSame(['out-1', 'out-2'], array_map(
+            static fn (\Chemaclass\Unspent\OutputId $id): string => $id->value,
+            $tx->spends,
+        ));
+    }
+
+    #[Test]
+    public function repeated_with_proofs_calls_accumulate_instead_of_replacing(): void
+    {
+        $tx = TxBuilder::new()
+            ->spend('out-1')
+            ->output('bob', 10)
+            ->withProofs('proof-1')
+            ->withProofs('proof-2')
+            ->build();
+
+        self::assertSame(['proof-1', 'proof-2'], $tx->proofs);
+    }
 }

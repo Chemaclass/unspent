@@ -213,6 +213,15 @@ $ledger->credit(
 ): Ledger
 ```
 
+### Coin selection
+
+`transfer()`, `debit()` and `batchTransfer()` pick which outputs to spend. By default the ledger streams the owner's outputs in creation order and stops at the first one covering the target. Attach a [selection strategy](selection-strategies.md) to change that policy:
+
+```php
+// null restores the default selection
+$ledger->selectWith(?SelectionStrategy $strategy): Ledger
+```
+
 ### Batch Operations
 
 ```php
@@ -326,6 +335,8 @@ $set->totalAmount(): int
 $set->contains(OutputId $id): bool
 $set->get(OutputId $id): ?Output
 $set->outputIds(): array  // list<OutputId>
+$set->values(): array     // list<Output>
+$set->first(): ?Output    // first in iteration order, null when empty
 ```
 
 ### Iteration
@@ -334,6 +345,14 @@ $set->outputIds(): array  // list<OutputId>
 foreach ($set as $id => $output) {
     // $id is string, $output is Output
 }
+
+// Prefer values() over iterator_to_array($set): no iterator is allocated
+// and the result is already a list<Output>.
+foreach ($set->values() as $output) { /* ... */ }
+
+// Lazily stream one owner's outputs without building an intermediate set.
+// Do not mutate the set while iterating.
+foreach ($set->iterateOwnedBy('alice') as $id => $output) { /* ... */ }
 ```
 
 ### Modification (returns new instance)

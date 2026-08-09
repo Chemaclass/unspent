@@ -251,4 +251,18 @@ final class MultisigLockTest extends TestCase
 
         $lock->validate($tx, 0);
     }
+
+    public function test_validate_ignores_blank_segments_between_signatures(): void
+    {
+        $lock = new MultisigLock(2, ['alice', 'bob', 'charlie']);
+        $tx = Tx::create(
+            spendIds: ['out-1'],
+            outputs: [Output::open(100, 'out-2')],
+            proofs: ['alice, ,bob'],
+        );
+
+        $lock->validate($tx, 0);
+
+        $this->expectNotToPerformAssertions();
+    }
 }

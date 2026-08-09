@@ -18,7 +18,7 @@ Zero-dependency PHP library implementing the UTXO model for value tracking and l
 | Rector | `composer rector-dry` | No changes |
 | PHPStan | `composer stan` | Level 8, 0 errors |
 | PHPUnit | `composer phpunit` | All pass |
-| Infection | `composer infection` | 90%+ MSI |
+| Infection | `composer infection` | 100% MSI |
 | Quick check | `composer check:quick` | csrun + phpunit |
 | Auto-fix | `composer csfix && composer rector` | Apply fixes |
 

@@ -39,10 +39,10 @@
     },
     "require-dev": {
         "friendsofphp/php-cs-fixer": "^3.92",
-        "infection/infection": "^0.32.3",
+        "infection/infection": "^0.34.2",
         "phpbench/phpbench": "^1.4",
         "phpstan/phpstan": "^2.1",
-        "phpunit/phpunit": "^12.5.8",
+        "phpunit/phpunit": "^13.3",
         "rector/rector": "^2.3",
         "symfony/console": "^8.0",
         "symfony/var-dumper": "^8.0"
@@ -81,7 +81,7 @@
         "rector": "vendor/bin/rector",
         "rector-dry": "vendor/bin/rector --dry-run",
         "benchmark": "vendor/bin/phpbench run --report=aggregate",
-        "infection": "vendor/bin/infection --min-msi=90 --min-covered-msi=90 --threads=4",
+        "infection": "vendor/bin/infection --min-msi=100 --min-covered-msi=100 --threads=4",
         "fix": [
             "@csfix",
             "@rector"
@@ -108,7 +108,7 @@
         "test": "Run full quality gate (csrun + rector-dry + stan + phpunit)",
         "check:quick": "Fast pre-commit gate (csrun + phpunit, ~2s cached)",
         "check:full": "Same as test — full quality gate",
-        "check:mutation": "Mutation-testing gate (90% MSI, matches CI) — run before pushing",
+        "check:mutation": "Mutation-testing gate (100% MSI, matches CI) — run before pushing",
         "fix": "Apply CS-Fixer and Rector auto-fixes",
         "test:fast": "Unit tests only, stop on first failure",
         "test:unit": "All unit tests",
@@ -121,7 +121,7 @@
         "csrun": "PHP-CS-Fixer dry-run",
         "rector": "Apply Rector changes",
         "rector-dry": "Rector dry-run",
-        "infection": "Mutation testing (min 90% MSI)",
+        "infection": "Mutation testing (min 100% MSI)",
         "benchmark": "Run PHPBench benchmarks",
         "init-db": "Initialize the example ledger SQLite database",
         "install-hooks": "Symlink bin/pre-commit into .git/hooks"

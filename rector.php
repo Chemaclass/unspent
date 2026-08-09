@@ -8,6 +8,7 @@ use Rector\CodeQuality\Rector\Empty_\SimplifyEmptyCheckOnEmptyArrayRector;
 use Rector\CodeQuality\Rector\Identical\FlipTypeControlToUseExclusiveTypeRector;
 use Rector\Config\RectorConfig;
 use Rector\DeadCode\Rector\ClassMethod\RemoveEmptyClassMethodRector;
+use Rector\DeadCode\Rector\ClassMethod\RemoveReturnTagIncompatibleWithNativeTypeRector;
 use Rector\DeadCode\Rector\If_\RemoveAlwaysTrueIfConditionRector;
 use Rector\EarlyReturn\Rector\Return_\ReturnBinaryOrToEarlyReturnRector;
 use Rector\Php83\Rector\ClassMethod\AddOverrideAttributeToOverriddenMethodsRector;
@@ -55,6 +56,11 @@ return RectorConfig::configure()
 
         // Skip double negation removal - sometimes intentional for boolean coercion
         ReplaceMultipleBooleanNotRector::class,
+
+        // Skip stripping @return docblocks that only "duplicate" the native type:
+        // ours carry PHPStan type aliases (TLedgerArray, TOutputDataMap) that the
+        // native `array` type cannot express, and PHPStan level 8 relies on them.
+        RemoveReturnTagIncompatibleWithNativeTypeRector::class,
     ])
     ->withRules([
         // Ensure all files have strict types

@@ -12,6 +12,7 @@ use Chemaclass\Unspent\Exception\InsufficientSpendsException;
 use Chemaclass\Unspent\Exception\OutputAlreadySpentException;
 use Chemaclass\Unspent\Persistence\HistoryRepository;
 use Chemaclass\Unspent\Persistence\InMemoryHistoryRepository;
+use Chemaclass\Unspent\Selection\SelectionStrategy;
 use Chemaclass\Unspent\Validation\DuplicateValidator;
 use InvalidArgumentException;
 use JsonException;
@@ -33,6 +34,13 @@ final class Ledger implements LedgerInterface
 {
     /** Serialization format version for future migration support. */
     private const int SERIALIZATION_VERSION = 1;
+
+    /**
+     * Coin-selection policy for transfer()/debit()/batchTransfer().
+     * Null means the built-in greedy pass over the owner index, which streams
+     * outputs lazily and stops as soon as the target is covered.
+     */
+    private ?SelectionStrategy $selectionStrategy = null;
 
     /**
      * @param array<string, true> $appliedTxIds
@@ -139,12 +147,27 @@ final class Ledger implements LedgerInterface
     }
 
     /**
+     * Sets the coin-selection policy used by transfer(), debit() and
+     * batchTransfer(). Pass null to restore the default greedy selection.
+     *
+     *     $ledger->selectWith(new LargestFirstStrategy())
+     *         ->transfer('alice', 'bob', 50);
+     *
+     * Decorators (LoggingLedger, EventDispatchingLedger) wrap a configured
+     * Ledger, so call this before wrapping.
+     */
+    public function selectWith(?SelectionStrategy $strategy): self
+    {
+        $this->selectionStrategy = $strategy;
+
+        return $this;
+    }
+
+    /**
      * Adds genesis outputs to an empty ledger.
      *
      * @throws GenesisNotAllowedException If the ledger is not empty
      * @throws DuplicateOutputIdException If any output ID is duplicated
-     *
-     * @return $this
      */
     public function addGenesis(Output ...$outputs): self
     {
@@ -168,8 +191,6 @@ final class Ledger implements LedgerInterface
      * @throws InsufficientSpendsException If the total output amount exceeds the total spend amount
      * @throws DuplicateOutputIdException  If any new output ID already exists in the unspent set
      * @throws AuthorizationException      If authorization fails for any spent output
-     *
-     * @return $this
      */
     public function apply(Tx $tx): static
     {
@@ -195,8 +216,6 @@ final class Ledger implements LedgerInterface
      *
      * @throws DuplicateTxException       If the transaction ID was already used
      * @throws DuplicateOutputIdException If any output ID already exists in the unspent set
-     *
-     * @return $this
      */
     public function applyCoinbase(CoinbaseTx $coinbase): static
     {
@@ -261,21 +280,16 @@ final class Ledger implements LedgerInterface
 
     public function consolidate(string $owner, int $fee = 0, ?string $txId = null): static
     {
-        $outputs = iterator_to_array($this->unspentByOwner($owner));
-
-        if (\count($outputs) <= 1) {
-            return $this;
+        $outputIds = [];
+        $total = 0;
+        foreach ($this->unspentSet->iterateOwnedBy($owner) as $output) {
+            $outputIds[] = $output->id->value;
+            $total += $output->amount;
         }
 
-        $outputIds = array_values(array_map(
-            static fn (Output $output): string => $output->id->value,
-            $outputs,
-        ));
-
-        $total = array_sum(array_map(
-            static fn (Output $output): int => $output->amount,
-            $outputs,
-        ));
+        if (\count($outputIds) <= 1) {
+            return $this;
+        }
 
         $consolidatedAmount = $total - $fee;
         if ($consolidatedAmount <= 0) {
@@ -492,11 +506,6 @@ final class Ledger implements LedgerInterface
         return json_encode($this->toArray(), $flags | JSON_THROW_ON_ERROR);
     }
 
-    private function assertTxNotAlreadyApplied(Tx $tx): void
-    {
-        $this->assertTxIdNotAlreadyUsed($tx->id);
-    }
-
     private function assertTxIdNotAlreadyUsed(TxId $id): void
     {
         if (isset($this->appliedTxIds[$id->value])) {
@@ -505,8 +514,12 @@ final class Ledger implements LedgerInterface
     }
 
     /**
-     * Greedily selects an owner's unspent outputs, in iteration order, until
-     * their total covers $required.
+     * Selects an owner's unspent outputs until their total covers $required,
+     * delegating to the configured SelectionStrategy when one is set.
+     *
+     * The default path streams the owner index and stops at the first output
+     * that covers the target, so a small spend never materializes a large
+     * owner's full set.
      *
      * @throws InsufficientSpendsException If the owner's unspent total is below $required
      *
@@ -514,10 +527,19 @@ final class Ledger implements LedgerInterface
      */
     private function selectSpends(string $owner, int $required): array
     {
+        if ($this->selectionStrategy !== null) {
+            // A strategy owns the whole decision: take its selection verbatim so
+            // policies that deliberately over-select (dust sweeping) are honored.
+            return $this->totalSelected(
+                $this->selectionStrategy->select($this->unspentSet->ownedBy($owner), $required),
+                $required,
+            );
+        }
+
         $spendIds = [];
         $accumulated = 0;
 
-        foreach ($this->unspentByOwner($owner) as $output) {
+        foreach ($this->unspentSet->iterateOwnedBy($owner) as $output) {
             $spendIds[] = $output->id->value;
             $accumulated += $output->amount;
             if ($accumulated >= $required) {
@@ -525,6 +547,38 @@ final class Ledger implements LedgerInterface
             }
         }
 
+        return $this->assertCovers($spendIds, $accumulated, $required);
+    }
+
+    /**
+     * @param list<Output> $outputs
+     *
+     * @throws InsufficientSpendsException If the selection's total is below $required
+     *
+     * @return array{list<string>, int}
+     */
+    private function totalSelected(array $outputs, int $required): array
+    {
+        $spendIds = [];
+        $accumulated = 0;
+
+        foreach ($outputs as $output) {
+            $spendIds[] = $output->id->value;
+            $accumulated += $output->amount;
+        }
+
+        return $this->assertCovers($spendIds, $accumulated, $required);
+    }
+
+    /**
+     * @param list<string> $spendIds
+     *
+     * @throws InsufficientSpendsException If $accumulated is below $required
+     *
+     * @return array{list<string>, int}
+     */
+    private function assertCovers(array $spendIds, int $accumulated, int $required): array
+    {
         if ($accumulated < $required) {
             throw InsufficientSpendsException::create($accumulated, $required);
         }
@@ -548,7 +602,7 @@ final class Ledger implements LedgerInterface
      */
     private function assertApplicable(Tx $tx, int $outputAmount, array &$spentOutputData = []): int
     {
-        $this->assertTxNotAlreadyApplied($tx);
+        $this->assertTxIdNotAlreadyUsed($tx->id);
         $spendAmount = $this->validateSpendsAndGetTotal($tx, $spentOutputData);
         $this->assertSufficientSpends($spendAmount, $outputAmount);
         $this->assertNoOutputIdConflicts($tx);

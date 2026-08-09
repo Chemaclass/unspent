@@ -47,10 +47,11 @@ final readonly class EventDispatchingLedger implements LedgerInterface
     {
         // Spent outputs are removed from the unspent set by apply(), so their
         // amounts must be captured now to build OutputSpent events afterward.
+        $unspent = $this->ledger->unspent();
         $inputTotal = 0;
         $spentOutputs = [];
         foreach ($tx->spends as $spendId) {
-            $output = $this->ledger->unspent()->get($spendId);
+            $output = $unspent->get($spendId);
             if ($output !== null) {
                 $inputTotal += $output->amount;
                 $spentOutputs[$spendId->value] = $output;

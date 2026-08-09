@@ -19,7 +19,7 @@ final readonly class FifoStrategy implements SelectionStrategy
 
     public function select(UnspentSet $available, int $target): array
     {
-        return $this->accumulateUntilTarget(iterator_to_array($available, false), $target);
+        return $this->accumulateUntilTarget($available->values(), $target);
     }
 
     public function name(): string

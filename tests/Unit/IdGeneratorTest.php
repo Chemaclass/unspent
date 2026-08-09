@@ -129,6 +129,22 @@ final class IdGeneratorTest extends TestCase
         self::assertCount(100, $uniqueIds);
     }
 
+    public function test_for_output_stays_well_formed_across_entropy_buffer_refills(): void
+    {
+        // More ids than a single CSPRNG read serves, so at least one refill
+        // happens mid-loop no matter where the shared buffer already stood.
+        $ids = [];
+        for ($i = 0; $i < 600; ++$i) {
+            $ids[] = IdGenerator::forOutput();
+        }
+
+        foreach ($ids as $id) {
+            self::assertMatchesRegularExpression('/^[a-f0-9]{32}$/', $id);
+        }
+
+        self::assertCount(600, array_unique($ids));
+    }
+
     public function test_for_tx_and_coinbase_produce_different_ids_for_same_outputs(): void
     {
         $outputs = [Output::open(50, 'output1')];
@@ -159,5 +175,11 @@ final class IdGeneratorTest extends TestCase
         $id2 = IdGenerator::forTx($spendIds, [$output2, $output1]);
 
         self::assertNotSame($id1, $id2);
+    }
+
+    public function test_for_coinbase_takes_the_leading_half_of_the_sha256_digest(): void
+    {
+        // sha256('') = e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+        self::assertSame('e3b0c44298fc1c149afbf4c8996fb924', IdGenerator::forCoinbase([]));
     }
 }

@@ -308,26 +308,30 @@ final class LoggingLedgerTest extends TestCase
 
         $loggingLedger = LoggingLedger::wrap($ledger, $logger);
 
-        // Call all read-only methods
-        $loggingLedger->unspent();
-        $loggingLedger->totalUnspentAmount();
-        $loggingLedger->unspentByOwner('alice');
-        $loggingLedger->totalUnspentByOwner('alice');
-        $loggingLedger->isTxApplied(new TxId('nonexistent'));
-        $loggingLedger->totalFeesCollected();
-        $loggingLedger->feeForTx(new TxId('nonexistent'));
-        $loggingLedger->allTxFees();
-        $loggingLedger->totalMinted();
-        $loggingLedger->isCoinbase(new TxId('nonexistent'));
-        $loggingLedger->coinbaseAmount(new TxId('nonexistent'));
-        $loggingLedger->outputCreatedBy(new OutputId('alice-funds'));
-        $loggingLedger->outputSpentBy(new OutputId('alice-funds'));
-        $loggingLedger->getOutput(new OutputId('alice-funds'));
-        $loggingLedger->outputExists(new OutputId('alice-funds'));
-        $loggingLedger->outputHistory(new OutputId('alice-funds'));
-        $loggingLedger->historyRepository();
-        $loggingLedger->toArray();
-        $loggingLedger->toJson();
+        // Exercise every read-only method; the mock asserts none of them logged.
+        $reads = [
+            $loggingLedger->unspent(),
+            $loggingLedger->totalUnspentAmount(),
+            $loggingLedger->unspentByOwner('alice'),
+            $loggingLedger->totalUnspentByOwner('alice'),
+            $loggingLedger->isTxApplied(new TxId('nonexistent')),
+            $loggingLedger->totalFeesCollected(),
+            $loggingLedger->feeForTx(new TxId('nonexistent')),
+            $loggingLedger->allTxFees(),
+            $loggingLedger->totalMinted(),
+            $loggingLedger->isCoinbase(new TxId('nonexistent')),
+            $loggingLedger->coinbaseAmount(new TxId('nonexistent')),
+            $loggingLedger->outputCreatedBy(new OutputId('alice-funds')),
+            $loggingLedger->outputSpentBy(new OutputId('alice-funds')),
+            $loggingLedger->getOutput(new OutputId('alice-funds')),
+            $loggingLedger->outputExists(new OutputId('alice-funds')),
+            $loggingLedger->outputHistory(new OutputId('alice-funds')),
+            $loggingLedger->historyRepository(),
+            $loggingLedger->toArray(),
+            $loggingLedger->toJson(),
+        ];
+
+        self::assertCount(19, $reads);
     }
 
     public function test_read_only_methods_delegate_correctly(): void
@@ -408,5 +412,18 @@ final class LoggingLedgerTest extends TestCase
         $result = $loggingLedger->canApply($tx);
 
         self::assertInstanceOf(OutputAlreadySpentException::class, $result);
+    }
+
+    public function test_to_json_delegates_with_default_compact_flags(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('<alice>', 100, 'a-1'));
+        $loggingLedger = LoggingLedger::wrap($ledger, $this->createStub(LoggerInterface::class));
+
+        $json = $loggingLedger->toJson();
+
+        // JSON_HEX_TAG would escape the angle brackets to their unicode form
+        self::assertStringContainsString('"name":"<alice>"', $json);
+        // JSON_PRETTY_PRINT would introduce newlines
+        self::assertStringNotContainsString("\n", $json);
     }
 }

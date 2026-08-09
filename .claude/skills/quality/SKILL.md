@@ -15,7 +15,7 @@ Quick alternative: `composer check:quick` (csrun + phpunit only).
 Full suite: `composer test` (all four above).
 
 If `$ARGUMENTS` contains "deep" or "mutation", also run:
-5. `composer infection` — Mutation testing (90%+ MSI)
+5. `composer infection` — Mutation testing (100% MSI)
 
 ## Report Format
 

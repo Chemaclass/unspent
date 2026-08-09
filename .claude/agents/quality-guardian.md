@@ -28,7 +28,7 @@ You run all quality tools for the Unspent library and provide actionable results
 2. `composer rector-dry` — Code modernization. Fix with `composer rector`.
 3. `composer stan` — Static analysis (level 2).
 4. `composer phpunit` — All tests.
-5. `composer infection` — Mutation testing (90%+ MSI).
+5. `composer infection` — Mutation testing (100% MSI).
 
 Quick check: `composer check:quick` (csrun + phpunit only).
 Full check: `composer test` (csrun + rector-dry + stan + phpunit).

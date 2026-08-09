@@ -1,5 +1,5 @@
 {
-    "$schema": "https://raw.githubusercontent.com/infection/infection/0.29.0/resources/schema.json",
+    "$schema": "https://raw.githubusercontent.com/infection/infection/0.34.2/resources/schema.json",
     "source": {
         "directories": ["src"],
         "excludes": [
@@ -45,13 +45,6 @@
                 "Chemaclass\\Unspent\\UnspentSet::*"
             ]
         },
-        // Return removal on early returns is often equivalent
-        "ReturnRemoval": {
-            "ignore": [
-                "Chemaclass\\Unspent\\UnspentSet::addAll",
-                "Chemaclass\\Unspent\\UnspentSet::removeAll"
-            ]
-        },
         // Break removal in loops often produces equivalent behavior (just slower)
         "Break_": {
             "ignore": [
@@ -63,6 +56,82 @@
         },
         // UnwrapArrayValues often produces equivalent code
         "UnwrapArrayValues": false,
+        // Marker arrays: the value is written but never read — presence is
+        // tested with isset() or by comparing the bucket to []. Flipping true
+        // to false cannot change behaviour, so these are equivalent mutants.
+        "TrueValue": {
+            "ignore": [
+                "Chemaclass\\Unspent\\Ledger::apply",
+                "Chemaclass\\Unspent\\Ledger::applyCoinbase",
+                "Chemaclass\\Unspent\\Ledger::assertNoOutputIdConflicts",
+                "Chemaclass\\Unspent\\UnspentSet::indexOwner",
+                "Chemaclass\\Unspent\\Lock\\MultisigLock::__construct",
+                "Chemaclass\\Unspent\\Validation\\DuplicateValidator::assertNoDuplicateSpendIds",
+                "Chemaclass\\Unspent\\Validation\\DuplicateValidator::assertNoDuplicateOutputIds"
+            ]
+        },
+        // json_decode()'s depth argument. Killing +-1 needs a 512-level nested
+        // document that is otherwise a valid ledger — the depth is a guard
+        // against pathological input, not behaviour anyone can observe.
+        "DecrementInteger": {
+            "ignore": [
+                "Chemaclass\\Unspent\\Ledger::fromJson"
+            ]
+        },
+        "IncrementInteger": {
+            "ignore": [
+                "Chemaclass\\Unspent\\Ledger::fromJson"
+            ]
+        },
+        // PublicKey::verifySignature() re-checks the key length that the
+        // constructor already enforces on a readonly property, so the branch is
+        // unreachable by design ("defense in depth"). TimeLock compares against
+        // time(), so its boundary mutants only differ during the single second
+        // where unlockTime === now — untestable without injecting a clock.
+        "LogicalOr": {
+            "ignore": [
+                "Chemaclass\\Unspent\\Lock\\PublicKey::verifySignature"
+            ]
+        },
+        "LessThan": {
+            "ignore": [
+                "Chemaclass\\Unspent\\Lock\\TimeLock::isLocked"
+            ]
+        },
+        "LessThanOrEqualTo": {
+            "ignore": [
+                "Chemaclass\\Unspent\\Lock\\TimeLock::fromArray"
+            ]
+        },
+        // ownedBy() returns early for an unknown owner; without the early
+        // return the loop body simply never runs and the same empty set is
+        // built, differing only in an unreachable empty index bucket.
+        "ReturnRemoval": {
+            "ignore": [
+                "Chemaclass\\Unspent\\UnspentSet::addAll",
+                "Chemaclass\\Unspent\\UnspentSet::removeAll",
+                "Chemaclass\\Unspent\\UnspentSet::ownedBy"
+            ]
+        },
+        // IdGenerator::forOutput() buffers CSPRNG bytes purely as an optimization.
+        // Mutating the refill condition only changes *when* the buffer is topped
+        // up — every schedule still yields unique, well-formed ids, so these
+        // mutants are equivalent by construction and cannot be killed.
+        "NotIdentical": {
+            "ignore": [
+                "Chemaclass\\Unspent\\IdGenerator::forOutput"
+            ]
+        },
+        "GreaterThan": {
+            "ignore": [
+                "Chemaclass\\Unspent\\IdGenerator::forOutput"
+            ]
+        },
+        "GreaterThanNegotiation": {
+            "ignore": [
+                "Chemaclass\\Unspent\\IdGenerator::forOutput"
+            ]
+        },
         // Assignment mutations in accumulator patterns are often equivalent
         "Assignment": {
             "ignore": [
@@ -73,8 +142,8 @@
             ]
         }
     },
-    "minMsi": 90,
-    "minCoveredMsi": 90,
+    "minMsi": 100,
+    "minCoveredMsi": 100,
     "testFramework": "phpunit",
     "testFrameworkOptions": "--no-coverage",
     "tmpDir": ".infection-cache"

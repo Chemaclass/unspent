@@ -166,6 +166,14 @@ final class LockFactoryTest extends TestCase
         LockFactory::registerFromClass(LockNotImplementingInterface::class);
     }
 
+    public function test_register_from_class_throws_when_from_array_is_not_static(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('must have a public static fromArray');
+
+        LockFactory::registerFromClass(LockWithNonStaticFromArray::class);
+    }
+
     public function test_register_from_class_throws_when_missing_from_array(): void
     {
         $this->expectException(InvalidArgumentException::class);
@@ -302,5 +310,37 @@ final readonly class LockWithoutFromArray implements OutputLock
     public function toArray(): array
     {
         return ['type' => 'no-from-array'];
+    }
+}
+
+#[LockTypeAttribute('non-static-from-array')]
+final readonly class LockWithNonStaticFromArray implements OutputLock
+{
+    /**
+     * Public, but not static — registration must reject it, since the factory
+     * invokes fromArray() with a null instance.
+     *
+     * @param array<string, mixed> $data
+     */
+    public function fromArray(array $data): self
+    {
+        return new self();
+    }
+
+    public function validate(Tx $tx, int $spendIndex): void
+    {
+    }
+
+    /**
+     * @return array{type: string}
+     */
+    public function toArray(): array
+    {
+        return ['type' => 'non-static-from-array'];
+    }
+
+    public function type(): string
+    {
+        return 'non-static-from-array';
     }
 }

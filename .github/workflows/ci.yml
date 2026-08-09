@@ -13,7 +13,7 @@ concurrency:
 env:
   # Kept in sync with composer.json (infection) and the CONTRIBUTING / CLAUDE quality tables.
   MIN_COVERAGE: 85
-  MIN_MSI: 90
+  MIN_MSI: 100
 
 jobs:
   security:
