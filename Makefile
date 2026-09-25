@@ -9,14 +9,24 @@
 # Defaults
 # ----------------------------------------------------------------------------
 
-# DOCKER=0 to run composer/php on the host instead of through docker compose.
-DOCKER ?= 1
+# Runs on the host when it has PHP 8.4+, otherwise through docker compose.
+# Force either way with DOCKER=0 or DOCKER=1.
+HOST_PHP_OK := $(shell php -r 'echo PHP_VERSION_ID >= 80400 ? 1 : 0;' 2>/dev/null)
+HOST_COVERAGE_OK := $(shell php -r 'echo extension_loaded("pcov") || extension_loaded("xdebug") ? 1 : 0;' 2>/dev/null)
+DOCKER ?= $(if $(filter 1,$(HOST_PHP_OK)),0,1)
 COMPOSE = docker compose run --rm php
 
 ifeq ($(DOCKER),0)
 	RUN =
 else
 	RUN = $(COMPOSE)
+endif
+
+# Coverage and mutation testing need pcov or xdebug; use the container when the host has neither.
+ifeq ($(DOCKER)$(HOST_COVERAGE_OK),01)
+	COVERAGE_RUN =
+else
+	COVERAGE_RUN = $(COMPOSE)
 endif
 
 # ----------------------------------------------------------------------------
@@ -27,7 +37,7 @@ help:  ## Show this help
 	@echo "Unspent — Development Commands"
 	@echo "=============================="
 	@echo ""
-	@echo "Override DOCKER=0 to run on host (e.g. \`make test DOCKER=0\`)."
+	@echo "Running on: $(if $(RUN),docker,host). Force with DOCKER=0 or DOCKER=1."
 	@echo ""
 	@awk 'BEGIN {FS = ":.*?## "} \
 		/^# ==/ {next} \
@@ -78,7 +88,7 @@ rector-dry:  ## Rector dry-run
 	$(RUN) composer rector-dry
 
 ##@ Tests
-phpunit:  ## Run PHPUnit (with coverage)
+phpunit:  ## Run all PHPUnit suites
 	$(RUN) composer phpunit
 
 test-fast:  ## Unit tests, stop on first failure
@@ -91,10 +101,10 @@ test-feature:  ## Integration tests
 	$(RUN) composer test:feature
 
 coverage:  ## Generate HTML coverage report under coverage/
-	$(RUN) composer coverage
+	$(COVERAGE_RUN) composer coverage
 
-infection:  ## Run mutation testing
-	$(RUN) composer infection
+infection:  ## Run mutation testing (100% MSI, matches CI)
+	$(COVERAGE_RUN) composer infection
 
 benchmark:  ## Run PHPBench benchmarks
 	$(RUN) composer benchmark

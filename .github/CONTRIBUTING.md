@@ -9,7 +9,7 @@ Thanks for your interest in improving Unspent. This document covers setup, the T
 - [Quality Gates](#quality-gates)
 - [Commands Reference](#commands-reference)
 - [Testing](#testing)
-- [Docker Workflow](#docker-workflow)
+- [Make Targets](#make-targets)
 - [Project Structure](#project-structure)
 - [Architecture Rules](#architecture-rules)
 - [Commit & PR](#commit--pr)
@@ -26,18 +26,18 @@ composer init-db      # (optional) initialize the example SQLite DB
 composer test         # Run full quality gate
 ```
 
-### Docker
+### Make
 
-If you don't want to install PHP locally:
+`make` runs on the host when it finds PHP 8.4+, and inside Docker otherwise. `make coverage` and `make infection` also fall back to Docker when the host has no pcov or xdebug. Force either way with `DOCKER=0` or `DOCKER=1`.
 
 ```bash
-make build            # Build the dev image
-make install          # Install composer deps inside the container
+make install          # Install composer deps
 make test             # Run full quality gate
+make infection        # Mutation testing, even without a local coverage driver
 make shell            # Open an interactive shell in the container
 ```
 
-Run `make help` for all targets.
+Run `make help` for all targets and where they will run.
 
 ## Development Workflow (TDD)
 
@@ -72,7 +72,7 @@ All gates must pass before commit. The pre-commit hook runs `check:quick`; CI ru
 
 Mutation testing and coverage are **not** in `composer test` (they are slower); run `composer check:mutation` before pushing so a CI-only failure doesn't surprise you.
 
-**Why not full `composer test` on pre-commit?** Rector and PHPStan take ~15s each. The hook prioritizes fast feedback (~2s cached); the full suite runs in CI.
+**Why not full `composer test` on pre-commit?** Rector and PHPStan add about 12s on a cold cache (about 3s warm). The hook keeps commits fast; run `composer test` before pushing.
 
 Bypass with `git commit --no-verify` only when you know what you're doing.
 
@@ -89,7 +89,7 @@ composer test:feature     # Integration tests
 ### Full quality gate
 
 ```bash
-composer check:quick      # CS-Fixer + PHPUnit (~2s cached)
+composer check:quick      # CS-Fixer + PHPUnit (~3s)
 composer check:full       # CS-Fixer + Rector + PHPStan + PHPUnit
 composer test             # Same as check:full
 composer check:mutation   # Mutation testing (100% MSI) — matches CI, run before pushing
@@ -98,7 +98,7 @@ composer check:mutation   # Mutation testing (100% MSI) — matches CI, run befo
 ### Individual tools
 
 ```bash
-composer phpunit          # All tests with coverage
+composer phpunit          # All test suites
 composer stan             # PHPStan static analysis
 composer csfix            # Apply CS-Fixer changes
 composer csrun            # CS-Fixer dry-run
@@ -153,7 +153,7 @@ composer infection
 
 Minimum **100% MSI** required. Mutants that are equivalent by construction are recorded, with their reasoning, in the `mutators.*.ignore` lists of `infection.json5`.
 
-## Docker Workflow
+## Make Targets
 
 Common targets — see the full list with `make help`:
 

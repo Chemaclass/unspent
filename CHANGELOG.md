@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Selection strategies build their candidate list via `UnspentSet::values()`
 
 - `UnspentSet::add()` and `remove()` now delegate to `addAll()` / `removeAll()` instead of each carrying their own copy of the owned/fork branching. Neither is used outside tests, so the extra variadic pack costs nothing measurable
+- `make` runs on the host when it has PHP 8.4+; `make coverage` and `make infection` fall back to Docker without pcov or xdebug
 - Mutation-testing gate raised from 90% to **100% MSI**. Mutants that are equivalent by construction — marker arrays whose value is never read, `json_decode()`'s depth guard, `PublicKey`'s unreachable defensive re-check, and `TimeLock`'s `time()` boundaries — are recorded with their reasoning in the `mutators.*.ignore` lists of `infection.json5` rather than absorbed into a lower threshold
 
 ### Fixed
