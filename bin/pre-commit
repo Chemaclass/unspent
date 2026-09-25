@@ -2,7 +2,7 @@
 #
 # Pre-commit hook - fast feedback for local development.
 #
-# Runs CS-Fixer and PHPUnit only (~2s cached).
+# Runs CS-Fixer and PHPUnit only (~3s).
 # Rector and PHPStan run in CI for thoroughness.
 #
 # Install by running:
