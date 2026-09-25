@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-25
+
 ### Added
 
 - `Ledger::selectWith(?SelectionStrategy $strategy)`: attaches a coin-selection policy to `transfer()`, `debit()` and `batchTransfer()`. The `Selection\*` strategies shipped since 1.0 had no way to reach the ledger; this wires them in. Passing `null` restores the default selection
