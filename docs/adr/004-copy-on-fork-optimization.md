@@ -35,15 +35,15 @@ final class UnspentSet
 }
 ```
 
-- **Owned (`$owned === true`)** — `add`/`addAll`/`remove`/`removeAll` mutate
+- **Owned (`$owned === true`)**: `add`/`addAll`/`remove`/`removeAll` mutate
   `$outputs` in place and return `$this`. O(1) per element, no copy.
-- **Shared (`$owned === false`)** — the same operations **fork**: they copy the
+- **Shared (`$owned === false`)**: the same operations **fork**: they copy the
   array, apply the change to the copy, and return a new `UnspentSet`. The
   original is left untouched.
 
 A set becomes shared through `release()`. External reads go through
 `snapshot()`, which returns a *released copy* that shares the array copy-on-write
-while leaving the internal set owned — so `Ledger::unspent()` never degrades the
+while leaving the internal set owned, so `Ledger::unspent()` never degrades the
 ledger's own subsequent writes (see the interleaved read/write case below).
 
 A secondary **owner index** (`owner name => set of owned output ids`) is

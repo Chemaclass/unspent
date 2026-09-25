@@ -4,7 +4,7 @@ Reference for the Unspent library's hexagonal (ports & adapters) architecture.
 
 ## Layers
 
-### Domain (Innermost) — `src/` root
+### Domain (Innermost): `src/` root
 - `Ledger.php`, `Output.php`, `Tx.php`, `UnspentSet.php`, `TxBuilder.php`, `CoinbaseTx.php`
 - Identifiers: `Id.php`, `OutputId.php`, `TxId.php`
 - Enums: `OutputStatus.php`
@@ -14,7 +14,7 @@ Reference for the Unspent library's hexagonal (ports & adapters) architecture.
 **Primary:** `LedgerInterface`
 **Secondary:** `LedgerRepository`, `HistoryRepository`, `OutputLock`, `SelectionStrategy`
 
-### Adapters — implement ports
+### Adapters: implement ports
 - **Persistence:** `src/Persistence/Sqlite/`, `InMemoryHistoryRepository`
 - **Locks:** `src/Lock/` (Owner, PublicKey, NoLock)
 - **Selection:** `src/Selection/` (Fifo, LargestFirst, SmallestFirst, ExactMatch)
@@ -36,7 +36,7 @@ Adapters → Ports → Domain (inward only)
 | Strategy | `src/Selection/` | `SelectionStrategy` |
 | Repository | `src/Persistence/{Name}/` | `LedgerRepository` / `HistoryRepository` |
 
-Domain remains unchanged — new components plug in via interfaces.
+Domain remains unchanged: new components plug in via interfaces.
 
 ## Testing Layers
 

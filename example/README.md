@@ -42,7 +42,7 @@ rm example/data/sample:virtual-currency.db
 ## Sample outputs
 
 <details>
-<summary><strong>game</strong> — Virtual currency / in-game economy</summary>
+<summary><strong>game</strong>: Virtual currency / in-game economy</summary>
 
 ```
 Virtual Currency - In-Game Economy (Flagship Demo)
@@ -65,7 +65,7 @@ Balances
 </details>
 
 <details>
-<summary><strong>loyalty</strong> — Customer rewards</summary>
+<summary><strong>loyalty</strong>: Customer rewards</summary>
 
 ```
 Loyalty Points - Customer Rewards Program
@@ -87,7 +87,7 @@ Points Breakdown
 </details>
 
 <details>
-<summary><strong>accounting</strong> — Department budgets</summary>
+<summary><strong>accounting</strong>: Department budgets</summary>
 
 ```
 Internal Accounting - Department Budgets
@@ -117,7 +117,7 @@ Reconciliation
 </details>
 
 <details>
-<summary><strong>wallet</strong> — Ed25519 signatures</summary>
+<summary><strong>wallet</strong>: Ed25519 signatures</summary>
 
 ```
 Crypto Wallet - Ed25519 Signatures
@@ -134,7 +134,7 @@ Crypto Wallet - Ed25519 Signatures
 </details>
 
 <details>
-<summary><strong>events</strong> — Order lifecycle</summary>
+<summary><strong>events</strong>: Order lifecycle</summary>
 
 ```
 Event Sourcing - Order Lifecycle
@@ -152,7 +152,7 @@ Event Sourcing - Order Lifecycle
 </details>
 
 <details>
-<summary><strong>btc</strong> — Bitcoin simulation</summary>
+<summary><strong>btc</strong>: Bitcoin simulation</summary>
 
 ```
 Bitcoin Simulation - Multi-Block Mining
@@ -181,7 +181,7 @@ Blockchain State
 </details>
 
 <details>
-<summary><strong>locks</strong> — Time-locked outputs</summary>
+<summary><strong>locks</strong>: Time-locked outputs</summary>
 
 ```
 Custom Locks - Time-Locked Outputs
@@ -201,7 +201,7 @@ Security Demonstrations
 </details>
 
 <details>
-<summary><strong>sqlite</strong> — SQLite persistence</summary>
+<summary><strong>sqlite</strong>: SQLite persistence</summary>
 
 ```
 SQLite Persistence Example

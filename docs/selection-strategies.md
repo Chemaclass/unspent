@@ -18,7 +18,7 @@ It affects `transfer()`, `debit()` and `batchTransfer()`. Decorators (`LoggingLe
 
 ### Default selection
 
-With no strategy attached, the ledger streams the owner's outputs in creation order and stops at the first one that covers the target — the same result as `FifoStrategy`, but without materializing the owner's full output set. Leave it as-is unless you need one of the policies below.
+With no strategy attached, the ledger streams the owner's outputs in creation order and stops at the first one that covers the target. This gives the same result as `FifoStrategy` without materializing the owner's full output set. Leave it as-is unless you need one of the policies below.
 
 ### FifoStrategy
 
@@ -96,7 +96,7 @@ $ledger = Ledger::inMemory()->selectWith(new RandomStrategy());
 ```
 
 **Best for:**
-- Privacy — prevents observers from predicting which outputs will be spent
+- Privacy: prevents observers from predicting which outputs will be spent
 - Avoiding deterministic patterns
 - Scenarios where spending order should not be predictable
 
@@ -138,7 +138,7 @@ $ledger->selectWith($strategy)->transfer('alice', 'bob', 60);
 | Exact Match | out-2 (50), out-1 (10) | 60 | 0 |
 | Random | (varies each time) | ≥60 | varies |
 
-Every strategy stops as soon as the running total covers the target, so FIFO takes only `out-1` and `out-2` — it never reaches `out-3`.
+Every strategy stops as soon as the running total covers the target, so FIFO takes only `out-1` and `out-2`; it never reaches `out-3`.
 
 ## Custom Strategies
 

@@ -29,7 +29,7 @@ You enforce strict Red-Green-Refactor for the Unspent UTXO library.
 
 - Never write production code without a failing test first
 - One failing test at a time
-- Minimal code to pass — no premature optimization
+- Minimal code to pass: no premature optimization
 - Test behavior (public API), not implementation (private methods)
 - One concept per test method
 - Use `assertSame()` for strict comparison

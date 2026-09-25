@@ -9,10 +9,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `Ledger::selectWith(?SelectionStrategy $strategy)` — attaches a coin-selection policy to `transfer()`, `debit()` and `batchTransfer()`. The `Selection\*` strategies shipped since 1.0 had no way to reach the ledger; this wires them in. Passing `null` restores the default selection
-- `UnspentSet::values(): list<Output>` — replaces `iterator_to_array($set)`; allocates no iterator and returns a list
-- `UnspentSet::first(): ?Output` — first output in iteration order, or `null` when empty
-- `UnspentSet::iterateOwnedBy(string $owner): Generator<string, Output>` — lazily streams one owner's outputs without materializing an intermediate set
+- `Ledger::selectWith(?SelectionStrategy $strategy)`: attaches a coin-selection policy to `transfer()`, `debit()` and `batchTransfer()`. The `Selection\*` strategies shipped since 1.0 had no way to reach the ledger; this wires them in. Passing `null` restores the default selection
+- `UnspentSet::values(): list<Output>`: replaces `iterator_to_array($set)`; allocates no iterator and returns a list
+- `UnspentSet::first(): ?Output`: first output in iteration order, or `null` when empty
+- `UnspentSet::iterateOwnedBy(string $owner): Generator<string, Output>`: lazily streams one owner's outputs without materializing an intermediate set
 - `UnspentSet::balances(): array<string, int>`: every owner's total in one call, from the owner index
 - `Ledger` lookups (`getOutput()`, `outputHistory()`, `isTxApplied()`, `feeForTx()`, ...) accept plain string ids: `$ledger->getOutput('a1')`. Also on `LoggingLedger` and `EventDispatchingLedger`. `LedgerInterface` is unchanged
 - `OutputId::of()` and `TxId::of()`: wrap a string, or return an id unchanged
@@ -30,7 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UnspentSet::add()` and `remove()` now delegate to `addAll()` / `removeAll()` instead of each carrying their own copy of the owned/fork branching. Neither is used outside tests, so the extra variadic pack costs nothing measurable
 - `make` runs on the host when it has PHP 8.4+; `make coverage` and `make infection` fall back to Docker without pcov or xdebug
 - The pre-commit hook prints tool output only on failure and skips commits with no PHP changes. Its shell tests run in CI (`composer test:bash`)
-- Mutation-testing gate raised from 90% to **100% MSI**. Mutants that are equivalent by construction — marker arrays whose value is never read, `json_decode()`'s depth guard, `PublicKey`'s unreachable defensive re-check, and `TimeLock`'s `time()` boundaries — are recorded with their reasoning in the `mutators.*.ignore` lists of `infection.json5` rather than absorbed into a lower threshold
+- Mutation-testing gate raised from 90% to **100% MSI**. Mutants that are equivalent by construction (marker arrays whose value is never read, `json_decode()`'s depth guard, `PublicKey`'s unreachable defensive re-check, and `TimeLock`'s `time()` boundaries) are recorded with their reasoning in the `mutators.*.ignore` lists of `infection.json5` rather than absorbed into a lower threshold
 
 ### Removed
 
@@ -56,18 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `UnspentSet::snapshot()` — returns an isolated copy-on-write view of the outputs; used by `Ledger::unspent()`
-- `UtxoAnalytics::summarize(UnspentSet $unspent, int $dustThreshold = 10)` — computes every owner metric (count, total, average, min, max, dust, largest, smallest, oldest) in a single pass over a pre-fetched set, so callers needing several metrics fetch the owner's outputs only once
+- `UnspentSet::snapshot()`: returns an isolated copy-on-write view of the outputs; used by `Ledger::unspent()`
+- `UtxoAnalytics::summarize(UnspentSet $unspent, int $dustThreshold = 10)`: computes every owner metric (count, total, average, min, max, dust, largest, smallest, oldest) in a single pass over a pre-fetched set, so callers needing several metrics fetch the owner's outputs only once
 
 ### Changed
 
 - `Ledger` now writes history through the mutating `HistoryRepository::saveTransaction()` / `saveCoinbase()` / `saveGenesis()` methods instead of allocating a new repository instance per operation
-- `IdGenerator::forOutput()` no longer takes an `$amount` argument — output ids are random and never derived from the amount
+- `IdGenerator::forOutput()` no longer takes an `$amount` argument: output ids are random and never derived from the amount
 
 ### Removed
 
-- **BREAKING**: `HistoryRepository::withTransaction()`, `withCoinbase()`, and `withGenesis()` — the immutable copy-on-write variants that merely duplicated the `save*` methods. Custom `HistoryRepository` implementations now only need the `save*` methods.
-- `Ledger::VERSION` constant — it had gone stale (hardcoded `1.0.0`) and was unused; read the installed version from Composer (`\Composer\InstalledVersions::getPrettyVersion('chemaclass/unspent')`) if you need it at runtime
+- **BREAKING**: `HistoryRepository::withTransaction()`, `withCoinbase()`, and `withGenesis()`. These immutable copy-on-write variants merely duplicated the `save*` methods. Custom `HistoryRepository` implementations now only need the `save*` methods.
+- `Ledger::VERSION` constant: it had gone stale (hardcoded `1.0.0`) and was unused; read the installed version from Composer (`\Composer\InstalledVersions::getPrettyVersion('chemaclass/unspent')`) if you need it at runtime
 
 ### Performance
 
@@ -83,12 +83,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
-- `RandomStrategy` coin selection — shuffles outputs randomly before selecting for improved privacy
+- `RandomStrategy` coin selection: shuffles outputs randomly before selecting for improved privacy
 - `SelectionStrategy::name()` now returns `'random'` for the new strategy
 
 ### Changed
 
-- Removed deprecated static methods from `SqliteSchema` (`createSchema()`, `schemaExists()`, `dropSchema()`) — use instance methods instead
+- Removed deprecated static methods from `SqliteSchema` (`createSchema()`, `schemaExists()`, `dropSchema()`); use instance methods instead
 - Fixed PHPUnit notices in `LoggingLedgerTest` by using `createStub()` for mocks without expectations
 - Corrected CLAUDE.md to reflect actual PHPStan level 8
 

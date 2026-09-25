@@ -71,7 +71,7 @@ final class {Feature}IntegrationTest extends TestCase
 
 ## After Creating
 
-1. Run `composer phpunit` — confirm RED
+1. Run `composer phpunit`: confirm RED
 2. Implement the feature
-3. Run `composer phpunit` — confirm GREEN
-4. Run `composer test` — full quality check
+3. Run `composer phpunit`: confirm GREEN
+4. Run `composer test`: full quality check

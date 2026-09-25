@@ -6,7 +6,7 @@ Full reference for the Unspent library. Start with **Core Concepts** if you're n
 
 | Doc | What you'll learn |
 |-|-|
-| [Core Concepts](concepts.md) | Outputs, transactions, ledger — the UTXO model in plain terms |
+| [Core Concepts](concepts.md) | Outputs, transactions, ledger: the UTXO model in plain terms |
 | [Migration Guide](migration.md) | Move from balance-based systems to UTXO with minimal disruption |
 
 ## Building Things

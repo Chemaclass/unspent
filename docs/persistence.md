@@ -65,7 +65,7 @@ $repo->countUnspent('wallet-1');
 
 Two persistence models trade simplicity against write cost:
 
-**Snapshot save (`SqliteLedgerRepository::save`)** rewrites the whole ledger — it
+**Snapshot save (`SqliteLedgerRepository::save`)** rewrites the whole ledger: it
 deletes the stored rows and re-inserts every output and transaction using chunked
 multi-row `INSERT`s (bounded parameter count per statement). Simple and atomic,
 but each `save()` is O(total history). Best for small/medium ledgers or periodic

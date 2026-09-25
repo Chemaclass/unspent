@@ -6,16 +6,16 @@ Run all quality tools and report findings with actionable fixes.
 
 Run tools in this order, stop and report on first failure unless `$ARGUMENTS` contains "full" or "all":
 
-1. `composer csrun` — Code style (PSR-12). Auto-fix: `composer csfix`
-2. `composer rector-dry` — Code modernization. Auto-fix: `composer rector`
-3. `composer stan` — Static analysis (level 2)
-4. `composer phpunit` — All tests
+1. `composer csrun`: Code style (PSR-12). Auto-fix: `composer csfix`
+2. `composer rector-dry`: Code modernization. Auto-fix: `composer rector`
+3. `composer stan`: Static analysis (level 2)
+4. `composer phpunit`: All tests
 
 Quick alternative: `composer check:quick` (csrun + phpunit only).
 Full suite: `composer test` (all four above).
 
 If `$ARGUMENTS` contains "deep" or "mutation", also run:
-5. `composer infection` — Mutation testing (100% MSI)
+5. `composer infection`: Mutation testing (100% MSI)
 
 ## Report Format
 

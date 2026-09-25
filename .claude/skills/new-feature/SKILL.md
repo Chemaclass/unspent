@@ -4,11 +4,11 @@ Implement a new feature following hexagonal architecture and TDD. `$ARGUMENTS` d
 
 ## Steps
 
-1. **Clarify requirements** — Understand what, who uses it, what external systems it needs.
-2. **Design interface** — Define the port (interface) if needed.
-3. **TDD cycle** — Red → Green → Refactor for each behavior.
-4. **Quality check** — Run `composer test` before finishing.
-5. **Commit message** — Provide conventional commit message.
+1. **Clarify requirements**: Understand what, who uses it, what external systems it needs.
+2. **Design interface**: Define the port (interface) if needed.
+3. **TDD cycle**: Red → Green → Refactor for each behavior.
+4. **Quality check**: Run `composer test` before finishing.
+5. **Commit message**: Provide conventional commit message.
 
 ## Feature Type Guide
 

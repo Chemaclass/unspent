@@ -28,7 +28,7 @@ Value objects (`OutputId`, `TxId`, `Id`, `Output`, `Tx`) must be `readonly`.
 | Immutability | PASS/FAIL | details |
 
 ### Violations (if any)
-- `file:line` — description
+- `file:line`: description
 
 ### Placement Rules
 | Component | Location |

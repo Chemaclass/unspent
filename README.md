@@ -33,11 +33,11 @@ Traditional balance tracking (`balance: 500`) is just a number you mutate. There
 
 **Unspent** tracks value like physical cash. You can't photocopy a $20 bill - you spend it and get change back. This gives you:
 
-- **Double-spend prevention** — a unit can only be spent once, ever
-- **Complete audit trail** — trace any value back to its origin
-- **Immutable history** — state changes are additive, never mutated
-- **Advanced locks** — timelocks, multisig, hash-locked outputs (HTLCs)
-- **Zero external dependencies** — pure PHP 8.4+
+- **Double-spend prevention**: a unit can only be spent once, ever
+- **Complete audit trail**: trace any value back to its origin
+- **Immutable history**: state changes are additive, never mutated
+- **Advanced locks**: timelocks, multisig, hash-locked outputs (HTLCs)
+- **Zero external dependencies**: pure PHP 8.4+
 
 ## When to use it
 
@@ -272,4 +272,4 @@ Docker workflow available via `make help`.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT: see [LICENSE](LICENSE).
