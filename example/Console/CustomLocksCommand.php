@@ -24,11 +24,11 @@ final class CustomLocksCommand extends AbstractExampleCommand
 {
     protected function runDemo(): int
     {
-        $this->registerTimeLockHandler();
+        $this->registerVestingLockHandler();
 
         $ledger = $this->loadOrCreate(static fn (): array => [
-            Output::lockedWith(new TimeLock(strtotime('2020-01-01'), 'alice'), 1000, 'alice-unlocked'),
-            Output::lockedWith(new TimeLock(strtotime('+1 year'), 'bob'), 500, 'bob-locked'),
+            Output::lockedWith(new VestingLock(strtotime('2020-01-01'), 'alice'), 1000, 'alice-unlocked'),
+            Output::lockedWith(new VestingLock(strtotime('+1 year'), 'bob'), 500, 'bob-locked'),
         ]);
 
         $ledger = $this->processRandomAction($ledger);
@@ -44,13 +44,13 @@ final class CustomLocksCommand extends AbstractExampleCommand
         return Command::SUCCESS;
     }
 
-    private function registerTimeLockHandler(): void
+    private function registerVestingLockHandler(): void
     {
-        LockFactory::register('timelock', static fn (array $data): TimeLock => new TimeLock(
+        LockFactory::register('vesting', static fn (array $data): VestingLock => new VestingLock(
             $data['unlockTime'],
             $data['owner'],
         ));
-        $this->io->text("Registered 'timelock' handler");
+        $this->io->text("Registered 'vesting' handler");
         $this->io->newLine();
     }
 
@@ -62,7 +62,7 @@ final class CustomLocksCommand extends AbstractExampleCommand
 
         foreach ($ledger->unspent() as $output) {
             $lock = $output->lock;
-            if ($lock instanceof TimeLock && $lock->unlockTime <= $now) {
+            if ($lock instanceof VestingLock && $lock->unlockTime <= $now) {
                 $spendable[] = $output;
             }
         }
@@ -86,7 +86,7 @@ final class CustomLocksCommand extends AbstractExampleCommand
                 $ledger->apply(Tx::create(
                     spendIds: [$toConvert->id->value],
                     outputs: [Output::lockedWith(
-                        new TimeLock($unlockTime, $owner),
+                        new VestingLock($unlockTime, $owner),
                         $toConvert->amount,
                         "{$owner}-locked-{$txNum}",
                     )],
@@ -103,7 +103,7 @@ final class CustomLocksCommand extends AbstractExampleCommand
         // Spend a random unlocked output
         $toSpend = $spendable[array_rand($spendable)];
         $lock = $toSpend->lock;
-        $owner = $lock instanceof TimeLock ? $lock->owner : 'unknown';
+        $owner = $lock instanceof VestingLock ? $lock->owner : 'unknown';
         $txNum = $ledger->unspent()->count();
 
         $recipients = array_diff(['alice', 'bob', 'charlie'], [$owner]);
@@ -129,7 +129,7 @@ final class CustomLocksCommand extends AbstractExampleCommand
         $now = time();
         foreach ($ledger->unspent() as $output) {
             $lock = $output->lock;
-            if ($lock instanceof TimeLock && $lock->unlockTime > $now) {
+            if ($lock instanceof VestingLock && $lock->unlockTime > $now) {
                 $owner = $lock->owner;
                 $this->io->text("{$owner} tries to spend locked output... ");
 
@@ -149,7 +149,7 @@ final class CustomLocksCommand extends AbstractExampleCommand
         // Wrong signer attempt
         foreach ($ledger->unspent() as $output) {
             $lock = $output->lock;
-            if ($lock instanceof TimeLock && $lock->unlockTime <= $now) {
+            if ($lock instanceof VestingLock && $lock->unlockTime <= $now) {
                 $owner = $lock->owner;
                 $this->io->text("Eve tries to spend {$owner}'s output... ");
 
@@ -175,7 +175,7 @@ final class CustomLocksCommand extends AbstractExampleCommand
         foreach ($ledger->unspent() as $id => $output) {
             $lock = $output->lock;
 
-            if ($lock instanceof TimeLock) {
+            if ($lock instanceof VestingLock) {
                 $status = $lock->unlockTime <= $now
                     ? '<fg=green>UNLOCKED</>'
                     : '<fg=yellow>locked until ' . date('Y-m-d', $lock->unlockTime) . '</>';
@@ -191,9 +191,10 @@ final class CustomLocksCommand extends AbstractExampleCommand
 }
 
 /**
- * Custom time-lock implementation for demonstration.
+ * Custom time-lock implementation for demonstration. Uses its own type
+ * name so it does not replace the built-in 'timelock' (Lock\\TimeLock).
  */
-final readonly class TimeLock implements OutputLock
+final readonly class VestingLock implements OutputLock
 {
     public function __construct(
         public int $unlockTime,
@@ -214,7 +215,7 @@ final readonly class TimeLock implements OutputLock
     public function toArray(): array
     {
         return [
-            'type' => 'timelock',
+            'type' => 'vesting',
             'unlockTime' => $this->unlockTime,
             'owner' => $this->owner,
         ];
@@ -222,6 +223,6 @@ final readonly class TimeLock implements OutputLock
 
     public function type(): string
     {
-        return 'timelock';
+        return 'vesting';
     }
 }

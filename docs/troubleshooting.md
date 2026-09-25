@@ -200,14 +200,14 @@ $pdo->exec('PRAGMA journal_mode=WAL');
 **Problem:** Custom lock types not working after `fromJson()`.
 
 ```php
-RuntimeException: Unknown lock type: timelock
+InvalidArgumentException: Unknown lock type: vesting
 ```
 
 **Solutions:**
 
 1. Register custom lock handlers before deserializing:
 ```php
-LockFactory::register('timelock', fn(array $data) => new TimeLock(
+LockFactory::register('vesting', fn(array $data) => new VestingLock(
     $data['unlockTime'],
     $data['owner'],
 ));

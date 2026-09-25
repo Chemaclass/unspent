@@ -40,6 +40,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `Ledger::fromJson()` throws `InvalidArgumentException` on a malformed snapshot instead of a warning and a `TypeError`
 - `docs/troubleshooting.md` snippets that did not run
 - `docs/selection-strategies.md` documented a `Ledger::inMemory(strategy: ...)` constructor argument that never existed, and its worked example reported the FIFO row as spending three outputs (85, change 25) when selection stops at two (60, change 0). Both now match the shipped behaviour
+- Custom-lock examples in the docs and `example/` registered a handler for `'timelock'`, which replaces the built-in `TimeLock` deserializer. They now use their own `'vesting'` type
+- `docs/api-reference.md` documented `SqliteSchema` as static; it takes a `PDO` in its constructor
 - `.scrutinizer.yml` excluded `examples/`, but the directory is `example/`; the entry never matched anything
 
 ### Dependencies
