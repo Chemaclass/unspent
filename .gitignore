@@ -4,6 +4,7 @@ vendor/
 .infection-cache/
 coverage/
 lib/bashunit
+.bashunit/
 *cache
 data/*.db
 *.log

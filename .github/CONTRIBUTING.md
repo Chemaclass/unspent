@@ -47,6 +47,7 @@ Run `make help` for all targets and where they will run.
 composer test:fast        # Unit tests, stop on first failure (fast feedback)
 composer test:unit        # All unit tests
 composer test:feature     # Integration tests
+composer test:bash        # Shell tests for bin/ scripts
 composer check:quick      # CS-Fixer + PHPUnit (pre-commit speed)
 composer test             # CS-Fixer + Rector + PHPStan + PHPUnit (full)
 ```
