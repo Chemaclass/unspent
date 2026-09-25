@@ -18,6 +18,11 @@ trait IdValue
         return $this->value;
     }
 
+    public static function of(self|string $id): self
+    {
+        return $id instanceof self ? $id : new self($id);
+    }
+
     public function equals(self $other): bool
     {
         return $this->value === $other->value;

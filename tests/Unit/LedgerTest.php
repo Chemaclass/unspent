@@ -291,9 +291,10 @@ final class LedgerTest extends TestCase
         self::assertFalse($ledger->isTxApplied(new TxId('tx2')));
     }
 
-    // ========================================================================
+    // =================================================================    }
+
     // Fee Tests (Bitcoin-style implicit fees)
-    // ========================================================================
+    // =================================================================    }
 
     public function test_fee_calculated_when_inputs_exceed_outputs(): void
     {
@@ -416,9 +417,10 @@ final class LedgerTest extends TestCase
         self::assertSame(5, $ledger->feeForTx(new TxId('tx2')));
     }
 
-    // ========================================================================
+    // =================================================================    }
+
     // Coinbase Tests (Minting)
-    // ========================================================================
+    // =================================================================    }
 
     public function test_apply_coinbase_creates_new_outputs(): void
     {
@@ -525,9 +527,10 @@ final class LedgerTest extends TestCase
         self::assertSame(0, $ledger->totalMinted());
     }
 
-    // ========================================================================
+    // =================================================================    }
+
     // Serialization Tests
-    // ========================================================================
+    // =================================================================    }
 
     public function test_ledger_can_be_serialized_to_array(): void
     {
@@ -696,9 +699,10 @@ final class LedgerTest extends TestCase
         self::assertStringContainsString("\n", $json);
     }
 
-    // ========================================================================
+    // =================================================================    }
+
     // Convenience Methods Tests (transfer, debit, credit)
-    // ========================================================================
+    // =================================================================    }
 
     public function test_transfer_moves_amount_between_owners(): void
     {
@@ -881,9 +885,10 @@ final class LedgerTest extends TestCase
         self::assertSame(100, $ledger->totalFeesCollected());
     }
 
-    // ========================================
+    // =================================    }
+
     // isTxApplied tests
-    // ========================================
+    // =================================    }
 
     public function test_is_tx_applied_returns_true_for_applied_tx(): void
     {
@@ -915,9 +920,10 @@ final class LedgerTest extends TestCase
         self::assertFalse($ledger->isTxApplied(new TxId('unknown-tx')));
     }
 
-    // ========================================
+    // =================================    }
+
     // Boundary condition tests
-    // ========================================
+    // =================================    }
 
     public function test_transfer_exact_balance_succeeds(): void
     {
@@ -1035,5 +1041,29 @@ final class LedgerTest extends TestCase
         $this->expectExceptionMessage('Invalid ledger JSON: expected an object, got string');
 
         Ledger::fromJson('"ledger"');
+    }
+
+    public function test_output_lookups_accept_plain_string_ids(): void
+    {
+        $ledger = Ledger::withGenesis(Output::ownedBy('alice', 100, 'a1'))
+            ->apply(Tx::create(spendIds: ['a1'], outputs: [Output::ownedBy('bob', 100, 'b1')], signedBy: 'alice', id: 'tx-1'));
+
+        self::assertSame(100, $ledger->getOutput('a1')?->amount);
+        self::assertTrue($ledger->outputExists('b1'));
+        self::assertSame('tx-1', $ledger->outputSpentBy('a1'));
+        self::assertSame('tx-1', $ledger->outputCreatedBy('b1'));
+        self::assertSame('tx-1', $ledger->outputHistory('a1')?->spentBy);
+    }
+
+    public function test_tx_lookups_accept_plain_string_ids(): void
+    {
+        $ledger = Ledger::inMemory()
+            ->credit('alice', 100, txId: 'mint-1')
+            ->transfer('alice', 'bob', 60, fee: 5, txId: 'tx-1');
+
+        self::assertTrue($ledger->isTxApplied('tx-1'));
+        self::assertSame(5, $ledger->feeForTx('tx-1'));
+        self::assertTrue($ledger->isCoinbase('mint-1'));
+        self::assertSame(100, $ledger->coinbaseAmount('mint-1'));
     }
 }

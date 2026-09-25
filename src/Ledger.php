@@ -388,9 +388,9 @@ final class Ledger implements LedgerInterface
         }
     }
 
-    public function isTxApplied(TxId $txId): bool
+    public function isTxApplied(TxId|string $txId): bool
     {
-        return isset($this->appliedTxIds[$txId->value]);
+        return isset($this->appliedTxIds[TxId::of($txId)->value]);
     }
 
     public function totalFeesCollected(): int
@@ -398,9 +398,9 @@ final class Ledger implements LedgerInterface
         return $this->totalFees;
     }
 
-    public function feeForTx(TxId $txId): ?int
+    public function feeForTx(TxId|string $txId): ?int
     {
-        return $this->historyRepository->findFeeForTx($txId);
+        return $this->historyRepository->findFeeForTx(TxId::of($txId));
     }
 
     public function allTxFees(): array
@@ -413,28 +413,29 @@ final class Ledger implements LedgerInterface
         return $this->totalMinted;
     }
 
-    public function isCoinbase(TxId $id): bool
+    public function isCoinbase(TxId|string $id): bool
     {
-        return $this->historyRepository->isCoinbase($id);
+        return $this->historyRepository->isCoinbase(TxId::of($id));
     }
 
-    public function coinbaseAmount(TxId $id): ?int
+    public function coinbaseAmount(TxId|string $id): ?int
     {
-        return $this->historyRepository->findCoinbaseAmount($id);
+        return $this->historyRepository->findCoinbaseAmount(TxId::of($id));
     }
 
-    public function outputCreatedBy(OutputId $id): ?string
+    public function outputCreatedBy(OutputId|string $id): ?string
     {
-        return $this->historyRepository->findOutputCreatedBy($id);
+        return $this->historyRepository->findOutputCreatedBy(OutputId::of($id));
     }
 
-    public function outputSpentBy(OutputId $id): ?string
+    public function outputSpentBy(OutputId|string $id): ?string
     {
-        return $this->historyRepository->findOutputSpentBy($id);
+        return $this->historyRepository->findOutputSpentBy(OutputId::of($id));
     }
 
-    public function getOutput(OutputId $id): ?Output
+    public function getOutput(OutputId|string $id): ?Output
     {
+        $id = OutputId::of($id);
         $output = $this->unspentSet->get($id);
         if ($output !== null) {
             return $output;
@@ -443,8 +444,9 @@ final class Ledger implements LedgerInterface
         return $this->historyRepository->findSpentOutput($id);
     }
 
-    public function outputExists(OutputId $id): bool
+    public function outputExists(OutputId|string $id): bool
     {
+        $id = OutputId::of($id);
         if ($this->unspentSet->contains($id)) {
             return true;
         }
@@ -452,8 +454,9 @@ final class Ledger implements LedgerInterface
         return $this->historyRepository->findSpentOutput($id) !== null;
     }
 
-    public function outputHistory(OutputId $id): ?OutputHistory
+    public function outputHistory(OutputId|string $id): ?OutputHistory
     {
+        $id = OutputId::of($id);
         $output = $this->unspentSet->get($id);
         if ($output !== null) {
             return OutputHistory::fromOutput(

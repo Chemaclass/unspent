@@ -42,7 +42,7 @@ trait DelegatesLedgerReads
         return $this->ledger->canApply($tx);
     }
 
-    public function isTxApplied(TxId $txId): bool
+    public function isTxApplied(TxId|string $txId): bool
     {
         return $this->ledger->isTxApplied($txId);
     }
@@ -52,7 +52,7 @@ trait DelegatesLedgerReads
         return $this->ledger->totalFeesCollected();
     }
 
-    public function feeForTx(TxId $txId): ?int
+    public function feeForTx(TxId|string $txId): ?int
     {
         return $this->ledger->feeForTx($txId);
     }
@@ -70,37 +70,37 @@ trait DelegatesLedgerReads
         return $this->ledger->totalMinted();
     }
 
-    public function isCoinbase(TxId $id): bool
+    public function isCoinbase(TxId|string $id): bool
     {
         return $this->ledger->isCoinbase($id);
     }
 
-    public function coinbaseAmount(TxId $id): ?int
+    public function coinbaseAmount(TxId|string $id): ?int
     {
         return $this->ledger->coinbaseAmount($id);
     }
 
-    public function outputCreatedBy(OutputId $id): ?string
+    public function outputCreatedBy(OutputId|string $id): ?string
     {
         return $this->ledger->outputCreatedBy($id);
     }
 
-    public function outputSpentBy(OutputId $id): ?string
+    public function outputSpentBy(OutputId|string $id): ?string
     {
         return $this->ledger->outputSpentBy($id);
     }
 
-    public function getOutput(OutputId $id): ?Output
+    public function getOutput(OutputId|string $id): ?Output
     {
         return $this->ledger->getOutput($id);
     }
 
-    public function outputExists(OutputId $id): bool
+    public function outputExists(OutputId|string $id): bool
     {
         return $this->ledger->outputExists($id);
     }
 
-    public function outputHistory(OutputId $id): ?OutputHistory
+    public function outputHistory(OutputId|string $id): ?OutputHistory
     {
         return $this->ledger->outputHistory($id);
     }

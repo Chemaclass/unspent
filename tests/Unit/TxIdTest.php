@@ -85,4 +85,16 @@ final class TxIdTest extends TestCase
 
         self::assertSame('valid-tx_ID-123', $id->value);
     }
+
+    public function test_of_wraps_a_string(): void
+    {
+        self::assertTrue(TxId::of('tx-1')->equals(new TxId('tx-1')));
+    }
+
+    public function test_of_returns_an_existing_id_unchanged(): void
+    {
+        $id = new TxId('tx-1');
+
+        self::assertSame($id, TxId::of($id));
+    }
 }
