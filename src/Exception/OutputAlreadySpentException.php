@@ -17,4 +17,9 @@ final class OutputAlreadySpentException extends UnspentException
     {
         return new self(\sprintf("Output '%s' is not in the unspent set", $id), self::CODE);
     }
+
+    public static function spentIn(string $id, string $txId): self
+    {
+        return new self(\sprintf("Output '%s' is not in the unspent set (already spent in tx '%s')", $id, $txId), self::CODE);
+    }
 }

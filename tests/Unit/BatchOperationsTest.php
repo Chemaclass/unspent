@@ -167,6 +167,7 @@ final class BatchOperationsTest extends TestCase
         );
 
         $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage("Insufficient funds: 'alice' has 100 unspent, needs 150");
 
         $ledger->batchTransfer('alice', [
             'bob' => 50,

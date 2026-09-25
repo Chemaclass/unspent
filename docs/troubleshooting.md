@@ -20,23 +20,25 @@ Common issues and their solutions when using Unspent.
 **Problem:** Trying to spend an output that doesn't exist or was already spent.
 
 ```php
+OutputAlreadySpentException: Output 'my-output' is not in the unspent set (already spent in tx 'tx-42')
 OutputAlreadySpentException: Output 'my-output' is not in the unspent set
 ```
 
+The first form means the ledger has a record of the spend. The second means no transaction in its history spent that id.
+
 **Solutions:**
 
-1. Check if the output was already spent:
+1. Check which transaction spent the output:
 ```php
-$history = $ledger->outputHistory('my-output');
+$history = $ledger->outputHistory(new OutputId('my-output'));
 if ($history?->isSpent()) {
-    echo "Output was spent in tx: " . $history->spentByTxId;
+    echo "Output was spent in tx: " . $history->spentBy;
 }
 ```
 
 2. Verify the output exists:
 ```php
-$unspent = $ledger->unspent();
-if (!$unspent->has('my-output')) {
+if (!$ledger->outputExists(new OutputId('my-output'))) {
     echo "Output does not exist";
 }
 ```
@@ -49,6 +51,7 @@ if (!$unspent->has('my-output')) {
 
 ```php
 AuthorizationException: Output owned by 'alice', but spend signed by 'bob'
+AuthorizationException: Output owned by 'alice', but spend is unsigned
 ```
 
 **Solutions:**
@@ -64,7 +67,7 @@ $ledger->apply(Tx::create(
 
 2. Check the output's actual owner:
 ```php
-$output = $ledger->unspent()->get('alice-funds');
+$output = $ledger->getOutput(new OutputId('alice-funds'));
 echo "Owner: " . $output->lock->name; // If Owner lock
 ```
 
@@ -117,12 +120,20 @@ Output::ownedBy('alice', 100); // Auto-generated ID
 Output::ownedBy('alice', 100, 'payment-' . uniqid());
 ```
 
-### "Insufficient spends"
+### "Insufficient funds" / "Insufficient spends"
 
-**Problem:** Total input amount is less than total output amount.
+**Problem:** The owner's balance, or a transaction's inputs, cannot cover what it pays out.
+
+`transfer()`, `debit()` and `batchTransfer()` report the owner's balance against the amount plus fee:
 
 ```php
-InsufficientSpendsException: spend amount (100) < output amount (150)
+InsufficientSpendsException: Insufficient funds: 'alice' has 100 unspent, needs 150
+```
+
+`apply()` with explicit inputs reports the input total against the output total:
+
+```php
+InsufficientSpendsException: Insufficient spends: spend amount (100) is less than output amount (150)
 ```
 
 **Solutions:**
@@ -220,7 +231,7 @@ foreach ($ledger->unspent() as $output) {
 }
 
 // Check specific output history
-$history = $ledger->outputHistory('my-output');
+$history = $ledger->outputHistory(new OutputId('my-output'));
 var_dump($history);
 ```
 

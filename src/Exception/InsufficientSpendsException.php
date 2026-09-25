@@ -24,4 +24,12 @@ final class InsufficientSpendsException extends UnspentException
             self::CODE,
         );
     }
+
+    public static function forOwner(string $owner, int $available, int $required): self
+    {
+        return new self(
+            \sprintf("Insufficient funds: '%s' has %d unspent, needs %d", $owner, $available, $required),
+            self::CODE,
+        );
+    }
 }

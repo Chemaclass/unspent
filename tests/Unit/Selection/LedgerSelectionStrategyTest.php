@@ -11,8 +11,10 @@ use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Selection\ExactMatchStrategy;
 use Chemaclass\Unspent\Selection\FifoStrategy;
 use Chemaclass\Unspent\Selection\LargestFirstStrategy;
+use Chemaclass\Unspent\Selection\SelectionStrategy;
 use Chemaclass\Unspent\Selection\SmallestFirstStrategy;
 use Chemaclass\Unspent\TxId;
+use Chemaclass\Unspent\UnspentSet;
 use PHPUnit\Framework\Attributes\CoversClass;
 use PHPUnit\Framework\TestCase;
 
@@ -91,6 +93,7 @@ final class LedgerSelectionStrategyTest extends TestCase
         $ledger = $this->ledgerWithOutputs()->selectWith(new FifoStrategy());
 
         $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage("Insufficient funds: 'alice' has 125 unspent, needs 10000");
 
         $ledger->transfer('alice', 'bob', 10_000, txId: 'tx-1');
     }
@@ -100,6 +103,7 @@ final class LedgerSelectionStrategyTest extends TestCase
         $ledger = $this->ledgerWithOutputs()->selectWith(new LargestFirstStrategy());
 
         $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage("Insufficient funds: 'nobody' has 0 unspent, needs 1");
 
         $ledger->transfer('nobody', 'bob', 1, txId: 'tx-1');
     }
@@ -118,6 +122,26 @@ final class LedgerSelectionStrategyTest extends TestCase
 
         self::assertSame(60, $ledger->totalUnspentByOwner('bob'));
         self::assertSame(500, $ledger->totalUnspentByOwner('alice'));
+    }
+
+    public function test_strategy_selecting_too_little_from_a_funded_owner_reports_the_selection(): void
+    {
+        $ledger = $this->ledgerWithOutputs()->selectWith(new class() implements SelectionStrategy {
+            public function select(UnspentSet $available, int $target): array
+            {
+                return [$available->values()[0]];
+            }
+
+            public function name(): string
+            {
+                return 'first-only';
+            }
+        });
+
+        $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage('Insufficient spends: spend amount (5) is less than output amount (125)');
+
+        $ledger->transfer('alice', 'bob', 125, txId: 'tx-1');
     }
 
     private function ledgerWithOutputs(): Ledger

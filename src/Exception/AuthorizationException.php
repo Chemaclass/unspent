@@ -20,10 +20,10 @@ final class AuthorizationException extends UnspentException
 
     public static function notOwner(string $expected, ?string $actual): self
     {
-        $actualStr = $actual ?? 'null';
+        $signature = $actual === null ? 'is unsigned' : "signed by '{$actual}'";
 
         return new self(
-            "Output owned by '{$expected}', but spend signed by '{$actualStr}'",
+            "Output owned by '{$expected}', but spend {$signature}",
             self::CODE_NOT_OWNER,
         );
     }

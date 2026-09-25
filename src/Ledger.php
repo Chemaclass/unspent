@@ -34,6 +34,7 @@ final class Ledger implements LedgerInterface
 {
     /** Serialization format version for future migration support. */
     private const int SERIALIZATION_VERSION = 1;
+    private const array REQUIRED_ARRAY_KEYS = ['unspent', 'appliedTxs', 'txFees', 'coinbaseAmounts'];
 
     /**
      * Coin-selection policy for transfer()/debit()/batchTransfer().
@@ -106,11 +107,13 @@ final class Ledger implements LedgerInterface
     /**
      * Creates a Ledger from a JSON string (in-memory mode).
      *
-     * @throws JsonException If decoding fails
+     * @throws JsonException            If decoding fails
+     * @throws InvalidArgumentException If the decoded data is not a ledger snapshot
      */
     public static function fromJson(string $json): self
     {
         $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        self::assertSnapshot($data);
 
         return self::fromArray($data);
     }
@@ -514,6 +517,24 @@ final class Ledger implements LedgerInterface
     }
 
     /**
+     * @phpstan-assert TLedgerArrayInput $data
+     *
+     * @throws InvalidArgumentException If $data is not an array holding every required key
+     */
+    private static function assertSnapshot(mixed $data): void
+    {
+        if (!\is_array($data)) {
+            throw new InvalidArgumentException('Invalid ledger JSON: expected an object, got ' . get_debug_type($data));
+        }
+
+        foreach (self::REQUIRED_ARRAY_KEYS as $key) {
+            if (!\array_key_exists($key, $data)) {
+                throw new InvalidArgumentException("Invalid ledger data: missing required key '{$key}'");
+            }
+        }
+    }
+
+    /**
      * Selects an owner's unspent outputs until their total covers $required,
      * delegating to the configured SelectionStrategy when one is set.
      *
@@ -531,6 +552,7 @@ final class Ledger implements LedgerInterface
             // A strategy owns the whole decision: take its selection verbatim so
             // policies that deliberately over-select (dust sweeping) are honored.
             return $this->totalSelected(
+                $owner,
                 $this->selectionStrategy->select($this->unspentSet->ownedBy($owner), $required),
                 $required,
             );
@@ -547,7 +569,7 @@ final class Ledger implements LedgerInterface
             }
         }
 
-        return $this->assertCovers($spendIds, $accumulated, $required);
+        return $this->assertCovers($owner, $spendIds, $accumulated, $required);
     }
 
     /**
@@ -557,7 +579,7 @@ final class Ledger implements LedgerInterface
      *
      * @return array{list<string>, int}
      */
-    private function totalSelected(array $outputs, int $required): array
+    private function totalSelected(string $owner, array $outputs, int $required): array
     {
         $spendIds = [];
         $accumulated = 0;
@@ -567,7 +589,7 @@ final class Ledger implements LedgerInterface
             $accumulated += $output->amount;
         }
 
-        return $this->assertCovers($spendIds, $accumulated, $required);
+        return $this->assertCovers($owner, $spendIds, $accumulated, $required);
     }
 
     /**
@@ -577,10 +599,14 @@ final class Ledger implements LedgerInterface
      *
      * @return array{list<string>, int}
      */
-    private function assertCovers(array $spendIds, int $accumulated, int $required): array
+    private function assertCovers(string $owner, array $spendIds, int $accumulated, int $required): array
     {
         if ($accumulated < $required) {
-            throw InsufficientSpendsException::create($accumulated, $required);
+            $available = $this->unspentSet->totalAmountOwnedBy($owner);
+            // A strategy may under-select from a funded owner; report its selection, not the balance.
+            throw $available < $required
+                ? InsufficientSpendsException::forOwner($owner, $available, $required)
+                : InsufficientSpendsException::create($accumulated, $required);
         }
 
         return [$spendIds, $accumulated];
@@ -625,7 +651,10 @@ final class Ledger implements LedgerInterface
         foreach ($tx->spends as $spendId) {
             $output = $this->unspentSet->get($spendId);
             if ($output === null) {
-                throw OutputAlreadySpentException::forId($spendId->value);
+                $spentIn = $this->historyRepository->findOutputSpentBy($spendId);
+                throw $spentIn === null
+                    ? OutputAlreadySpentException::forId($spendId->value)
+                    : OutputAlreadySpentException::spentIn($spendId->value, $spentIn);
             }
 
             $output->lock->validate($tx, $spendIndex);
