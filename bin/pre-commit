@@ -1,45 +1,38 @@
 #!/usr/bin/env bash
 #
-# Pre-commit hook - fast feedback for local development.
+# Pre-commit hook: runs `composer check:quick` (CS-Fixer + PHPUnit, ~3s).
+# Rector and PHPStan run in CI; run `composer test` locally for the full gate.
 #
-# Runs CS-Fixer and PHPUnit only (~3s).
-# Rector and PHPStan run in CI for thoroughness.
+# Skips when every staged file is non-PHP (docs, CI config). Prints tool
+# output only when a check fails.
 #
-# Install by running:
-#   ln -sf ../../bin/pre-commit .git/hooks/pre-commit
-#
-# Or run manually:
-#   bin/pre-commit
-#
-# Bypass with: git commit --no-verify
+# Install: composer install (symlinks this into .git/hooks/pre-commit)
+# Run manually: bin/pre-commit
+# Bypass: git commit --no-verify
 
-set -e
+set -euo pipefail
 
-# Resolve the real path of the script (follows symlinks)
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}" 2>/dev/null || realpath "${BASH_SOURCE[0]}" 2>/dev/null || echo "${BASH_SOURCE[0]}")"
-SCRIPT_DIR="$(cd "$(dirname "$SCRIPT_PATH")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-
+PROJECT_ROOT="$(dirname "$(cd "$(dirname "$SCRIPT_PATH")" && pwd)")"
 cd "$PROJECT_ROOT"
 
 echo "Running pre-commit checks..."
-echo ""
 
-# Fast checks only - CS-Fixer and PHPUnit
-# Rector and PHPStan deferred to CI for speed
-if ! composer check:quick; then
+staged="$(git diff --cached --name-only --diff-filter=ACMR)"
+if [[ -n "$staged" ]] && ! grep -qE '\.php$|^composer\.(json|lock)$|^phpunit\.xml|^\.php-cs-fixer' <<< "$staged"; then
+    echo "No PHP changes staged, skipping checks."
+    exit 0
+fi
+
+log="$(mktemp)"
+trap 'rm -f "$log"' EXIT
+start=$SECONDS
+
+if ! composer check:quick > "$log" 2>&1; then
+    cat "$log"
     echo ""
-    echo "Pre-commit checks failed. Please fix the issues above before committing."
-    echo ""
-    echo "To run full checks (including Rector and PHPStan):"
-    echo "  composer test"
-    echo ""
-    echo "To bypass this hook (not recommended):"
-    echo "  git commit --no-verify"
+    echo "Pre-commit checks failed. Fix the issues above, or bypass with: git commit --no-verify"
     exit 1
 fi
 
-echo ""
-echo "Pre-commit checks passed!"
-echo ""
-echo "Note: Rector and PHPStan run in CI. For local full check: composer test"
+echo "Pre-commit checks passed ($((SECONDS - start))s). Full gate before pushing: composer test"
