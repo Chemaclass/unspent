@@ -54,9 +54,9 @@ composer test             # CS-Fixer + Rector + PHPStan + PHPUnit (full)
 
 Workflow:
 
-1. **Red** — write a failing test
-2. **Green** — write the minimum code to pass
-3. **Refactor** — clean up with the suite green
+1. **Red**: write a failing test
+2. **Green**: write the minimum code to pass
+3. **Refactor**: clean up with the suite green
 
 ## Quality Gates
 
@@ -93,7 +93,7 @@ composer test:feature     # Integration tests
 composer check:quick      # CS-Fixer + PHPUnit (~3s)
 composer check:full       # CS-Fixer + Rector + PHPStan + PHPUnit
 composer test             # Same as check:full
-composer check:mutation   # Mutation testing (100% MSI) — matches CI, run before pushing
+composer check:mutation   # Mutation testing (100% MSI): matches CI, run before pushing
 ```
 
 ### Individual tools
@@ -138,7 +138,7 @@ public function test_transfer_with_insufficient_balance_throws_exception(): void
 public function test_credit_creates_new_output_owned_by_recipient(): void
 ```
 
-Use Arrange–Act–Assert and `assertSame()` for strict comparison. Test behavior, not implementation.
+Use Arrange, Act, Assert and `assertSame()` for strict comparison. Test behavior, not implementation.
 
 ### Mocks
 
@@ -156,7 +156,7 @@ Minimum **100% MSI** required. Mutants that are equivalent by construction are r
 
 ## Make Targets
 
-Common targets — see the full list with `make help`:
+Common targets: see the full list with `make help`:
 
 ```bash
 make test           # Full quality gate
@@ -230,7 +230,7 @@ Use `ref:` (not `refactor:`) for refactoring commits. Never mention Claude/Anthr
 ### Before opening a PR
 
 1. Add tests for new functionality
-2. `composer test` — all gates must pass
+2. `composer test`: all gates must pass
 3. Update CHANGELOG.md under `[Unreleased]`
 4. Keep backward compatibility unless previously discussed in an issue
 

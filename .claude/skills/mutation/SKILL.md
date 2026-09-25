@@ -27,7 +27,7 @@ vendor/bin/infection --filter={file} --min-msi=100 --min-covered-msi=100 --show-
 ### Escaped Mutants
 
 For each escaped mutant:
-- **File:line** — mutation description
+- **File:line**: mutation description
 - **Suggested test:**
 ```php
 public function test_{name}(): void { /* test to catch mutation */ }

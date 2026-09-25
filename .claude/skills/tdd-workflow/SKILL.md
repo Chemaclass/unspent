@@ -6,20 +6,20 @@ Follow the Red-Green-Refactor cycle strictly for the Unspent UTXO library.
 
 When invoked with `$ARGUMENTS`, use them as the feature/bug description. Otherwise ask the user what to implement.
 
-### 1. RED — Write failing test
+### 1. RED: Write failing test
 
 - Create test in the appropriate location (see table below)
 - Name: `test_<action>_<scenario>_<expected_outcome>()`
 - Use Arrange-Act-Assert pattern
 - Run `composer phpunit` to confirm it fails for the right reason
 
-### 2. GREEN — Minimal implementation
+### 2. GREEN: Minimal implementation
 
 - Write the simplest code that makes the test pass
 - No premature optimization
 - Run `composer phpunit` to confirm it passes
 
-### 3. REFACTOR — Clean up
+### 3. REFACTOR: Clean up
 
 - Improve code while keeping tests green
 - Run `composer test` for full quality check
