@@ -14,6 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UnspentSet::first(): ?Output` — first output in iteration order, or `null` when empty
 - `UnspentSet::iterateOwnedBy(string $owner): Generator<string, Output>` — lazily streams one owner's outputs without materializing an intermediate set
 - `UnspentSet::balances(): array<string, int>`: every owner's total in one call, from the owner index
+- `Ledger` lookups (`getOutput()`, `outputHistory()`, `isTxApplied()`, `feeForTx()`, ...) accept plain string ids: `$ledger->getOutput('a1')`. Also on `LoggingLedger` and `EventDispatchingLedger`. `LedgerInterface` is unchanged
+- `OutputId::of()` and `TxId::of()`: wrap a string, or return an id unchanged
 
 ### Changed
 

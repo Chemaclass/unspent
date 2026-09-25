@@ -426,4 +426,27 @@ final class LoggingLedgerTest extends TestCase
         // JSON_PRETTY_PRINT would introduce newlines
         self::assertStringNotContainsString("\n", $json);
     }
+
+    public function test_lookups_accept_plain_string_ids(): void
+    {
+        $ledger = LoggingLedger::wrap(
+            Ledger::inMemory()
+                ->credit('alice', 100, txId: 'mint-1')
+                ->transfer('alice', 'bob', 60, fee: 5, txId: 'tx-1'),
+            $this->createStub(LoggerInterface::class),
+        );
+        $bobOutput = $ledger->unspentByOwner('bob')->first();
+        self::assertNotNull($bobOutput);
+        $bobId = $bobOutput->id->value;
+
+        self::assertTrue($ledger->isTxApplied('tx-1'));
+        self::assertSame(5, $ledger->feeForTx('tx-1'));
+        self::assertTrue($ledger->isCoinbase('mint-1'));
+        self::assertSame(100, $ledger->coinbaseAmount('mint-1'));
+        self::assertSame(60, $ledger->getOutput($bobId)?->amount);
+        self::assertTrue($ledger->outputExists($bobId));
+        self::assertSame('tx-1', $ledger->outputCreatedBy($bobId));
+        self::assertNull($ledger->outputSpentBy($bobId));
+        self::assertSame('tx-1', $ledger->outputHistory($bobId)?->createdBy);
+    }
 }

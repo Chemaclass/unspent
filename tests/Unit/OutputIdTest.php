@@ -93,4 +93,16 @@ final class OutputIdTest extends TestCase
 
         new OutputId('bad id');
     }
+
+    public function test_of_wraps_a_string(): void
+    {
+        self::assertTrue(OutputId::of('out-1')->equals(new OutputId('out-1')));
+    }
+
+    public function test_of_returns_an_existing_id_unchanged(): void
+    {
+        $id = new OutputId('out-1');
+
+        self::assertSame($id, OutputId::of($id));
+    }
 }

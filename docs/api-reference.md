@@ -270,14 +270,16 @@ $ledger->canApply(Tx $tx): ?UnspentException
 
 ### Query - Transactions
 
+Lookups on `Ledger` and its decorators take an id object or a plain string: `$ledger->getOutput('a1')`. `LedgerInterface` keeps the id-object types, so code typed against the interface still passes `new OutputId(...)`.
+
 ```php
-$ledger->isTxApplied(TxId $id): bool
+$ledger->isTxApplied(TxId|string $id): bool
 ```
 
 ### Query - Fees
 
 ```php
-$ledger->feeForTx(TxId $id): ?int        // Fee for specific tx
+$ledger->feeForTx(TxId|string $id): ?int        // Fee for specific tx
 $ledger->totalFeesCollected(): int       // Sum of all fees
 $ledger->allTxFees(): array              // ['id' => fee, ...]
 ```
@@ -287,8 +289,8 @@ $ledger->allTxFees(): array              // ['id' => fee, ...]
 ### Query - Coinbase
 
 ```php
-$ledger->isCoinbase(TxId $id): bool
-$ledger->coinbaseAmount(TxId $id): ?int
+$ledger->isCoinbase(TxId|string $id): bool
+$ledger->coinbaseAmount(TxId|string $id): ?int
 $ledger->totalMinted(): int              // Sum of all coinbases
 ```
 
@@ -296,19 +298,19 @@ $ledger->totalMinted(): int              // Sum of all coinbases
 
 ```php
 // Which transaction created this output? ('genesis' for genesis outputs)
-$ledger->outputCreatedBy(OutputId $id): ?string
+$ledger->outputCreatedBy(OutputId|string $id): ?string
 
 // Which transaction spent this output? (null if unspent or unknown)
-$ledger->outputSpentBy(OutputId $id): ?string
+$ledger->outputSpentBy(OutputId|string $id): ?string
 
 // Get output data even if spent (returns null if never existed)
-$ledger->getOutput(OutputId $id): ?Output
+$ledger->getOutput(OutputId|string $id): ?Output
 
 // Check if output ever existed (spent or unspent)
-$ledger->outputExists(OutputId $id): bool
+$ledger->outputExists(OutputId|string $id): bool
 
 // Get complete history of an output (returns DTO)
-$ledger->outputHistory(OutputId $id): ?OutputHistory
+$ledger->outputHistory(OutputId|string $id): ?OutputHistory
 ```
 
 ### Serialization
@@ -388,6 +390,7 @@ UnspentSet::fromArray(array $data): UnspentSet
 
 ```php
 new OutputId(string $value)
+OutputId::of(OutputId|string $id): OutputId   // wraps a string, returns an id unchanged
 
 $id->value;     // string
 (string) $id;   // Stringable
@@ -403,6 +406,7 @@ $id->equals(OutputId $other): bool
 
 ```php
 new TxId(string $value)
+TxId::of(TxId|string $id): TxId   // wraps a string, returns an id unchanged
 
 $id->value;     // string
 (string) $id;   // Stringable
