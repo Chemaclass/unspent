@@ -187,7 +187,7 @@ Blockchain State
 Custom Locks - Time-Locked Outputs
 ==================================
 
- Registered 'timelock' handler
+ Registered 'vesting' handler
 
  alice spent unlocked funds -> charlie
 

@@ -97,7 +97,7 @@ Register handlers before deserializing:
 ```php
 use Chemaclass\Unspent\Lock\LockFactory;
 
-LockFactory::register('timelock', fn($data) => new TimeLock(
+LockFactory::register('vesting', fn(array $data) => new VestingLock(
     $data['unlockTime'],
     $data['owner'],
 ));

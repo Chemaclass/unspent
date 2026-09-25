@@ -628,12 +628,14 @@ LockFactory::reset(): void
 LockFactory::fromArray(array $data): OutputLock
 ```
 
+Custom handlers take precedence over built-in types. Pick a type name the library does not use (`none`, `owner`, `pubkey`, `timelock`, `multisig`, `hashlock`), or you replace how that built-in lock deserializes.
+
 **Usage:**
 
 ```php
 // Register before calling Ledger::fromJson()
-LockFactory::register('timelock', fn(array $data) => new TimeLock(
-    $data['unlockTimestamp'],
+LockFactory::register('vesting', fn(array $data) => new VestingLock(
+    $data['unlockTime'],
     $data['owner'],
 ));
 
@@ -808,17 +810,12 @@ SqliteRepositoryFactory::createFromPdo(PDO $pdo): QueryableLedgerRepository
 ### SqliteSchema
 
 ```php
-// Create schema tables and indexes
-SqliteSchema::create(PDO $pdo): void
+$schema = new SqliteSchema(PDO $pdo);
 
-// Check if schema exists
-SqliteSchema::exists(PDO $pdo): bool
-
-// Drop all tables (for testing/reset)
-SqliteSchema::drop(PDO $pdo): void
-
-// Current schema version
-SqliteSchema::SCHEMA_VERSION  // 1
+$schema->create(): void      // Create tables and indexes
+$schema->exists(): bool      // Check if schema exists
+$schema->drop(): void        // Drop all tables (for testing/reset)
+$schema->getVersion(): int   // Current schema version (1)
 ```
 
 ### Persistence Exceptions

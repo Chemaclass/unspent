@@ -225,7 +225,7 @@ $htlc = new TimeLock(
 Implement `OutputLock` for advanced scenarios beyond the built-in locks.
 
 ```php
-final readonly class TimeLock implements OutputLock
+final readonly class VestingLock implements OutputLock
 {
     public function __construct(
         public int $unlockTime,
@@ -245,7 +245,7 @@ final readonly class TimeLock implements OutputLock
     public function toArray(): array
     {
         return [
-            'type' => 'timelock',
+            'type' => 'vesting',
             'unlockTime' => $this->unlockTime,
             'owner' => $this->owner,
         ];
@@ -253,7 +253,7 @@ final readonly class TimeLock implements OutputLock
 }
 
 // Usage
-Output::lockedWith(new TimeLock(strtotime('+1 week'), 'alice'), 1000)
+Output::lockedWith(new VestingLock(strtotime('+1 week'), 'alice'), 1000)
 ```
 
 ### Serializing Custom Locks
@@ -261,7 +261,7 @@ Output::lockedWith(new TimeLock(strtotime('+1 week'), 'alice'), 1000)
 Register your lock type before deserializing:
 
 ```php
-LockFactory::register('timelock', fn(array $data) => new TimeLock(
+LockFactory::register('vesting', fn(array $data) => new VestingLock(
     $data['unlockTime'],
     $data['owner'],
 ));

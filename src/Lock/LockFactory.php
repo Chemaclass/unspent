@@ -14,17 +14,17 @@ use ReflectionClass;
  *
  * Register custom lock handlers before deserialization:
  *
- *     LockFactory::register('timelock', fn(array $data) => new TimeLock(
- *         $data['unlockTimestamp'],
+ *     LockFactory::register('vesting', fn(array $data) => new VestingLock(
+ *         $data['unlockTime'],
  *         $data['owner'],
  *     ));
  *
  * Or use auto-discovery with attributes:
  *
- *     #[LockTypeAttribute('timelock')]
- *     final readonly class TimeLock implements OutputLock { ... }
+ *     #[LockTypeAttribute('vesting')]
+ *     final readonly class VestingLock implements OutputLock { ... }
  *
- *     LockFactory::registerFromClass(TimeLock::class);
+ *     LockFactory::registerFromClass(VestingLock::class);
  *
  * Custom handlers take precedence over built-in types.
  *

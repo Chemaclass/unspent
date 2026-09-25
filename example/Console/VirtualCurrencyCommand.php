@@ -4,12 +4,8 @@ declare(strict_types=1);
 
 namespace Example\Console;
 
-use Chemaclass\Unspent\Exception\AuthorizationException;
 use Chemaclass\Unspent\LedgerInterface;
 use Chemaclass\Unspent\Output;
-use Chemaclass\Unspent\OutputLock;
-use Chemaclass\Unspent\Tx;
-use RuntimeException;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 
@@ -117,42 +113,5 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
         }
         $this->io->newLine();
         $this->io->text("Total fees collected: {$ledger->totalFeesCollected()}g");
-    }
-}
-
-/**
- * Time-locked output for quest rewards with cooldown periods.
- */
-final readonly class GameTimeLock implements OutputLock
-{
-    public function __construct(
-        public int $unlockTime,
-        public string $owner,
-    ) {
-    }
-
-    public function validate(Tx $tx, int $inputIndex): void
-    {
-        if (time() < $this->unlockTime) {
-            $remaining = $this->unlockTime - time();
-            throw new RuntimeException("Locked for {$remaining} more seconds");
-        }
-        if ($tx->signedBy !== $this->owner) {
-            throw AuthorizationException::notOwner($this->owner, $tx->signedBy);
-        }
-    }
-
-    public function toArray(): array
-    {
-        return [
-            'type' => 'timelock',
-            'unlockTime' => $this->unlockTime,
-            'owner' => $this->owner,
-        ];
-    }
-
-    public function type(): string
-    {
-        return 'timelock';
     }
 }
