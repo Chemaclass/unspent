@@ -29,7 +29,7 @@ final class AuthorizationExceptionTest extends TestCase
     {
         $exception = AuthorizationException::notOwner('alice', null);
 
-        self::assertSame("Output owned by 'alice', but spend signed by 'null'", $exception->getMessage());
+        self::assertSame("Output owned by 'alice', but spend is unsigned", $exception->getMessage());
         self::assertSame(AuthorizationException::CODE_NOT_OWNER, $exception->getCode());
     }
 

@@ -88,7 +88,7 @@ final class OwnerTest extends TestCase
         );
 
         $this->expectException(AuthorizationException::class);
-        $this->expectExceptionMessage("Output owned by 'alice', but spend signed by 'null'");
+        $this->expectExceptionMessage("Output owned by 'alice', but spend is unsigned");
 
         $lock->validate($tx, 0);
     }

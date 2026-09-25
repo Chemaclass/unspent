@@ -29,6 +29,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- `transfer()`, `debit()` and `batchTransfer()` errors name the owner and the shortfall: `Insufficient funds: 'alice' has 100 unspent, needs 150`
+- Double-spend errors name the tx that spent the output
+- Unsigned spends report `spend is unsigned` instead of `spend signed by 'null'`
+- `Ledger::fromJson()` throws `InvalidArgumentException` on a malformed snapshot instead of a warning and a `TypeError`
+- `docs/troubleshooting.md` snippets that did not run
 - `docs/selection-strategies.md` documented a `Ledger::inMemory(strategy: ...)` constructor argument that never existed, and its worked example reported the FIFO row as spending three outputs (85, change 25) when selection stops at two (60, change 0). Both now match the shipped behaviour
 - `.scrutinizer.yml` excluded `examples/`, but the directory is `example/`; the entry never matched anything
 

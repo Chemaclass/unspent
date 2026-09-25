@@ -16,6 +16,7 @@ use Chemaclass\Unspent\Output;
 use Chemaclass\Unspent\OutputId;
 use Chemaclass\Unspent\Tx;
 use Chemaclass\Unspent\TxId;
+use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 
 final class LedgerTest extends TestCase
@@ -182,7 +183,7 @@ final class LedgerTest extends TestCase
     public function test_output_can_only_be_spent_once(): void
     {
         $this->expectException(OutputAlreadySpentException::class);
-        $this->expectExceptionMessage("Output 'a' is not in the unspent set");
+        $this->expectExceptionMessage("Output 'a' is not in the unspent set (already spent in tx 'tx1')");
 
         $ledger = Ledger::withGenesis(Output::open(100, 'a'))
             ->apply(new Tx(
@@ -740,6 +741,7 @@ final class LedgerTest extends TestCase
     public function test_transfer_fails_on_insufficient_balance(): void
     {
         $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage("Insufficient funds: 'alice' has 100 unspent, needs 200");
 
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 100, 'alice-funds'),
@@ -805,6 +807,7 @@ final class LedgerTest extends TestCase
     public function test_debit_fails_on_insufficient_balance(): void
     {
         $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage("Insufficient funds: 'alice' has 100 unspent, needs 200");
 
         $ledger = Ledger::withGenesis(
             Output::ownedBy('alice', 100, 'alice-funds'),
@@ -999,5 +1002,38 @@ final class LedgerTest extends TestCase
         self::assertSame(0, $ledger->totalUnspentByOwner('alice'));
         self::assertSame(300, $ledger->totalUnspentByOwner('bob'));
         self::assertSame(300, $ledger->totalUnspentByOwner('charlie'));
+    }
+
+    public function test_transfer_from_unknown_owner_reports_zero_balance(): void
+    {
+        $this->expectException(InsufficientSpendsException::class);
+        $this->expectExceptionMessage("Insufficient funds: 'zed' has 0 unspent, needs 7");
+
+        Ledger::withGenesis(Output::ownedBy('alice', 100))
+            ->transfer('zed', 'bob', 5, fee: 2);
+    }
+
+    public function test_from_json_rejects_a_snapshot_missing_a_required_key(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid ledger data: missing required key 'appliedTxs'");
+
+        Ledger::fromJson('{"version": 1, "unspent": {}, "txFees": {}, "coinbaseAmounts": {}}');
+    }
+
+    public function test_from_json_rejects_an_empty_object(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage("Invalid ledger data: missing required key 'unspent'");
+
+        Ledger::fromJson('{}');
+    }
+
+    public function test_from_json_rejects_a_non_object_payload(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Invalid ledger JSON: expected an object, got string');
+
+        Ledger::fromJson('"ledger"');
     }
 }
