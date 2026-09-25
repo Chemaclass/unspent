@@ -32,6 +32,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The pre-commit hook prints tool output only on failure and skips commits with no PHP changes. Its shell tests run in CI (`composer test:bash`)
 - Mutation-testing gate raised from 90% to **100% MSI**. Mutants that are equivalent by construction — marker arrays whose value is never read, `json_decode()`'s depth guard, `PublicKey`'s unreachable defensive re-check, and `TimeLock`'s `time()` boundaries — are recorded with their reasoning in the `mutators.*.ignore` lists of `infection.json5` rather than absorbed into a lower threshold
 
+### Removed
+
+- Scrutinizer CI configuration and README badges
+
 ### Fixed
 
 - `transfer()`, `debit()` and `batchTransfer()` errors name the owner and the shortfall: `Insufficient funds: 'alice' has 100 unspent, needs 150`
@@ -42,7 +46,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `docs/selection-strategies.md` documented a `Ledger::inMemory(strategy: ...)` constructor argument that never existed, and its worked example reported the FIFO row as spending three outputs (85, change 25) when selection stops at two (60, change 0). Both now match the shipped behaviour
 - Custom-lock examples in the docs and `example/` registered a handler for `'timelock'`, which replaces the built-in `TimeLock` deserializer. They now use their own `'vesting'` type
 - `docs/api-reference.md` documented `SqliteSchema` as static; it takes a `PDO` in its constructor
-- `.scrutinizer.yml` excluded `examples/`, but the directory is `example/`; the entry never matched anything
 
 ### Dependencies
 
