@@ -306,6 +306,21 @@ final class UnspentSet implements Countable, IteratorAggregate
         return $total;
     }
 
+    /**
+     * Returns each owner's total, for outputs with an Owner lock.
+     *
+     * @return array<string, int> Owner name => total unspent amount
+     */
+    public function balances(): array
+    {
+        $balances = [];
+        foreach ($this->ownerIndex as $owner => $_) {
+            $balances[$owner] = $this->totalAmountOwnedBy($owner);
+        }
+
+        return $balances;
+    }
+
     public function getIterator(): Traversable
     {
         return new ArrayIterator($this->outputs);

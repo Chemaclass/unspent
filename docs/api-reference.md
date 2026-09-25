@@ -337,6 +337,10 @@ $set->get(OutputId $id): ?Output
 $set->outputIds(): array  // list<OutputId>
 $set->values(): array     // list<Output>
 $set->first(): ?Output    // first in iteration order, null when empty
+
+$set->ownedBy(string $owner): UnspentSet
+$set->totalAmountOwnedBy(string $owner): int
+$set->balances(): array   // array<string, int>, owner => total (Owner locks only)
 ```
 
 ### Iteration

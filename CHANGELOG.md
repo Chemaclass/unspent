@@ -13,6 +13,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `UnspentSet::values(): list<Output>` — replaces `iterator_to_array($set)`; allocates no iterator and returns a list
 - `UnspentSet::first(): ?Output` — first output in iteration order, or `null` when empty
 - `UnspentSet::iterateOwnedBy(string $owner): Generator<string, Output>` — lazily streams one owner's outputs without materializing an intermediate set
+- `UnspentSet::balances(): array<string, int>`: every owner's total in one call, from the owner index
 
 ### Changed
 
