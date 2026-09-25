@@ -443,6 +443,28 @@ final class UnspentSetTest extends TestCase
         self::assertSame(130, $aliceOutputs->totalAmount());
     }
 
+    public function test_balances_sums_each_owner_and_skips_non_owner_locks(): void
+    {
+        $set = UnspentSet::fromOutputs(
+            Output::ownedBy('alice', 100, 'a'),
+            Output::ownedBy('bob', 50, 'b'),
+            Output::ownedBy('alice', 30, 'c'),
+            Output::open(20, 'd'),
+        );
+
+        self::assertSame(['alice' => 130, 'bob' => 50], $set->balances());
+    }
+
+    public function test_balances_drops_owners_whose_outputs_were_removed(): void
+    {
+        $set = UnspentSet::fromOutputs(
+            Output::ownedBy('alice', 100, 'a'),
+            Output::ownedBy('bob', 50, 'b'),
+        )->remove(new OutputId('b'));
+
+        self::assertSame(['alice' => 100], $set->balances());
+    }
+
     public function test_owned_by_returns_empty_for_open_outputs(): void
     {
         $set = UnspentSet::fromOutputs(Output::open(100, 'a'));

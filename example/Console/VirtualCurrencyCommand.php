@@ -112,12 +112,7 @@ final class VirtualCurrencyCommand extends AbstractExampleCommand
     private function showBalances(LedgerInterface $ledger): void
     {
         $this->io->section('Balances');
-        $balances = [];
-        foreach ($ledger->unspent() as $output) {
-            $owner = $output->lock->toArray()['name'] ?? 'unknown';
-            $balances[$owner] = ($balances[$owner] ?? 0) + $output->amount;
-        }
-        foreach ($balances as $player => $balance) {
+        foreach ($ledger->unspent()->balances() as $player => $balance) {
             $this->io->text("  {$player}: {$balance}g");
         }
         $this->io->newLine();
